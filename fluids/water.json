@@ -1,0 +1,43 @@
+{
+  "id": "water",
+  "name": "Su (H₂O)",
+  "description": "Saf su, atmosfer basıncında",
+  "source": "NIST Webbook + Incropera Table A.6",
+  "version": "1.0",
+
+  "valid_range": {
+    "T_min_C": 0,
+    "T_max_C": 150,
+    "P_min_bar": 0.5,
+    "P_max_bar": 10,
+    "note": "Bu aralık dışında değerler ekstrapolasyon ile hesaplanır, doğruluk azalır."
+  },
+
+  "props_table_file": "water_props.csv",
+
+  "polynomial_fallback": {
+    "description": "CSV yüklenemezse bu polinomlar kullanılır. T birimi °C.",
+    "density": {
+      "unit": "kg/m³",
+      "model": "polynomial",
+      "T_ref": 20,
+      "coefficients": [998.21, -0.2411, -0.003472, 0.0000113],
+      "note": "ρ = a0 + a1*T + a2*T² + a3*T³"
+    },
+    "dynamic_viscosity": {
+      "unit": "mPa·s",
+      "model": "arrhenius",
+      "A": 2.414e-2,
+      "B": 247.8,
+      "C": 140,
+      "note": "μ = A * 10^(B/(T+273.15-C)),  T in °C, result in mPa·s"
+    }
+  },
+
+  "phase": "liquid",
+  "molar_mass_g_mol": 18.015,
+  "critical_point": {
+    "T_C": 373.95,
+    "P_bar": 220.64
+  }
+}
