@@ -1,5 +1,6 @@
 
 'use strict';
+
 // ═══════════════════════════════════
 // CATALOG DATA
 // ═══════════════════════════════════
@@ -73,30 +74,6 @@ let dropIdx    = null;
 const PAD=60, PIPE_MIN=70, PIPE_MAX=170, FIT_W=54, PUMP_W=58, METER_W=38, ROW_Y=160, COMP_H=60;
 
 // ═══════════════════════════════════
-// MOCK CALC
-// ═══════════════════════════════════
-function runCalc() {
-  let P = 2.0;
-  calcRes = line.map(comp => {
-    const v  = +(0.40 + Math.random()*0.04).toFixed(3);
-    const Re = Math.floor(20000 + Math.random()*3000);
-    let dP = 0;
-    if (comp.type==='pipe')  dP = 0.0015*(comp.length_m||5)*(comp.diameter_mm||50 < 40 ? 2 : 1);
-    if (comp.type==='elbow') dP = 0.004*(comp.K||0.75);
-    if (comp.type==='valve') {
-      if (comp.special==='prv') dP = Math.max(0, P-(comp.P_set_bar||1.0));
-      else dP = 0.005*(comp.K||1);
-    }
-    if (comp.type==='pump')  dP = -(comp.head_m||20)*998.2*9.81/1e5;
-    if (comp.type==='meter') dP = 0;
-    const P_out = +(P - dP).toFixed(4);
-    const res = {P_in:+P.toFixed(4), P_out, dP:+dP.toFixed(5), v, Re};
-    P = P_out;
-    return res;
-  });
-}
-
-// ═══════════════════════════════════
 // CATALOG RENDER
 // ═══════════════════════════════════
 function renderCatalog() {
@@ -165,7 +142,7 @@ function onDragOver(evt) {
   document.getElementById('canvas-scroll').classList.add('drag-over');
   if (dragItem) {
     const rect = document.getElementById('canvas-scroll').getBoundingClientRect();
-    dropIdx = calcDropIdx(evt.clientX - rect.left);
+    dropIdx = calcDropIdx(evt.clientX - rect.left + document.getElementById('canvas-scroll').scrollLeft);
     renderSVG();
   }
 }
@@ -203,7 +180,6 @@ function calcDropIdx(mouseX) {
 
 function makeComp(tpl) {
   const c = {...tpl, _id: ++idCtr};
-  // diameter inheritance
   const prev = line.length > 0 ? line[line.length-1] : null;
   const prevD = prev ? (prev.d_out_mm || prev.diameter_mm || 50) : 50;
   if (c.type !== 'pipe') c.diameter_mm = prevD;
@@ -288,7 +264,7 @@ function renderSVG() {
       ? lyt[dropIdx].x - 5
       : (lyt.length ? lyt[lyt.length-1].x + lyt[lyt.length-1].w + 5 : PAD+28);
     const iy = yp[Math.min(dropIdx, yp.length-1)] || ROW_Y;
-    out += `<line x1="${ix}" y1="${iy-30}" x2="${ix}" y2="${iy+30}" stroke="#f0a500" stroke-width="2" stroke-dasharray="4,3" opacity="0.7" class="drop-indicator"/>`;
+    out += `<line x1="${ix}" y1="${iy-30}" x2="${ix}" y2="${iy+30}" stroke="#f0a500" stroke-width="2" stroke-dasharray="4,3" opacity="0.8"/>`;
   }
 
   // Inlet node
@@ -316,8 +292,14 @@ function renderSVG() {
     if (g) g.addEventListener('click', e => { e.stopPropagation(); selectComp(i); });
   });
 
-  // deselect on bg click
   svgEl.addEventListener('click', e => { if (e.target===svgEl) deselect(); });
+
+  // Update info
+  if (line.length) {
+    const lastRes = calcRes[calcRes.length-1];
+    document.getElementById('cv-info').textContent =
+      lastRes ? `${line.length} components  ·  P_out = ${lastRes.P_out} bar` : `${line.length} components`;
+  }
 }
 
 function buildSpine(lyt, yp) {
@@ -336,8 +318,8 @@ function buildSpine(lyt, yp) {
 }
 
 function node(x, y, label, color) {
-  return `<circle cx="${x}" cy="${y}" r="5" fill="${color}" opacity="0.8"/>
-    <text x="${x}" y="${y-12}" text-anchor="middle" font-family="IBM Plex Mono" font-size="11" font-weight="600" fill="${color}">${label}</text>`;
+  return `<circle cx="${x}" cy="${y}" r="5" fill="${color}" opacity="0.85"/>
+    <text x="${x}" y="${y-12}" text-anchor="middle" font-family="IBM Plex Mono" font-size="11" font-weight="700" fill="${color}">${label}</text>`;
 }
 
 function pressureGradient(lyt, yp) {
@@ -351,14 +333,14 @@ function pressureGradient(lyt, yp) {
     const cy = yp[i] - res.P_in * scale - 22;
     d += `${i===0?'M':'L'} ${cx} ${cy} `;
   });
-  return `<path d="${d}" fill="none" stroke="rgba(61,158,245,0.45)" stroke-width="1.5" stroke-dasharray="5,3"/>
-    <text x="${lyt[0].x}" y="${yp[0] - calcRes[0].P_in*scale - 28}" font-family="IBM Plex Mono" font-size="8" fill="rgba(61,158,245,0.5)">P (bar)</text>`;
+  return `<path d="${d}" fill="none" stroke="rgba(61,158,245,0.5)" stroke-width="1.5" stroke-dasharray="5,3"/>
+    <text x="${lyt[0].x}" y="${yp[0] - calcRes[0].P_in*scale - 30}" font-family="IBM Plex Mono" font-size="8" fill="rgba(61,158,245,0.6)">P (bar)</text>`;
 }
 
 // ─── COMPONENT SVG ──────────────────────────────────────
 function compSVG(comp, x, y, w, isSel, res) {
   const sel    = isSel ? 'sel' : '';
-  const stroke = isSel ? `stroke="#f0a500" stroke-width="2"` : `stroke="#2a2f3a" stroke-width="1"`;
+  const stroke = isSel ? `stroke="#f0a500" stroke-width="2"` : `stroke="#252830" stroke-width="1"`;
   let body = '';
 
   if (comp.type==='pipe')   body = pipeSVG(comp,x,y,w,stroke,res);
@@ -384,15 +366,14 @@ function pipeSVG(comp, x, y, w, stroke, res) {
   const color = isRed ? '#9b59b6' : '#3d9ef5';
   const label = isRed ? `${comp.d_in_mm||50}→${comp.d_out_mm||25}mm` : `⌀${comp.diameter_mm||50}mm`;
   const val   = isRed ? '' : `${comp.length_m||5}m`;
-  const mat   = MATERIALS.find(m=>m.id===comp.material)?.name.split(' ')[0] || '';
   return `
-    <rect x="${x}" y="${y-9}" width="${w}" height="18" fill="#0e0f11" ${stroke} class="c-bg c-outline"/>
+    <rect x="${x}" y="${y-9}" width="${w}" height="18" fill="#0e0f12" ${stroke} class="c-bg c-outline" rx="1"/>
     ${isRed
       ? `<polygon points="${x},${y-8} ${x+w},${y-5} ${x+w},${y+5} ${x},${y+8}" fill="rgba(155,89,182,0.12)" stroke="${color}" stroke-width="1"/>`
-      : `<line x1="${x+2}" y1="${y}" x2="${x+w-2}" y2="${y}" stroke="${color}" stroke-width="1" opacity="0.35"/>`
+      : `<line x1="${x+2}" y1="${y}" x2="${x+w-2}" y2="${y}" stroke="${color}" stroke-width="1" opacity="0.4"/>`
     }
-    ${showLabels ? `<text x="${x+w/2}" y="${y-14}" text-anchor="middle" font-family="IBM Plex Mono" font-size="8" fill="#606878">${label}</text>
-      <text x="${x+w/2}" y="${y+22}" text-anchor="middle" font-family="IBM Plex Mono" font-size="8" fill="#606878">${val}</text>
+    ${showLabels ? `<text x="${x+w/2}" y="${y-14}" text-anchor="middle" font-family="IBM Plex Mono" font-size="8" fill="#5a6070">${label}</text>
+      <text x="${x+w/2}" y="${y+22}" text-anchor="middle" font-family="IBM Plex Mono" font-size="8" fill="#5a6070">${val}</text>
       ${res ? `<text x="${x+w/2}" y="${y+32}" text-anchor="middle" font-family="IBM Plex Mono" font-size="8" fill="#3d9ef5">v=${res.v}m/s</text>` : ''}` : ''}
   `;
 }
@@ -401,10 +382,10 @@ function elbowSVG(comp, x, y, w, stroke) {
   const cx = x+w/2, color = '#f0a500';
   const angle = comp.subtype==='elbow_45' ? '45°' : comp.subtype==='elbow_180' ? '180°' : '90°';
   return `
-    <rect x="${x}" y="${y-22}" width="${w}" height="44" fill="rgba(240,165,0,0.04)" ${stroke} class="c-bg c-outline"/>
+    <rect x="${x}" y="${y-22}" width="${w}" height="44" fill="rgba(240,165,0,0.04)" ${stroke} class="c-bg c-outline" rx="1"/>
     <path d="M ${x} ${y} Q ${cx} ${y} ${cx} ${y+18}" fill="none" stroke="${color}" stroke-width="2"/>
-    ${showLabels ? `<text x="${cx}" y="${y-26}" text-anchor="middle" font-family="IBM Plex Mono" font-size="8" fill="#606878">${angle}</text>
-      <text x="${cx}" y="${y+34}" text-anchor="middle" font-family="IBM Plex Mono" font-size="8" fill="#8a94a6">K=${comp.K}</text>` : ''}
+    ${showLabels ? `<text x="${cx}" y="${y-26}" text-anchor="middle" font-family="IBM Plex Mono" font-size="8" fill="#5a6070">${angle}</text>
+      <text x="${cx}" y="${y+34}" text-anchor="middle" font-family="IBM Plex Mono" font-size="8" fill="#6a7480">K=${comp.K}</text>` : ''}
   `;
 }
 
@@ -414,7 +395,7 @@ function valveSVG(comp, x, y, w, stroke) {
   const isChk = comp.subtype==='check';
   const color = isPRV ? '#e74c3c' : '#e05c00';
   return `
-    <rect x="${x}" y="${cy-22}" width="${w}" height="44" fill="rgba(224,92,0,0.04)" ${stroke} class="c-bg c-outline"/>
+    <rect x="${x}" y="${cy-22}" width="${w}" height="44" fill="rgba(224,92,0,0.04)" ${stroke} class="c-bg c-outline" rx="1"/>
     <line x1="${x}" y1="${cy}" x2="${cx-11}" y2="${cy}" stroke="${color}" stroke-width="1.5"/>
     <polygon points="${cx-11},${cy-9} ${cx+11},${cy} ${cx-11},${cy+9}" fill="none" stroke="${color}" stroke-width="1.2"/>
     ${isChk
@@ -424,19 +405,19 @@ function valveSVG(comp, x, y, w, stroke) {
     <line x1="${cx+11}" y1="${cy}" x2="${x+w}" y2="${cy}" stroke="${color}" stroke-width="1.5"/>
     ${isPRV ? `<line x1="${cx}" y1="${cy-11}" x2="${cx}" y2="${cy-20}" stroke="${color}" stroke-width="1"/>
       <path d="M${cx-5},${cy-20} Q${cx},${cy-27} ${cx+5},${cy-20}" fill="none" stroke="${color}" stroke-width="1"/>` : ''}
-    ${showLabels ? `<text x="${cx}" y="${cy-26}" text-anchor="middle" font-family="IBM Plex Mono" font-size="8" fill="#606878">${comp.name}</text>
-      ${comp.K!=null ? `<text x="${cx}" y="${cy+34}" text-anchor="middle" font-family="IBM Plex Mono" font-size="8" fill="#8a94a6">K=${comp.K}</text>` : ''}` : ''}
+    ${showLabels ? `<text x="${cx}" y="${cy-26}" text-anchor="middle" font-family="IBM Plex Mono" font-size="7" fill="#5a6070">${comp.name}</text>
+      ${comp.K!=null ? `<text x="${cx}" y="${cy+34}" text-anchor="middle" font-family="IBM Plex Mono" font-size="8" fill="#6a7480">K=${comp.K}</text>` : ''}` : ''}
   `;
 }
 
 function pumpSVG(comp, x, y, w, stroke, res) {
   const cx=x+w/2, cy=y, r=16;
   return `
-    <rect x="${x}" y="${cy-26}" width="${w}" height="52" fill="rgba(46,204,113,0.04)" ${stroke} class="c-bg c-outline"/>
+    <rect x="${x}" y="${cy-26}" width="${w}" height="52" fill="rgba(46,204,113,0.04)" ${stroke} class="c-bg c-outline" rx="1"/>
     <circle cx="${cx}" cy="${cy}" r="${r}" fill="rgba(46,204,113,0.07)" stroke="#2ecc71" stroke-width="1.5"/>
     <line x1="${x}" y1="${cy}" x2="${cx-r}" y2="${cy}" stroke="#2ecc71" stroke-width="1.5"/>
     <line x1="${cx+r}" y1="${cy}" x2="${x+w}" y2="${cy}" stroke="#2ecc71" stroke-width="1.5"/>
-    <path d="M${cx},${cy} L${cx-5},${cy-7} L${cx+7},${cy-3} Z" fill="#2ecc71" opacity="0.65"/>
+    <path d="M${cx},${cy} L${cx-5},${cy-7} L${cx+7},${cy-3} Z" fill="#2ecc71" opacity="0.7"/>
     ${showLabels ? `<text x="${cx}" y="${cy-30}" text-anchor="middle" font-family="IBM Plex Mono" font-size="8" fill="#2ecc71">PUMP</text>
       <text x="${cx}" y="${cy+30}" text-anchor="middle" font-family="IBM Plex Mono" font-size="9" fill="#2ecc71">+${comp.head_m||20}m</text>` : ''}
   `;
@@ -446,28 +427,11 @@ function meterSVG(comp, x, y, w, stroke, res) {
   const cx=x+w/2, cy=y;
   return `
     <line x1="${x}" y1="${cy}" x2="${x+w}" y2="${cy}" stroke="#2a2f3a" stroke-width="1" stroke-dasharray="3,2"/>
-    <circle cx="${cx}" cy="${cy}" r="11" fill="rgba(240,165,0,0.05)" stroke="#f0a500" stroke-width="1.5" class="c-bg c-outline"/>
+    <circle cx="${cx}" cy="${cy}" r="11" fill="rgba(240,165,0,0.06)" stroke="#f0a500" stroke-width="1.5" class="c-bg c-outline"/>
     <line x1="${cx}" y1="${cy-11}" x2="${cx}" y2="${cy-20}" stroke="#f0a500" stroke-width="1"/>
     ${showLabels ? `<text x="${cx}" y="${cy-24}" text-anchor="middle" font-family="IBM Plex Mono" font-size="8" fill="#f0a500">${comp.id||'M'}</text>` : ''}
     ${res ? `<text x="${cx}" y="${cy+26}" text-anchor="middle" font-family="IBM Plex Mono" font-size="8" fill="#f0a500">${res.P_out}bar</text>` : ''}
   `;
-}
-
-// ─── WARNINGS ───────────────────────────────────────────
-function getWarns(comp, res) {
-  const w = [];
-  if (!res) return w;
-  if (res.P_out < 0)   w.push({lvl:'err', msg:'Negative pressure'});
-  if (res.P_out < 0.3 && res.P_out >= 0) w.push({lvl:'wrn', msg:'Low outlet pressure'});
-  const idx = line.indexOf(comp);
-  if (idx > 0) {
-    const prev  = line[idx-1];
-    const prevD = prev.d_out_mm || prev.diameter_mm;
-    const thisD = comp.d_in_mm  || comp.diameter_mm;
-    if (prevD && thisD && Math.abs(prevD-thisD) > 2)
-      w.push({lvl:'wrn', msg:`Diameter mismatch ${prevD}→${thisD}mm`});
-  }
-  return w;
 }
 
 // ═══════════════════════════════════
@@ -493,20 +457,17 @@ function renderProps() {
   const res  = calcRes[selected] || null;
   let h = '';
 
-  // Component type header
   h += `<div class="ps"><div class="ps-title">Component</div>
     <div class="pr"><span class="pl">Type</span><span class="pv">${comp.name||comp.type}</span></div>
     ${comp.subtype ? `<div class="pr"><span class="pl">Subtype</span><span class="pv">${comp.subtype.replace(/_/g,' ')}</span></div>` : ''}
   </div>`;
 
-  // Warnings
   const warns = getWarns(comp, res);
   h += `<div class="ps">`;
   if (!warns.length) h += `<div class="badge ok">✓ No issues</div>`;
   warns.forEach(w => h += `<div class="badge ${w.lvl}">⚠ ${w.msg}</div>`);
   h += `</div>`;
 
-  // Editable params
   h += `<div class="ps"><div class="ps-title">Parameters</div>`;
 
   if (comp.type==='pipe') {
@@ -564,13 +525,12 @@ function renderProps() {
 
   h += `</div>`;
 
-  // Live readings
   if (res) {
     h += `<div class="ps"><div class="ps-title">Live Readings</div>
       <div class="reading-card">
         <div class="r-row"><span class="r-lbl">P inlet</span><span><span class="r-val">${res.P_in}</span> <span class="r-unit">bar</span></span></div>
         <div class="r-row"><span class="r-lbl">P outlet</span><span><span class="r-val" style="${res.P_out<0.3?'color:var(--red)':''}">${res.P_out}</span> <span class="r-unit">bar</span></span></div>
-        <div class="r-row"><span class="r-lbl">ΔP</span><span><span class="r-val" style="color:var(--accent2)">${res.dP}</span> <span class="r-unit">bar</span></span></div>
+        <div class="r-row"><span class="r-lbl">ΔP</span><span><span class="r-val" style="color:var(--accent)">${res.dP}</span> <span class="r-unit">bar</span></span></div>
         <div class="r-row"><span class="r-lbl">Velocity</span><span><span class="r-val" style="color:var(--blue)">${res.v}</span> <span class="r-unit">m/s</span></span></div>
         <div class="r-row"><span class="r-lbl">Reynolds</span><span><span class="r-val" style="color:var(--text-mid);font-size:13px">${res.Re.toLocaleString()}</span></span></div>
       </div>
@@ -592,6 +552,47 @@ function updMat(idx, matId) {
   const el = document.getElementById('eps-display');
   if (el) el.textContent = m?.eps || '';
   runCalc(); renderSVG();
+}
+
+// ═══════════════════════════════════
+// MOCK CALC (hydraulics engine)
+// ═══════════════════════════════════
+function runCalc() {
+  let P = 2.0;
+  calcRes = line.map(comp => {
+    const v  = +(0.40 + Math.random()*0.04).toFixed(3);
+    const Re = Math.floor(20000 + Math.random()*3000);
+    let dP = 0;
+    if (comp.type==='pipe')  dP = 0.0015*(comp.length_m||5)*(( comp.diameter_mm||50) < 40 ? 2 : 1);
+    if (comp.type==='elbow') dP = 0.004*(comp.K||0.75);
+    if (comp.type==='valve') {
+      if (comp.special==='prv') dP = Math.max(0, P-(comp.P_set_bar||1.0));
+      else dP = 0.005*(comp.K||1);
+    }
+    if (comp.type==='pump')  dP = -(comp.head_m||20)*998.2*9.81/1e5;
+    if (comp.type==='meter') dP = 0;
+    const P_out = +(P - dP).toFixed(4);
+    const res = {P_in:+P.toFixed(4), P_out, dP:+dP.toFixed(5), v, Re};
+    P = P_out;
+    return res;
+  });
+}
+
+// ─── WARNINGS ───────────────────────────────────────────
+function getWarns(comp, res) {
+  const w = [];
+  if (!res) return w;
+  if (res.P_out < 0)   w.push({lvl:'err', msg:'Negative pressure'});
+  if (res.P_out < 0.3 && res.P_out >= 0) w.push({lvl:'wrn', msg:'Low outlet pressure'});
+  const idx = line.indexOf(comp);
+  if (idx > 0) {
+    const prev  = line[idx-1];
+    const prevD = prev.d_out_mm || prev.diameter_mm;
+    const thisD = comp.d_in_mm  || comp.diameter_mm;
+    if (prevD && thisD && Math.abs(prevD-thisD) > 2)
+      w.push({lvl:'wrn', msg:`Diameter mismatch ${prevD}→${thisD}mm`});
+  }
+  return w;
 }
 
 // ═══════════════════════════════════
@@ -644,6 +645,10 @@ function updateStatus() {
   else if (hasWrn) { dot.className='status-dot warn'; txt.textContent='WARNING'; }
   else             { dot.className='status-dot ok';   txt.textContent=`${line.length} COMP`; }
 }
+
+// ═══════════════════════════════════
+// RESIZE HANDLE
+// ═══════════════════════════════════
 const handle   = document.getElementById('resize-handle');
 const bottomBar = document.getElementById('bottom-bar');
 let isResizing = false;
@@ -653,13 +658,14 @@ handle.addEventListener('mousedown', e => {
   isResizing = true;
   startY = e.clientY;
   startH = bottomBar.offsetHeight;
+  handle.classList.add('active');
   document.body.style.cursor = 'ns-resize';
   document.body.style.userSelect = 'none';
 });
 
 document.addEventListener('mousemove', e => {
   if (!isResizing) return;
-  const delta = startY - e.clientY;   // yukarı çekince büyür
+  const delta = startY - e.clientY;
   const newH  = Math.min(500, Math.max(80, startH + delta));
   bottomBar.style.height = newH + 'px';
 });
@@ -667,9 +673,11 @@ document.addEventListener('mousemove', e => {
 document.addEventListener('mouseup', () => {
   if (!isResizing) return;
   isResizing = false;
+  handle.classList.remove('active');
   document.body.style.cursor = '';
   document.body.style.userSelect = '';
 });
+
 // ═══════════════════════════════════
 // INIT
 // ═══════════════════════════════════

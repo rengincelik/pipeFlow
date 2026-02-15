@@ -1,82 +1,86 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>PipeFlow — Pipeline Designer</title>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
-</head>
-<body>
+	<head>
+		<meta charset="UTF-8">
+		<title>PipeFlow — Pipeline Designer</title>
+		<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+		<link rel="stylesheet" href="style.css">
+	</head>
+	<body>
 
-<!-- TOPBAR -->
-<div id="topbar">
-  <div class="logo"><div class="logo-box">PF</div>PIPEFLOW</div>
-  <div class="sep"></div>
-  <button class="tb-btn active" id="btn-design">Design</button>
-  <button class="tb-btn" id="btn-analyze" onclick="toggleAnalyze()">Analyze</button>
-  <div class="sep"></div>
-  <button class="tb-btn" onclick="clearLine()">New</button>
-  <button class="tb-btn" onclick="exportJSON()">Export</button>
-  <button class="tb-btn danger" id="btn-del" style="display:none" onclick="deleteSelected()">Delete</button>
-  <div class="topbar-right">
-    <div class="status-pill">
-      <div class="status-dot ok" id="sdot"></div>
-      <span id="stext">READY</span>
-    </div>
-  </div>
-</div>
-
-<!-- LAYOUT -->
-<div id="layout">
-
-  <!-- CENTER CANVAS — sadece canvas burada -->
-  <div id="center">
-    <div id="canvas-bar">
-		<button class="cv-btn" onclick="zoomFit()">Fit</button>
-		<button class="cv-btn" id="btn-pg" onclick="togglePG()">Pressure Gradient</button>
-		<button class="cv-btn active" id="btn-lbl" onclick="toggleLabels()">Labels</button>
-		<span class="cv-info" id="cv-info">Drag components from catalog to start</span>
+		<!-- TOPBAR -->
+		<div id="topbar">
+		<div class="logo"><div class="logo-box">PF</div>PIPEFLOW</div>
+		<div class="sep"></div>
+		<button class="tb-btn active" id="btn-design">Design</button>
+		<button class="tb-btn" id="btn-analyze" onclick="toggleAnalyze()">Analyze</button>
+		<div class="sep"></div>
+		<button class="tb-btn" onclick="clearLine()">New</button>
+		<button class="tb-btn" onclick="exportJSON()">Export</button>
+		<button class="tb-btn danger" id="btn-del" style="display:none" onclick="deleteSelected()">Delete</button>
+		<div class="topbar-right">
+			<div class="status-pill">
+			<div class="status-dot ok" id="sdot"></div>
+			<span id="stext">READY</span>
+			</div>
 		</div>
-		<div id="canvas-scroll"
-		ondragover="onDragOver(event)"
-		ondrop="onDrop(event)"
-		ondragleave="onDragLeave(event)">
-
-		<svg id="svg-canvas"></svg>
-
-		<div id="empty-hint">
-			<div class="hint-arrow">⟶</div>
-			<div class="hint-text">DRAG COMPONENTS<br>FROM THE CATALOG</div>
 		</div>
 
+
+		<!-- LAYOUT -->
+		<div id="layout">
+
+		<!-- CENTER CANVAS -->
+		<div id="center">
+			<div id="canvas-bar">
+			<button class="cv-btn" onclick="zoomFit()">Fit</button>
+			<button class="cv-btn" id="btn-pg" onclick="togglePG()">Pressure Gradient</button>
+			<button class="cv-btn active" id="btn-lbl" onclick="toggleLabels()">Labels</button>
+			<span class="cv-info" id="cv-info">Drag components from catalog to start</span>
+			</div>
+			<div id="canvas-scroll"
+			ondragover="onDragOver(event)"
+			ondrop="onDrop(event)"
+			ondragleave="onDragLeave(event)">
+
+			<svg id="svg-canvas"></svg>
+
+			<div id="empty-hint">
+				<div class="hint-arrow">⟶</div>
+				<div class="hint-text">DRAG COMPONENTS<br>FROM THE CATALOG</div>
+			</div>
+			</div>
 		</div>
-  </div>
 
-  <!-- BOTTOM BAR — catalog + properties yan yana -->
-   <div id="resize-handle"></div>
-  <div id="bottom-bar">
+		<div id="resize-handle"></div>
 
-    <div class="panel" id="panel-l">
-      <div class="panel-hdr">
-        <div class="panel-hdr-accent"></div>
-        Components
-      </div>
-      <div class="panel-scroll" id="cat-body"></div>
-    </div>
+		<!-- BOTTOM BAR -->
+		<div id="bottom-bar">
 
-    <div class="panel" id="panel-r">
-      <div class="panel-hdr">
-        <div class="panel-hdr-accent"></div>
-        Properties
-      </div>
-      <div class="panel-scroll" id="prop-body">
-      </div>
-    </div>
+			<div class="panel" id="panel-l">
+			<div class="panel-hdr">
+				<div class="panel-hdr-accent"></div>
+				Components
+			</div>
+			<div class="panel-scroll" id="cat-body"></div>
+			</div>
 
-  </div>
+			<div class="panel" id="panel-r">
+			<div class="panel-hdr">
+				<div class="panel-hdr-accent" style="background:var(--accent)"></div>
+				Properties
+			</div>
+			<div class="panel-scroll" id="prop-body">
+				<div id="prop-empty">
+				<div style="font-size:24px;opacity:0.2">◈</div>
+				<div>SELECT A COMPONENT</div>
+				</div>
+			</div>
+			</div>
 
-</div>
+		</div>
+		</div>
 
-<script src="engine/engine.js"></script>
-</body>
+		<script src="main.js"></script>
+	</body>
 </html>
