@@ -657,38 +657,66 @@ const MATERIALS = [
   {id:'copper',     name:'Copper / Brass',       eps:0.0015},
 ];
 
+/*
+ * entryDir / exitDir: 'right' | 'left' | 'down' | 'up'
+ * Layout engine bu bilgiyle bir sonraki elemanın başlangıç
+ * noktasını ve yönünü belirler.
+ */
 const CATALOG_DEF = [
   {
-    group:'Pipes', items:[
-      {type:'pipe', subtype:'straight', name:'Straight Pipe', desc:'DN selectable', diameter_mm:50, length_m:5, dz_m:0, material:'steel_new', eps:0.046},
-      {type:'pipe', subtype:'reducing', name:'Reducer',       desc:'Diameter change', d_in_mm:50, d_out_mm:25, length_m:0.3, material:'steel_new', eps:0.046},
+    group: 'Pipes', items: [
+      { type:'pipe', subtype:'h',  name:'Pipe H',   icon:'→', desc:'Horizontal',
+        entryDir:'right', exitDir:'right',
+        diameter_mm:50, length_m:5, material:'steel_new', eps:0.046 },
+      { type:'pipe', subtype:'vd', name:'Pipe V↓',  icon:'↓', desc:'Vertical down',
+        entryDir:'down', exitDir:'down',
+        diameter_mm:50, length_m:3, material:'steel_new', eps:0.046 },
+      { type:'pipe', subtype:'vu', name:'Pipe V↑',  icon:'↑', desc:'Vertical up',
+        entryDir:'up', exitDir:'up',
+        diameter_mm:50, length_m:3, material:'steel_new', eps:0.046 },
     ]
   },
   {
-    group:'Elbows', expandable:true,
-    items:[
-      {type:'elbow', subtype:'elbow_90s', name:'90° Short R', desc:'r/D≈1.0', K:0.90},
-      {type:'elbow', subtype:'elbow_90l', name:'90° Long R',  desc:'r/D≈1.5', K:0.60},
-      {type:'elbow', subtype:'elbow_45',  name:'45° Elbow',   desc:'Standard', K:0.40},
-      {type:'elbow', subtype:'elbow_180', name:'180° U-Bend', desc:'Return bend', K:1.50},
+    group: 'Reducers', items: [
+      { type:'pipe', subtype:'rh',  name:'Reducer H',  icon:'→', desc:'Horizontal taper',
+        entryDir:'right', exitDir:'right',
+        d_in_mm:50, d_out_mm:25, length_m:0.3, material:'steel_new', eps:0.046 },
+      { type:'pipe', subtype:'rvd', name:'Reducer V↓', icon:'↓', desc:'Vertical down taper',
+        entryDir:'down', exitDir:'down',
+        d_in_mm:50, d_out_mm:25, length_m:0.3, material:'steel_new', eps:0.046 },
+      { type:'pipe', subtype:'rvu', name:'Reducer V↑', icon:'↑', desc:'Vertical up taper',
+        entryDir:'up', exitDir:'up',
+        d_in_mm:50, d_out_mm:25, length_m:0.3, material:'steel_new', eps:0.046 },
     ]
   },
   {
-    group:'Valves', expandable:true,
-    items:[
-      {type:'valve', subtype:'gate',       name:'Gate Valve',     desc:'K=0.20', K:0.20},
-      {type:'valve', subtype:'ball',       name:'Ball Valve',     desc:'K=0.10', K:0.10},
-      {type:'valve', subtype:'butterfly',  name:'Butterfly',      desc:'K=0.80', K:0.80},
-      {type:'valve', subtype:'globe',      name:'Globe Valve',    desc:'K=6.00', K:6.00},
-      {type:'valve', subtype:'check',      name:'Check Valve',    desc:'K=2.50', K:2.50},
-      {type:'valve', subtype:'prv',        name:'PRV',            desc:'P_set',  K:null, special:'prv', P_set_bar:1.0},
-      {type:'valve', subtype:'flowmeter',  name:'Flow Meter',     desc:'K=1.50', K:1.50},
+    group: 'Elbows', items: [
+      { type:'elbow', subtype:'rd', name:'Elbow →↓', icon:'↵', desc:'Right → Down', K:0.90,
+        entryDir:'right', exitDir:'down' },
+      { type:'elbow', subtype:'ru', name:'Elbow →↑', icon:'↱', desc:'Right → Up',   K:0.90,
+        entryDir:'right', exitDir:'up' },
+      { type:'elbow', subtype:'ur', name:'Elbow ↑→', icon:'↳', desc:'Up → Right',   K:0.90,
+        entryDir:'up',   exitDir:'right' },
+      { type:'elbow', subtype:'dr', name:'Elbow ↓→', icon:'↰', desc:'Down → Right', K:0.90,
+        entryDir:'down', exitDir:'right' },
     ]
   },
   {
-    group:'Pumps', expandable:true,
-    items:[
-      {type:'pump', subtype:'centrifugal', name:'Centrifugal Pump', desc:'Add head', head_m:20, efficiency:0.75},
+    group: 'Valves', expandable: true,
+    items: [
+      { type:'valve', subtype:'gate',      name:'Gate Valve',  desc:'K=0.20', K:0.20, entryDir:'right', exitDir:'right' },
+      { type:'valve', subtype:'ball',      name:'Ball Valve',  desc:'K=0.10', K:0.10, entryDir:'right', exitDir:'right' },
+      { type:'valve', subtype:'butterfly', name:'Butterfly',   desc:'K=0.80', K:0.80, entryDir:'right', exitDir:'right' },
+      { type:'valve', subtype:'globe',     name:'Globe Valve', desc:'K=6.00', K:6.00, entryDir:'right', exitDir:'right' },
+      { type:'valve', subtype:'check',     name:'Check Valve', desc:'K=2.50', K:2.50, entryDir:'right', exitDir:'right' },
+      { type:'valve', subtype:'prv',       name:'PRV',         desc:'P_set',  K:null, special:'prv', P_set_bar:1.0, entryDir:'right', exitDir:'right' },
+    ]
+  },
+  {
+    group: 'Pumps', expandable: true,
+    items: [
+      { type:'pump', subtype:'centrifugal', name:'Centrifugal', desc:'Add head',
+        head_m:20, efficiency:0.75, entryDir:'right', exitDir:'right' },
     ]
   },
 ];
@@ -787,34 +815,117 @@ const sysConfig = {
 };
 
 // Layout constants
-const PAD=60, PIPE_MIN=70, PIPE_MAX=170, FIT_W=54, PUMP_W=58, ROW_Y=160, COMP_H=60;
+const ORIGIN_X = 80, ORIGIN_Y = 200;   // Hat başlangıç noktası
+const PX_PER_M = 18;                    // 1 metre = 18 piksel
+const FIT_W    = 54;                    // Fitting lokal genişliği (ana eksen)
+const PUMP_W   = 64;
 
-// ═══════════════════════════════════
-// CATALOG RENDER
+// Yön vektörleri (SVG koordinatı: y aşağı pozitif)
+const DIR_VEC = {
+  right: { dx:  1, dy:  0 },
+  left:  { dx: -1, dy:  0 },
+  down:  { dx:  0, dy:  1 },
+  up:    { dx:  0, dy: -1 },
+};
+
+// ─── WORLD LAYOUT (entryDir/exitDir bazlı) ───────────────
+/**
+ * Her komp için döner:
+ *   ix, iy   — entry point (world)
+ *   ox, oy   — exit  point (world)
+ *   entryDir, exitDir
+ *   pw, ph   — pixel width/height (bounding box)
+ */
+function layout() {
+  if (!line.length) return [];
+  const result = [];
+  let cx = ORIGIN_X, cy = ORIGIN_Y;
+  let curDir = 'right';   // hat başlangıç yönü
+
+  for (let i = 0; i < line.length; i++) {
+    const comp = line[i];
+    const eDir = comp.entryDir || curDir;
+    const xDir = comp.exitDir  || eDir;
+    const vec  = DIR_VEC[eDir];
+
+    // Uzunluk piksel cinsinden
+    let lenPx;
+    if (comp.type === 'pipe') {
+      lenPx = Math.max(40, (comp.length_m || 5) * PX_PER_M);
+    } else if (comp.type === 'pump') {
+      lenPx = PUMP_W;
+    } else {
+      lenPx = FIT_W;
+    }
+
+    const ix = cx, iy = cy;
+    let ox, oy;
+
+    if (comp.type === 'elbow') {
+      // Dirsek: entry yönünde yarım FIT_W, sonra exit yönünde yarım FIT_W
+      const half = lenPx / 2;
+      const eVec = DIR_VEC[eDir];
+      const xVec = DIR_VEC[xDir];
+      const cornerX = cx + eVec.dx * half;
+      const cornerY = cy + eVec.dy * half;
+      ox = cornerX + xVec.dx * half;
+      oy = cornerY + xVec.dy * half;
+    } else {
+      // Boru / valf / pompa: entryDir yönünde düz ilerle
+      ox = cx + vec.dx * lenPx;
+      oy = cy + vec.dy * lenPx;
+    }
+
+    result.push({ ix, iy, ox, oy, entryDir: eDir, exitDir: xDir, lenPx });
+
+    cx = ox; cy = oy;
+    curDir = xDir;
+  }
+  return result;
+}
+
+/**
+ * dz [m] — yönden otomatik.
+ * 'down' → pozitif dz (alçalıyor, basınç kaybı artar)
+ * 'up'   → negatif dz (yükseliyor, basınç kazanımı)
+ */
+function calcDz(comp) {
+  if (comp.type !== 'pipe') return 0;
+  const dir = comp.entryDir || 'right';
+  const len = comp.length_m || 0;
+  if (dir === 'down') return  len;
+  if (dir === 'up')   return -len;
+  return 0;
+}
+
+
 // ═══════════════════════════════════
 function renderCatalog() {
   let html = '';
   CATALOG_DEF.forEach((grp, gi) => {
-    html += `<div class="cat-group"><div class="cat-group-title">${grp.group}</div>`;
+    html += `<div class="cat-group">`;
     if (grp.expandable) {
       html += `<div class="cat-expand-row" onclick="toggleGroup(${gi})">
-        <div class="cat-icon">${getThumb(grp.items[0].type)}</div>
-        <div style="flex:1"><div class="cat-name">${grp.group}</div><div class="cat-desc">${grp.items.length} subtypes</div></div>
+        <div class="cat-icon">${getThumb(grp.items[0].type, grp.items[0].subtype)}</div>
+        <div style="flex:1"><div class="cat-name">${grp.group}</div>
+        <div class="cat-desc">${grp.items.length} subtypes</div></div>
         <span class="expand-icon" id="ei_${gi}">▶</span>
       </div>
       <div class="subtypes-wrap" id="sw_${gi}">`;
-      grp.items.forEach((item,ii) => {
+      grp.items.forEach((item, ii) => {
         html += `<div class="cat-subitem" draggable="true" data-gi="${gi}" data-ii="${ii}" ondragstart="onCatDrag(event,this)">
           <span class="cat-subitem-name">${item.name}</span>
-          <span class="cat-subitem-k">${item.K!=null?'K='+item.K:item.special||''}</span>
+          <span class="cat-subitem-k">${item.K != null ? 'K='+item.K : item.special || item.desc || ''}</span>
         </div>`;
       });
       html += `</div>`;
     } else {
-      grp.items.forEach((item,ii) => {
+      html += `<div class="cat-group-title">${grp.group}</div>`;
+      grp.items.forEach((item, ii) => {
         html += `<div class="cat-item" draggable="true" data-gi="${gi}" data-ii="${ii}" ondragstart="onCatDrag(event,this)">
-          <div class="cat-icon">${getThumb(item.type)}</div>
-          <div><div class="cat-name">${item.name}</div><div class="cat-desc">${item.desc}</div></div>
+          <div class="cat-icon">${getThumb(item.type, item.subtype)}</div>
+          <div><div class="cat-name">${item.name}</div>
+          <div class="cat-desc">${item.desc}</div></div>
         </div>`;
       });
     }
@@ -830,15 +941,50 @@ function toggleGroup(gi) {
   ei.classList.toggle('open');
 }
 
-function getThumb(type) {
-  const s = {
-    pipe: `<svg width="34" height="22"><line x1="0" y1="8" x2="34" y2="8" stroke="#3d9ef5" stroke-width="1.5"/><line x1="0" y1="14" x2="34" y2="14" stroke="#3d9ef5" stroke-width="1.5"/><line x1="0" y1="8" x2="0" y2="14" stroke="#3d9ef5" stroke-width="1.5"/><line x1="34" y1="8" x2="34" y2="14" stroke="#3d9ef5" stroke-width="1.5"/></svg>`,
-    elbow:`<svg width="34" height="22"><path d="M0,11 L14,11 Q20,11 20,17 L20,22" fill="none" stroke="#f0a500" stroke-width="1.5"/></svg>`,
-    valve:`<svg width="34" height="22"><line x1="0" y1="11" x2="9" y2="11" stroke="#e05c00" stroke-width="1.5"/><polygon points="9,5 23,11 9,17" fill="none" stroke="#e05c00" stroke-width="1.2"/><polygon points="23,5 9,11 23,17" fill="none" stroke="#e05c00" stroke-width="1.2"/><line x1="23" y1="11" x2="34" y2="11" stroke="#e05c00" stroke-width="1.5"/></svg>`,
-    pump: `<svg width="34" height="22"><circle cx="17" cy="11" r="8" fill="none" stroke="#2ecc71" stroke-width="1.5"/><line x1="0" y1="11" x2="9" y2="11" stroke="#2ecc71" stroke-width="1.5"/><line x1="25" y1="11" x2="34" y2="11" stroke="#2ecc71" stroke-width="1.5"/><path d="M17,11 L14,7 L21,9" fill="#2ecc71" opacity="0.7"/></svg>`,
-    meter:`<svg width="34" height="22"><line x1="0" y1="11" x2="34" y2="11" stroke="#606878" stroke-width="1" stroke-dasharray="3,2"/><circle cx="17" cy="11" r="6" fill="none" stroke="#f0a500" stroke-width="1.5"/><line x1="17" y1="5" x2="17" y2="1" stroke="#f0a500" stroke-width="1"/></svg>`,
-  };
-  return s[type] || '<svg width="34" height="22"></svg>';
+function getThumb(type, subtype) {
+  if (type === 'pipe') {
+    const isV = subtype === 'vd' || subtype === 'rvd';
+    const isU = subtype === 'vu' || subtype === 'rvu';
+    const isR = subtype === 'rh' || subtype === 'rvd' || subtype === 'rvu';
+    const c   = isR ? '#9b59b6' : '#3d9ef5';
+    if (isV || isU) {
+      return `<svg width="22" height="34">
+        <line x1="11" y1="0" x2="11" y2="34" stroke="${c}" stroke-width="2.5"/>
+        <line x1="6" y1="0" x2="16" y2="0" stroke="${c}" stroke-width="1.5"/>
+        <line x1="6" y1="34" x2="16" y2="34" stroke="${c}" stroke-width="1.5"/>
+        ${isR ? `<line x1="6" y1="4" x2="16" y2="30" stroke="${c}" stroke-width="1" opacity="0.5"/>` : ''}
+      </svg>`;
+    }
+    return `<svg width="34" height="22">
+      <line x1="0" y1="8" x2="34" y2="8" stroke="${c}" stroke-width="1.5"/>
+      <line x1="0" y1="14" x2="34" y2="14" stroke="${c}" stroke-width="1.5"/>
+      <line x1="0" y1="8" x2="0" y2="14" stroke="${c}" stroke-width="1.5"/>
+      <line x1="34" y1="8" x2="34" y2="14" stroke="${c}" stroke-width="1.5"/>
+      ${isR ? `<line x1="4" y1="9" x2="30" y2="13" stroke="${c}" stroke-width="1" opacity="0.5"/>` : ''}
+    </svg>`;
+  }
+  if (type === 'elbow') {
+    const icons = {
+      rd: `<svg width="34" height="34"><path d="M0,11 L16,11 Q23,11 23,18 L23,34" fill="none" stroke="#f0a500" stroke-width="2"/></svg>`,
+      ru: `<svg width="34" height="34"><path d="M0,23 L16,23 Q23,23 23,16 L23,0"  fill="none" stroke="#f0a500" stroke-width="2"/></svg>`,
+      ur: `<svg width="34" height="34"><path d="M11,34 L11,18 Q11,11 18,11 L34,11" fill="none" stroke="#f0a500" stroke-width="2"/></svg>`,
+      dr: `<svg width="34" height="34"><path d="M11,0  L11,16 Q11,23 18,23 L34,23" fill="none" stroke="#f0a500" stroke-width="2"/></svg>`,
+    };
+    return icons[subtype] || icons.rd;
+  }
+  if (type === 'valve') {
+    return `<svg width="34" height="22"><line x1="0" y1="11" x2="9" y2="11" stroke="#e05c00" stroke-width="1.5"/>
+      <polygon points="9,5 23,11 9,17" fill="none" stroke="#e05c00" stroke-width="1.2"/>
+      <polygon points="23,5 9,11 23,17" fill="none" stroke="#e05c00" stroke-width="1.2"/>
+      <line x1="23" y1="11" x2="34" y2="11" stroke="#e05c00" stroke-width="1.5"/></svg>`;
+  }
+  if (type === 'pump') {
+    return `<svg width="34" height="22"><circle cx="17" cy="11" r="8" fill="none" stroke="#2ecc71" stroke-width="1.5"/>
+      <line x1="0" y1="11" x2="9" y2="11" stroke="#2ecc71" stroke-width="1.5"/>
+      <line x1="25" y1="11" x2="34" y2="11" stroke="#2ecc71" stroke-width="1.5"/>
+      <path d="M17,11 L14,7 L21,9" fill="#2ecc71" opacity="0.7"/></svg>`;
+  }
+  return '<svg width="34" height="22"></svg>';
 }
 
 // ═══════════════════════════════════
@@ -890,52 +1036,31 @@ function calcDropIdx(mouseX) {
   if (!line.length) return 0;
   const lyt = layout();
   for (let i = 0; i < lyt.length; i++) {
-    if (mouseX < lyt[i].x + lyt[i].w / 2) return i;
+    const mx = (lyt[i].ix + lyt[i].ox) / 2;
+    if (mouseX < mx) return i;
   }
   return line.length;
 }
 
 function makeComp(tpl) {
-  const c = {...tpl, _id: ++idCtr};
-  const prev = line.length > 0 ? line[line.length-1] : null;
-  const prevD = prev ? (prev.d_out_mm || prev.diameter_mm || 50) : 50;
+  const c = { ...tpl, _id: ++idCtr };
+  const prev   = line.length > 0 ? line[line.length - 1] : null;
+  const prevD  = prev ? (prev.d_out_mm || prev.diameter_mm || 50) : 50;
+  const curDir = prev ? (prev.exitDir || 'right') : 'right';
+
+  // entryDir: katalogdan geliyorsa koru, yoksa önceki çıkış yönü
+  if (!c.entryDir) c.entryDir = curDir;
+  if (!c.exitDir)  c.exitDir  = c.entryDir;
+
+  // Çap mirası
   if (c.type !== 'pipe') c.diameter_mm = prevD;
-  if (c.type === 'pipe' && c.subtype === 'reducing') {
+  if (c.type === 'pipe' && (c.subtype === 'rh' || c.subtype === 'rvd' || c.subtype === 'rvu')) {
     c.d_in_mm  = prevD;
-    c.d_out_mm = Math.max(15, Math.floor(prevD/2));
-  } else if (c.type === 'pipe') {
+    c.d_out_mm = Math.max(15, Math.floor(prevD / 2));
+  } else if (c.type === 'pipe' && !c.d_in_mm) {
     c.diameter_mm = c.diameter_mm || prevD;
   }
   return c;
-}
-
-// ═══════════════════════════════════
-// LAYOUT
-// ═══════════════════════════════════
-function compW(comp) {
-  if (comp.type==='pipe') return Math.min(PIPE_MAX, Math.max(PIPE_MIN, (comp.length_m||5)*15));
-  if (comp.type==='pump') return PUMP_W;
-  return FIT_W;
-}
-
-function layout() {
-  let x = PAD + 28;
-  return line.map(comp => {
-    const w = compW(comp);
-    const r = {x, w};
-    x += w + 4;
-    return r;
-  });
-}
-
-function yPositions(lyt) {
-  let cumDz = 0;
-  return lyt.map((l,i) => {
-    const comp = line[i];
-    const y = ROW_Y - cumDz * 20;
-    if (comp.type==='pipe') cumDz += (comp.dz_m || 0);
-    return y;
-  });
 }
 
 // ═══════════════════════════════════
@@ -947,8 +1072,8 @@ function renderSVG() {
 
   if (!line.length && !dragItem) {
     svgEl.innerHTML = '';
-    svgEl.setAttribute('width','100%');
-    svgEl.setAttribute('height','100%');
+    svgEl.setAttribute('width', '100%');
+    svgEl.setAttribute('height', '100%');
     hint.classList.remove('hidden');
     document.getElementById('cv-info').textContent = 'Drag components from catalog to start';
     return;
@@ -956,190 +1081,297 @@ function renderSVG() {
   hint.classList.add('hidden');
 
   const lyt = layout();
-  const yp  = yPositions(lyt);
 
-  const totalW = lyt.length
-    ? lyt[lyt.length-1].x + lyt[lyt.length-1].w + PAD + 40
-    : 600;
-  const minY   = Math.min(...yp, ROW_Y) - 80;
-  const maxY   = Math.max(...yp, ROW_Y) + 100;
-  const totalH = Math.max(320, maxY - minY);
+  // ViewBox — tüm koordinatları kapsayacak şekilde
+  const allX = [ORIGIN_X, ...lyt.flatMap(l => [l.ix, l.ox])];
+  const allY = [ORIGIN_Y, ...lyt.flatMap(l => [l.iy, l.oy])];
+  const pad  = 80;
+  const vx   = Math.min(...allX) - pad;
+  const vy   = Math.min(...allY) - pad;
+  const vw   = Math.max(600, Math.max(...allX) - Math.min(...allX) + pad * 2);
+  const vh   = Math.max(320, Math.max(...allY) - Math.min(...allY) + pad * 2);
 
-  svgEl.setAttribute('width', totalW);
-  svgEl.setAttribute('height', totalH);
-  svgEl.setAttribute('viewBox', `0 ${minY} ${totalW} ${totalH}`);
+  svgEl.setAttribute('width',   vw);
+  svgEl.setAttribute('height',  vh);
+  svgEl.setAttribute('viewBox', `${vx} ${vy} ${vw} ${vh}`);
 
   let out = '';
 
-  // Spine
-  out += buildSpine(lyt, yp);
+  // Spine (bağlantı hattı)
+  out += buildSpine(lyt);
 
   // Drop indicator
-  if (dropIdx !== null) {
-    const ix = dropIdx < lyt.length
-      ? lyt[dropIdx].x - 5
-      : (lyt.length ? lyt[lyt.length-1].x + lyt[lyt.length-1].w + 5 : PAD+28);
-    const iy = yp[Math.min(dropIdx, yp.length-1)] || ROW_Y;
-    out += `<line x1="${ix}" y1="${iy-30}" x2="${ix}" y2="${iy+30}" stroke="#f0a500" stroke-width="2" stroke-dasharray="4,3" opacity="0.8"/>`;
+  if (dropIdx !== null && lyt.length) {
+    const ref = lyt[Math.min(dropIdx, lyt.length - 1)];
+    out += `<line x1="${ref.ix - 6}" y1="${ref.iy - 30}" x2="${ref.ix - 6}" y2="${ref.iy + 30}"
+      stroke="#f0a500" stroke-width="2" stroke-dasharray="4,3" opacity="0.8"/>`;
   }
 
-  // Inlet node
-  out += node(PAD, yp[0]||ROW_Y, 'A', '#2ecc71');
+  // Inlet node A
+  const a = lyt.length ? lyt[0] : { ix: ORIGIN_X, iy: ORIGIN_Y };
+  out += node(a.ix, a.iy, 'A', '#2ecc71');
 
   // Components
-  lyt.forEach((l,i) => {
-    out += compSVG(line[i], l.x, yp[i], l.w, selected===i, calcRes[i]||null);
+  lyt.forEach((l, i) => {
+    out += compSVG(line[i], l, selected === i, calcRes[i] || null);
   });
 
-  // Outlet node
+  // Outlet node B
   if (lyt.length) {
-    const last = lyt[lyt.length-1];
-    out += node(last.x+last.w+8, yp[yp.length-1], 'B', '#e74c3c');
+    const z = lyt[lyt.length - 1];
+    out += node(z.ox, z.oy, 'B', '#e74c3c');
   }
 
   // Pressure gradient
-  if (showPG && calcRes.length) out += pressureGradient(lyt, yp);
+  if (showPG && calcRes.length) out += pressureGradient(lyt);
 
   svgEl.innerHTML = out;
 
   // Click handlers
-  lyt.forEach((_,i) => {
+  lyt.forEach((_, i) => {
     const g = svgEl.querySelector(`#c${line[i]._id}`);
     if (g) g.addEventListener('click', e => { e.stopPropagation(); selectComp(i); });
   });
+  svgEl.addEventListener('click', e => { if (e.target === svgEl) deselect(); });
 
-  svgEl.addEventListener('click', e => { if (e.target===svgEl) deselect(); });
-
-  // Update info
   if (line.length) {
-    const lastRes = calcRes[calcRes.length-1];
+    const lastRes = calcRes[calcRes.length - 1];
     document.getElementById('cv-info').textContent =
       lastRes ? `${line.length} components  ·  P_out = ${lastRes.P_out} bar` : `${line.length} components`;
   }
 }
 
-function buildSpine(lyt, yp) {
+function buildSpine(lyt) {
   if (!lyt.length) return '';
-  let d = `M ${PAD+10} ${yp[0]||ROW_Y}`;
-  lyt.forEach((l,i) => {
-    const y = yp[i];
-    d += ` L ${l.x} ${y} L ${l.x+l.w} ${y}`;
-    if (i < lyt.length-1 && yp[i+1] !== y) {
-      d += ` L ${l.x+l.w+2} ${y} L ${l.x+l.w+2} ${yp[i+1]}`;
-    }
+  let out = '';
+  lyt.forEach(l => {
+    out += `<line x1="${l.ix}" y1="${l.iy}" x2="${l.ox}" y2="${l.oy}"
+      stroke="#1c2030" stroke-width="3"/>`;
   });
-  const last = lyt[lyt.length-1];
-  d += ` L ${last.x+last.w+20} ${yp[yp.length-1]}`;
-  return `<path d="${d}" fill="none" stroke="#2a2f3a" stroke-width="1.5"/>`;
+  return out;
 }
 
 function node(x, y, label, color) {
-  return `<circle cx="${x}" cy="${y}" r="5" fill="${color}" opacity="0.85"/>
-    <text x="${x}" y="${y-12}" text-anchor="middle" font-family="IBM Plex Mono" font-size="11" font-weight="700" fill="${color}">${label}</text>`;
+  return `<circle cx="${x}" cy="${y}" r="6" fill="${color}" opacity="0.9"/>
+    <text x="${x}" y="${y - 14}" text-anchor="middle"
+      font-family="IBM Plex Mono" font-size="11" font-weight="700" fill="${color}">${label}</text>`;
 }
 
-function pressureGradient(lyt, yp) {
+function pressureGradient(lyt) {
   if (!calcRes.length) return '';
-  const maxP  = calcRes[0].P_in || 2;
-  const scale = 45 / maxP;
+  const maxP = calcRes[0].P_in || 2;
+  const scale = 36 / maxP;
   let d = '';
-  lyt.forEach((l,i) => {
+  lyt.forEach((l, i) => {
     const res = calcRes[i]; if (!res) return;
-    const cx = l.x + l.w/2;
-    const cy = yp[i] - res.P_in * scale - 22;
-    d += `${i===0?'M':'L'} ${cx} ${cy} `;
+    const mx = (l.ix + l.ox) / 2;
+    const my = (l.iy + l.oy) / 2 - res.P_in * scale - 20;
+    d += `${i === 0 ? 'M' : 'L'} ${mx} ${my} `;
   });
-  return `<path d="${d}" fill="none" stroke="rgba(61,158,245,0.5)" stroke-width="1.5" stroke-dasharray="5,3"/>
-    <text x="${lyt[0].x}" y="${yp[0] - calcRes[0].P_in*scale - 30}" font-family="IBM Plex Mono" font-size="8" fill="rgba(61,158,245,0.6)">P (bar)</text>`;
+  return `<path d="${d}" fill="none" stroke="rgba(61,158,245,0.5)"
+    stroke-width="1.5" stroke-dasharray="5,3"/>`;
 }
 
-// ─── COMPONENT SVG ──────────────────────────────────────
-function compSVG(comp, x, y, w, isSel, res) {
-  const sel    = isSel ? 'sel' : '';
-  const stroke = isSel ? `stroke="#f0a500" stroke-width="2"` : `stroke="#252830" stroke-width="1"`;
+// ─── COMPONENT SVG ───────────────────────────────────────
+function compSVG(comp, l, isSel, res) {
+  const stroke = isSel
+    ? `stroke="#f0a500" stroke-width="2"`
+    : `stroke="#252830" stroke-width="1"`;
+
   let body = '';
+  if (comp.type === 'pipe')  body = pipeSVG_2d(comp, l, stroke, res);
+  if (comp.type === 'elbow') body = elbowSVG_2d(comp, l, stroke);
+  if (comp.type === 'valve') body = valveSVG_2d(comp, l, stroke);
+  if (comp.type === 'pump')  body = pumpSVG_2d(comp, l, stroke, res);
 
-  if (comp.type==='pipe')   body = pipeSVG(comp,x,y,w,stroke,res);
-  if (comp.type==='elbow')  body = elbowSVG(comp,x,y,w,stroke);
-  if (comp.type==='valve')  body = valveSVG(comp,x,y,w,stroke);
-  if (comp.type==='pump')   body = pumpSVG(comp,x,y,w,stroke,res);
-
-  // Warning dot
+  // Warning dot — entry noktasının yanında
   const warns = getWarns(comp, res);
   let warnDot = '';
   if (warns.length) {
-    const wc = warns.some(w=>w.lvl==='err') ? '#e74c3c' : '#f1c40f';
-    warnDot = `<circle cx="${x+w-5}" cy="${y-20}" r="5" fill="${wc}" opacity="0.9"/>
-      <text x="${x+w-5}" y="${y-17}" text-anchor="middle" font-family="IBM Plex Mono" font-size="7" fill="#000" font-weight="700">!</text>`;
+    const wc = warns.some(w => w.lvl === 'err') ? '#e74c3c' : '#f1c40f';
+    const wx = (l.ix + l.ox) / 2;
+    const wy = Math.min(l.iy, l.oy) - 14;
+    warnDot = `<circle cx="${wx}" cy="${wy}" r="5" fill="${wc}" opacity="0.9"/>
+      <text x="${wx}" y="${wy + 3}" text-anchor="middle"
+        font-family="IBM Plex Mono" font-size="7" fill="#000" font-weight="700">!</text>`;
   }
 
-  return `<g id="c${comp._id}" class="c-group ${sel}">${body}${warnDot}</g>`;
+  return `<g id="c${comp._id}" class="c-group ${isSel ? 'sel' : ''}">
+    ${body}${warnDot}
+  </g>`;
 }
 
-function pipeSVG(comp, x, y, w, stroke, res) {
-  const isRed = comp.subtype==='reducing';
+// ─── BORU SVG (2D world koordinat) ─────────────────────
+function pipeSVG_2d(comp, l, stroke, res) {
+  const { ix, iy, ox, oy, entryDir, lenPx } = l;
+  const isRed = comp.subtype === 'rh' || comp.subtype === 'rvd' || comp.subtype === 'rvu';
   const color = isRed ? '#9b59b6' : '#3d9ef5';
-  const label = isRed ? `${comp.d_in_mm||50}→${comp.d_out_mm||25}mm` : `⌀${comp.diameter_mm||50}mm`;
-  const val   = isRed ? '' : `${comp.length_m||5}m`;
-  return `
-    <rect x="${x}" y="${y-9}" width="${w}" height="18" fill="#0e0f12" ${stroke} class="c-bg c-outline" rx="1"/>
-    ${isRed
-      ? `<polygon points="${x},${y-8} ${x+w},${y-5} ${x+w},${y+5} ${x},${y+8}" fill="rgba(155,89,182,0.12)" stroke="${color}" stroke-width="1"/>`
-      : `<line x1="${x+2}" y1="${y}" x2="${x+w-2}" y2="${y}" stroke="${color}" stroke-width="1" opacity="0.4"/>`
+  const isV   = entryDir === 'down' || entryDir === 'up';
+  const half  = 9;   // boru yarı-genişliği
+
+  let body = '';
+  if (!isV) {
+    // Yatay boru
+    const y1 = iy - half, y2 = iy + half;
+    const x1 = Math.min(ix, ox), x2 = Math.max(ix, ox);
+    body = `<rect x="${x1}" y="${y1}" width="${x2 - x1}" height="${half * 2}"
+      fill="#0e0f12" ${stroke} class="c-bg c-outline" rx="1"/>`;
+    if (isRed) {
+      // Reducer trapez
+      const dy = 4;
+      body = `<polygon points="${x1},${y1} ${x2},${y1+dy} ${x2},${y2-dy} ${x1},${y2}"
+        fill="rgba(155,89,182,0.12)" stroke="${color}" stroke-width="1" class="c-bg c-outline"/>`;
+    } else {
+      body += `<line x1="${x1+4}" y1="${iy}" x2="${x2-4}" y2="${iy}"
+        stroke="${color}" stroke-width="1" opacity="0.4"/>`;
     }
-    ${showLabels ? `<text x="${x+w/2}" y="${y-14}" text-anchor="middle" font-family="IBM Plex Mono" font-size="8" fill="#5a6070">${label}</text>
-      <text x="${x+w/2}" y="${y+22}" text-anchor="middle" font-family="IBM Plex Mono" font-size="8" fill="#5a6070">${val}</text>
-      ${res ? `<text x="${x+w/2}" y="${y+32}" text-anchor="middle" font-family="IBM Plex Mono" font-size="8" fill="#3d9ef5">v=${res.v}m/s</text>` : ''}` : ''}
-  `;
+  } else {
+    // Dikey boru
+    const x1 = ix - half, x2 = ix + half;
+    const yTop = Math.min(iy, oy), yBot = Math.max(iy, oy);
+    body = `<rect x="${x1}" y="${yTop}" width="${half * 2}" height="${yBot - yTop}"
+      fill="#0e0f12" ${stroke} class="c-bg c-outline" rx="1"/>`;
+    if (isRed) {
+      const dx = 4;
+      const topW = half, botW = half - dx;
+      const pts = entryDir === 'down'
+        ? `${ix-topW},${yTop} ${ix+topW},${yTop} ${ix+botW},${yBot} ${ix-botW},${yBot}`
+        : `${ix-botW},${yTop} ${ix+botW},${yTop} ${ix+topW},${yBot} ${ix-topW},${yBot}`;
+      body = `<polygon points="${pts}"
+        fill="rgba(155,89,182,0.12)" stroke="${color}" stroke-width="1" class="c-bg c-outline"/>`;
+    } else {
+      body += `<line x1="${ix}" y1="${yTop+4}" x2="${ix}" y2="${yBot-4}"
+        stroke="${color}" stroke-width="1" opacity="0.4"/>`;
+    }
+  }
+
+  // Akış yön oku
+  const mx = (ix + ox) / 2, my = (iy + oy) / 2;
+  const arrowSize = 5;
+  let arrow = '';
+  if (entryDir === 'right') arrow = `<polygon points="${mx},${my-3} ${mx+arrowSize},${my} ${mx},${my+3}" fill="${color}" opacity="0.6"/>`;
+  if (entryDir === 'left')  arrow = `<polygon points="${mx},${my-3} ${mx-arrowSize},${my} ${mx},${my+3}" fill="${color}" opacity="0.6"/>`;
+  if (entryDir === 'down')  arrow = `<polygon points="${mx-3},${my} ${mx},${my+arrowSize} ${mx+3},${my}" fill="${color}" opacity="0.6"/>`;
+  if (entryDir === 'up')    arrow = `<polygon points="${mx-3},${my} ${mx},${my-arrowSize} ${mx+3},${my}" fill="${color}" opacity="0.6"/>`;
+
+  // Etiketler
+  let labels = '';
+  if (showLabels) {
+    const lblX = isV ? ix + 14 : mx;
+    const lblY = isV ? my      : iy - 14;
+    const dia  = isRed ? `${comp.d_in_mm||50}→${comp.d_out_mm||25}mm` : `⌀${comp.diameter_mm||50}mm`;
+    const len  = `${comp.length_m||5}m`;
+    labels = `
+      <text x="${lblX}" y="${lblY}" text-anchor="${isV?'start':'middle'}"
+        font-family="IBM Plex Mono" font-size="8" fill="#5a6070">${dia}</text>
+      <text x="${lblX}" y="${lblY + (isV ? 10 : 10)}" text-anchor="${isV?'start':'middle'}"
+        font-family="IBM Plex Mono" font-size="8" fill="#5a6070">${len}</text>
+      ${res ? `<text x="${lblX}" y="${lblY + (isV ? 20 : 20)}" text-anchor="${isV?'start':'middle'}"
+        font-family="IBM Plex Mono" font-size="8" fill="#3d9ef5">v=${res.v}m/s</text>` : ''}`;
+  }
+
+  return body + arrow + labels;
 }
 
-function elbowSVG(comp, x, y, w, stroke) {
-  const cx = x+w/2, color = '#f0a500';
-  const angle = comp.subtype==='elbow_45' ? '45°' : comp.subtype==='elbow_180' ? '180°' : '90°';
+// ─── DİRSEK SVG (2D world koordinat) ───────────────────
+function elbowSVG_2d(comp, l, stroke) {
+  const { ix, iy, ox, oy, entryDir, exitDir } = l;
+  const color = '#f0a500';
+  const r = FIT_W * 0.55;   // köşe yarıçapı
+
+  // Her 4 varyant için köşe Q bezier path
+  // Boru hattının ortasından geçen merkez çizgi
+  let path = '';
+  // Kontrol noktası = köşe
+  const kx = ix + (exitDir === 'right' || exitDir === 'left' ? (ox - ix) : 0);
+  const ky = iy + (exitDir === 'down'  || exitDir === 'up'   ? (oy - iy) : 0);
+
+  // Alternatif: entry→corner→exit quadratic bezier
+  // Corner: entry yönünde FIT_W ilerle, sonra exit yönüne dön
+  let cornerX, cornerY;
+  if (entryDir === 'right') { cornerX = ox; cornerY = iy; }
+  if (entryDir === 'left')  { cornerX = ox; cornerY = iy; }
+  if (entryDir === 'down')  { cornerX = ix; cornerY = oy; }
+  if (entryDir === 'up')    { cornerX = ix; cornerY = oy; }
+
+  path = `M ${ix} ${iy} Q ${cornerX} ${cornerY} ${ox} ${oy}`;
+
+  // Hit alanı
+  const bx = Math.min(ix, ox, cornerX) - 5;
+  const by = Math.min(iy, oy, cornerY) - 5;
+  const bw = Math.abs(ox - ix) + Math.abs(oy - iy) + 10;
+  const bh = bw;
+
+  const label = comp.name || '90°';
+
   return `
-    <rect x="${x}" y="${y-22}" width="${w}" height="44" fill="rgba(240,165,0,0.04)" ${stroke} class="c-bg c-outline" rx="1"/>
-    <path d="M ${x} ${y} Q ${cx} ${y} ${cx} ${y+18}" fill="none" stroke="${color}" stroke-width="2"/>
-    ${showLabels ? `<text x="${cx}" y="${y-26}" text-anchor="middle" font-family="IBM Plex Mono" font-size="8" fill="#5a6070">${angle}</text>
-      <text x="${cx}" y="${y+34}" text-anchor="middle" font-family="IBM Plex Mono" font-size="8" fill="#6a7480">K=${comp.K}</text>` : ''}
+    <rect x="${bx}" y="${by}" width="${Math.max(bw,20)}" height="${Math.max(bh,20)}"
+      fill="rgba(240,165,0,0.04)" ${stroke} class="c-bg c-outline" rx="2"/>
+    <path d="${path}" fill="none" stroke="${color}" stroke-width="2.5"
+      stroke-linecap="round"/>
+    ${showLabels ? `<text x="${cornerX}" y="${cornerY - 8}" text-anchor="middle"
+      font-family="IBM Plex Mono" font-size="7" fill="#6a5a30">${label}</text>
+      <text x="${cornerX}" y="${cornerY + 16}" text-anchor="middle"
+      font-family="IBM Plex Mono" font-size="7" fill="#6a5a30">K=${comp.K}</text>` : ''}
   `;
 }
 
-function valveSVG(comp, x, y, w, stroke) {
-  const cx = x+w/2, cy = y;
-  const isPRV    = comp.special==='prv';
-  const isChk    = comp.subtype==='check';
+// ─── VALF SVG (2D world koordinat) ─────────────────────
+function valveSVG_2d(comp, l, stroke) {
+  const { ix, iy, ox, oy } = l;
+  const mx = (ix + ox) / 2, my = (iy + oy) / 2;
+  const isPRV    = comp.special === 'prv';
   const isClosed = comp.open === false;
   const color    = isClosed ? '#e74c3c' : isPRV ? '#e74c3c' : '#e05c00';
+  const half = 22;
+
   return `
-    <rect x="${x}" y="${cy-22}" width="${w}" height="44" fill="${isClosed?'rgba(231,76,60,0.08)':'rgba(224,92,0,0.04)'}" ${stroke} class="c-bg c-outline" rx="1"/>
-    <line x1="${x}" y1="${cy}" x2="${cx-11}" y2="${cy}" stroke="${color}" stroke-width="1.5"/>
-    <polygon points="${cx-11},${cy-9} ${cx+11},${cy} ${cx-11},${cy+9}" fill="${isClosed?'rgba(231,76,60,0.25)':'none'}" stroke="${color}" stroke-width="1.2"/>
-    ${isChk
-      ? `<polygon points="${cx+11},${cy-9} ${cx-3},${cy} ${cx+11},${cy+9}" fill="rgba(224,92,0,0.15)" stroke="${color}" stroke-width="1.2"/>`
-      : `<polygon points="${cx+11},${cy-9} ${cx-11},${cy} ${cx+11},${cy+9}" fill="${isClosed?'rgba(231,76,60,0.25)':'none'}" stroke="${color}" stroke-width="1.2"/>`
-    }
-    <line x1="${cx+11}" y1="${cy}" x2="${x+w}" y2="${cy}" stroke="${color}" stroke-width="1.5"/>
-    ${isClosed ? `<line x1="${cx-7}" y1="${cy-7}" x2="${cx+7}" y2="${cy+7}" stroke="#e74c3c" stroke-width="2"/>
-      <line x1="${cx+7}" y1="${cy-7}" x2="${cx-7}" y2="${cy+7}" stroke="#e74c3c" stroke-width="2"/>` : ''}
-    ${isPRV ? `<line x1="${cx}" y1="${cy-11}" x2="${cx}" y2="${cy-20}" stroke="${color}" stroke-width="1"/>
-      <path d="M${cx-5},${cy-20} Q${cx},${cy-27} ${cx+5},${cy-20}" fill="none" stroke="${color}" stroke-width="1"/>` : ''}
-    ${showLabels ? `<text x="${cx}" y="${cy-26}" text-anchor="middle" font-family="IBM Plex Mono" font-size="7" fill="${isClosed?'#e74c3c':'#5a6070'}">${isClosed?'CLOSED':comp.name}</text>
-      ${comp.K!=null && !isClosed ? `<text x="${cx}" y="${cy+34}" text-anchor="middle" font-family="IBM Plex Mono" font-size="8" fill="#6a7480">K=${comp.K}</text>` : ''}` : ''}
+    <rect x="${Math.min(ix,ox)-2}" y="${my - half}" width="${Math.abs(ox-ix)+4}" height="${half*2}"
+      fill="${isClosed?'rgba(231,76,60,0.08)':'rgba(224,92,0,0.04)'}"
+      ${stroke} class="c-bg c-outline" rx="1"/>
+    <line x1="${ix}" y1="${iy}" x2="${mx-11}" y2="${my}" stroke="${color}" stroke-width="1.5"/>
+    <polygon points="${mx-11},${my-9} ${mx+11},${my} ${mx-11},${my+9}"
+      fill="${isClosed?'rgba(231,76,60,0.25)':'none'}" stroke="${color}" stroke-width="1.2"/>
+    <polygon points="${mx+11},${my-9} ${mx-11},${my} ${mx+11},${my+9}"
+      fill="${isClosed?'rgba(231,76,60,0.25)':'none'}" stroke="${color}" stroke-width="1.2"/>
+    <line x1="${mx+11}" y1="${my}" x2="${ox}" y2="${oy}" stroke="${color}" stroke-width="1.5"/>
+    ${isClosed ? `
+      <line x1="${mx-7}" y1="${my-7}" x2="${mx+7}" y2="${my+7}" stroke="#e74c3c" stroke-width="2"/>
+      <line x1="${mx+7}" y1="${my-7}" x2="${mx-7}" y2="${my+7}" stroke="#e74c3c" stroke-width="2"/>` : ''}
+    ${isPRV ? `
+      <line x1="${mx}" y1="${my-11}" x2="${mx}" y2="${my-20}" stroke="${color}" stroke-width="1"/>
+      <path d="M${mx-5},${my-20} Q${mx},${my-27} ${mx+5},${my-20}" fill="none" stroke="${color}" stroke-width="1"/>` : ''}
+    ${showLabels ? `<text x="${mx}" y="${my-26}" text-anchor="middle"
+      font-family="IBM Plex Mono" font-size="7"
+      fill="${isClosed?'#e74c3c':'#5a6070'}">${isClosed?'CLOSED':comp.name}</text>
+      ${comp.K != null && !isClosed ? `<text x="${mx}" y="${my+34}" text-anchor="middle"
+        font-family="IBM Plex Mono" font-size="8" fill="#6a7480">K=${comp.K}</text>` : ''}` : ''}
   `;
 }
 
-function pumpSVG(comp, x, y, w, stroke, res) {
-  const cx=x+w/2, cy=y, r=16;
+// ─── POMPA SVG (2D world koordinat) ────────────────────
+function pumpSVG_2d(comp, l, stroke, res) {
+  const { ix, iy, ox, oy } = l;
+  const mx = (ix + ox) / 2, my = (iy + oy) / 2;
+  const r = 18;
+
   return `
-    <rect x="${x}" y="${cy-26}" width="${w}" height="52" fill="rgba(46,204,113,0.04)" ${stroke} class="c-bg c-outline" rx="1"/>
-    <circle cx="${cx}" cy="${cy}" r="${r}" fill="rgba(46,204,113,0.07)" stroke="#2ecc71" stroke-width="1.5"/>
-    <line x1="${x}" y1="${cy}" x2="${cx-r}" y2="${cy}" stroke="#2ecc71" stroke-width="1.5"/>
-    <line x1="${cx+r}" y1="${cy}" x2="${x+w}" y2="${cy}" stroke="#2ecc71" stroke-width="1.5"/>
-    <path d="M${cx},${cy} L${cx-5},${cy-7} L${cx+7},${cy-3} Z" fill="#2ecc71" opacity="0.7"/>
-    ${showLabels ? `<text x="${cx}" y="${cy-30}" text-anchor="middle" font-family="IBM Plex Mono" font-size="8" fill="#2ecc71">PUMP</text>
-      <text x="${cx}" y="${cy+30}" text-anchor="middle" font-family="IBM Plex Mono" font-size="9" fill="#2ecc71">+${comp.head_m||20}m</text>` : ''}
+    <rect x="${Math.min(ix,ox)-2}" y="${my - 28}" width="${Math.abs(ox-ix)+4}" height="56"
+      fill="rgba(46,204,113,0.04)" ${stroke} class="c-bg c-outline" rx="1"/>
+    <circle cx="${mx}" cy="${my}" r="${r}"
+      fill="rgba(46,204,113,0.07)" stroke="#2ecc71" stroke-width="1.5"/>
+    <line x1="${ix}" y1="${iy}" x2="${mx-r}" y2="${my}" stroke="#2ecc71" stroke-width="1.5"/>
+    <line x1="${mx+r}" y1="${my}" x2="${ox}" y2="${oy}" stroke="#2ecc71" stroke-width="1.5"/>
+    <path d="M${mx},${my} L${mx-5},${my-7} L${mx+7},${my-3} Z" fill="#2ecc71" opacity="0.7"/>
+    ${showLabels ? `
+      <text x="${mx}" y="${my-32}" text-anchor="middle"
+        font-family="IBM Plex Mono" font-size="8" fill="#2ecc71">PUMP</text>
+      <text x="${mx}" y="${my+32}" text-anchor="middle"
+        font-family="IBM Plex Mono" font-size="9" fill="#2ecc71">+${comp.head_m||20}m</text>` : ''}
   `;
 }
+
+
 
 // ═══════════════════════════════════
 // SELECT / PROPS
@@ -1190,8 +1422,10 @@ function renderProps() {
       h += `<div class="pr"><span class="pl">Length</span>
         <input class="p-input" type="number" value="${comp.length_m||5}" step="0.5" min="0.1" onchange="upd(${selected},'length_m',+this.value)">
         <span class="pu">m</span></div>`;
-      h += `<div class="pr"><span class="pl">Δz</span>
-        <input class="p-input" type="number" value="${comp.dz_m||0}" step="0.5" onchange="upd(${selected},'dz_m',+this.value)">
+      h += `<div class="pr"><span class="pl">Direction</span>
+        <span class="pv" style="letter-spacing:0.1em">${comp.entryDir||'→'} → ${comp.exitDir||'→'}</span></div>`;
+      h += `<div class="pr"><span class="pl">dz (auto)</span>
+        <span class="pv" style="color:var(--text-dim)">${calcDz(comp).toFixed(2)}</span>
         <span class="pu">m</span></div>`;
     } else {
       h += `<div class="pr"><span class="pl">D in</span><input class="p-input" type="number" value="${comp.d_in_mm||50}" onchange="upd(${selected},'d_in_mm',+this.value)"><span class="pu">mm</span></div>`;
@@ -1208,6 +1442,8 @@ function renderProps() {
   if (comp.type==='elbow') {
     h += `<div class="pr"><span class="pl">K value</span><span class="pv">${comp.K}</span></div>`;
     h += `<div class="pr"><span class="pl">Diameter</span><span class="pv">${comp.diameter_mm||'—'} mm</span></div>`;
+    h += `<div class="pr"><span class="pl">Turn</span>
+      <span class="pv" style="letter-spacing:0.1em">${comp.entryDir||'right'} → ${comp.exitDir||'down'}</span></div>`;
   }
 
   if (comp.type==='valve') {
@@ -1332,7 +1568,7 @@ function runCalc() {
       const seg     = {
         diameter: D_mm || 50,
         length:   comp.length_m || 5,
-        dz:       comp.dz_m || 0,
+        dz:       calcDz(comp),
         fittings: {},
       };
       const prevSeg = comp.subtype === 'reducing'
