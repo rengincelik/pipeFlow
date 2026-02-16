@@ -863,7 +863,7 @@ function layout() {
 
     if (comp.type === 'elbow') {
       // Dirsek: entry yönünde yarım FIT_W, sonra exit yönünde yarım FIT_W
-      const half = lenPx / 2;
+      const half = lenPx/2;
       const eVec = DIR_VEC[eDir];
       const xVec = DIR_VEC[xDir];
       const cornerX = cx + eVec.dx * half;
@@ -1277,20 +1277,15 @@ function pipeSVG_2d(comp, l, stroke, res) {
 function elbowSVG_2d(comp, l, stroke) {
   const { ix, iy, ox, oy, entryDir, exitDir } = l;
   const color = '#f0a500';
-  const r = FIT_W * 0.55;   // köşe yarıçapı
+  const r = FIT_W*0.5;   // köşe yarıçapı
 
   // Her 4 varyant için köşe Q bezier path
   // Boru hattının ortasından geçen merkez çizgi
   let path = '';
-  // Kontrol noktası = köşe
-  const kx = ix + (exitDir === 'right' || exitDir === 'left' ? (ox - ix) : 0);
-  const ky = iy + (exitDir === 'down'  || exitDir === 'up'   ? (oy - iy) : 0);
-
   // Alternatif: entry→corner→exit quadratic bezier
   // Corner: entry yönünde FIT_W ilerle, sonra exit yönüne dön
   let cornerX, cornerY;
   if (entryDir === 'right') { cornerX = ox; cornerY = iy; }
-  if (entryDir === 'left')  { cornerX = ox; cornerY = iy; }
   if (entryDir === 'down')  { cornerX = ix; cornerY = oy; }
   if (entryDir === 'up')    { cornerX = ix; cornerY = oy; }
 
