@@ -691,11 +691,6 @@ const CATALOG_DEF = [
       {type:'pump', subtype:'centrifugal', name:'Centrifugal Pump', desc:'Add head', head_m:20, efficiency:0.75},
     ]
   },
-  {
-    group:'Instruments', items:[
-      {type:'meter', subtype:'meter', name:'Measurement Point', desc:'P/v/Re readout', K:0},
-    ]
-  },
 ];
 
 // ═══════════════════════════════════
@@ -787,11 +782,12 @@ let dropIdx    = null;
 const sysConfig = {
   Q_lpm:    30,    // Debi [L/min]
   P_in_bar:  2.0,  // Giriş basıncı [bar]
-  T_C:      20,    // Sıcaklık [°C]
+  T_in_C:   20,    // Giriş sıcaklığı [°C]
+  T_out_C:  20,    // Çıkış sıcaklığı [°C] — lineer interpolasyon için
 };
 
 // Layout constants
-const PAD=60, PIPE_MIN=70, PIPE_MAX=170, FIT_W=54, PUMP_W=58, METER_W=38, ROW_Y=160, COMP_H=60;
+const PAD=60, PIPE_MIN=70, PIPE_MAX=170, FIT_W=54, PUMP_W=58, ROW_Y=160, COMP_H=60;
 
 // ═══════════════════════════════════
 // CATALOG RENDER
@@ -885,6 +881,7 @@ function onDrop(evt) {
   dropIdx = null; dragItem = null;
   runCalc();
   renderSVG();
+  renderChart();
   selectComp(idx);
   updateStatus();
 }
@@ -917,8 +914,7 @@ function makeComp(tpl) {
 // ═══════════════════════════════════
 function compW(comp) {
   if (comp.type==='pipe') return Math.min(PIPE_MAX, Math.max(PIPE_MIN, (comp.length_m||5)*15));
-  if (comp.type==='meter') return METER_W;
-  if (comp.type==='pump')  return PUMP_W;
+  if (comp.type==='pump') return PUMP_W;
   return FIT_W;
 }
 
@@ -1067,7 +1063,6 @@ function compSVG(comp, x, y, w, isSel, res) {
   if (comp.type==='elbow')  body = elbowSVG(comp,x,y,w,stroke);
   if (comp.type==='valve')  body = valveSVG(comp,x,y,w,stroke);
   if (comp.type==='pump')   body = pumpSVG(comp,x,y,w,stroke,res);
-  if (comp.type==='meter')  body = meterSVG(comp,x,y,w,stroke,res);
 
   // Warning dot
   const warns = getWarns(comp, res);
@@ -1111,22 +1106,25 @@ function elbowSVG(comp, x, y, w, stroke) {
 
 function valveSVG(comp, x, y, w, stroke) {
   const cx = x+w/2, cy = y;
-  const isPRV = comp.special==='prv';
-  const isChk = comp.subtype==='check';
-  const color = isPRV ? '#e74c3c' : '#e05c00';
+  const isPRV    = comp.special==='prv';
+  const isChk    = comp.subtype==='check';
+  const isClosed = comp.open === false;
+  const color    = isClosed ? '#e74c3c' : isPRV ? '#e74c3c' : '#e05c00';
   return `
-    <rect x="${x}" y="${cy-22}" width="${w}" height="44" fill="rgba(224,92,0,0.04)" ${stroke} class="c-bg c-outline" rx="1"/>
+    <rect x="${x}" y="${cy-22}" width="${w}" height="44" fill="${isClosed?'rgba(231,76,60,0.08)':'rgba(224,92,0,0.04)'}" ${stroke} class="c-bg c-outline" rx="1"/>
     <line x1="${x}" y1="${cy}" x2="${cx-11}" y2="${cy}" stroke="${color}" stroke-width="1.5"/>
-    <polygon points="${cx-11},${cy-9} ${cx+11},${cy} ${cx-11},${cy+9}" fill="none" stroke="${color}" stroke-width="1.2"/>
+    <polygon points="${cx-11},${cy-9} ${cx+11},${cy} ${cx-11},${cy+9}" fill="${isClosed?'rgba(231,76,60,0.25)':'none'}" stroke="${color}" stroke-width="1.2"/>
     ${isChk
       ? `<polygon points="${cx+11},${cy-9} ${cx-3},${cy} ${cx+11},${cy+9}" fill="rgba(224,92,0,0.15)" stroke="${color}" stroke-width="1.2"/>`
-      : `<polygon points="${cx+11},${cy-9} ${cx-11},${cy} ${cx+11},${cy+9}" fill="none" stroke="${color}" stroke-width="1.2"/>`
+      : `<polygon points="${cx+11},${cy-9} ${cx-11},${cy} ${cx+11},${cy+9}" fill="${isClosed?'rgba(231,76,60,0.25)':'none'}" stroke="${color}" stroke-width="1.2"/>`
     }
     <line x1="${cx+11}" y1="${cy}" x2="${x+w}" y2="${cy}" stroke="${color}" stroke-width="1.5"/>
+    ${isClosed ? `<line x1="${cx-7}" y1="${cy-7}" x2="${cx+7}" y2="${cy+7}" stroke="#e74c3c" stroke-width="2"/>
+      <line x1="${cx+7}" y1="${cy-7}" x2="${cx-7}" y2="${cy+7}" stroke="#e74c3c" stroke-width="2"/>` : ''}
     ${isPRV ? `<line x1="${cx}" y1="${cy-11}" x2="${cx}" y2="${cy-20}" stroke="${color}" stroke-width="1"/>
       <path d="M${cx-5},${cy-20} Q${cx},${cy-27} ${cx+5},${cy-20}" fill="none" stroke="${color}" stroke-width="1"/>` : ''}
-    ${showLabels ? `<text x="${cx}" y="${cy-26}" text-anchor="middle" font-family="IBM Plex Mono" font-size="7" fill="#5a6070">${comp.name}</text>
-      ${comp.K!=null ? `<text x="${cx}" y="${cy+34}" text-anchor="middle" font-family="IBM Plex Mono" font-size="8" fill="#6a7480">K=${comp.K}</text>` : ''}` : ''}
+    ${showLabels ? `<text x="${cx}" y="${cy-26}" text-anchor="middle" font-family="IBM Plex Mono" font-size="7" fill="${isClosed?'#e74c3c':'#5a6070'}">${isClosed?'CLOSED':comp.name}</text>
+      ${comp.K!=null && !isClosed ? `<text x="${cx}" y="${cy+34}" text-anchor="middle" font-family="IBM Plex Mono" font-size="8" fill="#6a7480">K=${comp.K}</text>` : ''}` : ''}
   `;
 }
 
@@ -1143,17 +1141,6 @@ function pumpSVG(comp, x, y, w, stroke, res) {
   `;
 }
 
-function meterSVG(comp, x, y, w, stroke, res) {
-  const cx=x+w/2, cy=y;
-  return `
-    <line x1="${x}" y1="${cy}" x2="${x+w}" y2="${cy}" stroke="#2a2f3a" stroke-width="1" stroke-dasharray="3,2"/>
-    <circle cx="${cx}" cy="${cy}" r="11" fill="rgba(240,165,0,0.06)" stroke="#f0a500" stroke-width="1.5" class="c-bg c-outline"/>
-    <line x1="${cx}" y1="${cy-11}" x2="${cx}" y2="${cy-20}" stroke="#f0a500" stroke-width="1"/>
-    ${showLabels ? `<text x="${cx}" y="${cy-24}" text-anchor="middle" font-family="IBM Plex Mono" font-size="8" fill="#f0a500">${comp.id||'M'}</text>` : ''}
-    ${res ? `<text x="${cx}" y="${cy+26}" text-anchor="middle" font-family="IBM Plex Mono" font-size="8" fill="#f0a500">${res.P_out}bar</text>` : ''}
-  `;
-}
-
 // ═══════════════════════════════════
 // SELECT / PROPS
 // ═══════════════════════════════════
@@ -1161,14 +1148,18 @@ function selectComp(idx) {
   selected = idx;
   renderSVG();
   renderProps();
-  document.getElementById('btn-del').style.display = 'block';
+  renderChart();
+  const delBtn = document.getElementById('btn-del-side');
+  if (delBtn) delBtn.style.display = 'block';
 }
 
 function deselect() {
   selected = null;
   renderSVG();
+  renderChart();
   document.getElementById('prop-body').innerHTML = '<div id="prop-empty"><div style="font-size:24px;opacity:0.2">◈</div><div>SELECT A COMPONENT</div></div>';
-  document.getElementById('btn-del').style.display = 'none';
+  const delBtn = document.getElementById('btn-del-side');
+  if (delBtn) delBtn.style.display = 'none';
 }
 
 function renderProps() {
@@ -1238,21 +1229,27 @@ function renderProps() {
       <input class="p-input" type="number" value="${comp.efficiency||0.75}" step="0.01" min="0.1" max="1" onchange="upd(${selected},'efficiency',+this.value)"></div>`;
   }
 
-  if (comp.type==='meter') {
-    h += `<div class="pr"><span class="pl">ID</span>
-      <input class="p-input" type="text" value="${comp.id||'M1'}" onchange="upd(${selected},'id',this.value)"></div>`;
+  if (comp.type==='valve' && comp.special !== 'prv') {
+    const isOpen = comp.open !== false;
+    h += `<div class="pr"><span class="pl">State</span>
+      <button class="valve-toggle ${isOpen?'open':'closed'}" onclick="toggleValve(${selected})">
+        ${isOpen ? '⬤ OPEN' : '◯ CLOSED'}
+      </button></div>`;
   }
 
   h += `</div>`;
 
   if (res) {
+    const blocked = res.blocked ? `<div class="badge err">⛔ Flow blocked</div>` : '';
     h += `<div class="ps"><div class="ps-title">Live Readings</div>
+      ${blocked}
       <div class="reading-card">
         <div class="r-row"><span class="r-lbl">P inlet</span><span><span class="r-val">${res.P_in}</span> <span class="r-unit">bar</span></span></div>
         <div class="r-row"><span class="r-lbl">P outlet</span><span><span class="r-val" style="${res.P_out<0.3?'color:var(--red)':''}">${res.P_out}</span> <span class="r-unit">bar</span></span></div>
         <div class="r-row"><span class="r-lbl">ΔP</span><span><span class="r-val" style="color:var(--accent)">${res.dP}</span> <span class="r-unit">bar</span></span></div>
         <div class="r-row"><span class="r-lbl">Velocity</span><span><span class="r-val" style="color:var(--blue)">${res.v}</span> <span class="r-unit">m/s</span></span></div>
         <div class="r-row"><span class="r-lbl">Reynolds</span><span><span class="r-val" style="color:var(--text-mid);font-size:13px">${res.Re.toLocaleString()}</span></span></div>
+        <div class="r-row"><span class="r-lbl">Fluid T</span><span><span class="r-val" style="color:#f0a500">${res.T_C}</span> <span class="r-unit">°C</span></span></div>
       </div>
     </div>`;
   }
@@ -1264,14 +1261,14 @@ function renderProps() {
 function upd(idx, key, val) {
   if (!line[idx]) return;
   line[idx][key] = val;
-  runCalc(); renderSVG(); renderProps();
+  runCalc(); renderSVG(); renderProps(); renderChart();
 }
 function updMat(idx, matId) {
   const m = MATERIALS.find(x=>x.id===matId);
   if (m && line[idx]) { line[idx].material=matId; line[idx].eps=m.eps; }
   const el = document.getElementById('eps-display');
   if (el) el.textContent = m?.eps || '';
-  runCalc(); renderSVG();
+  runCalc(); renderSVG(); renderChart();
 }
 
 // ═══════════════════════════════════
@@ -1280,42 +1277,72 @@ function updMat(idx, matId) {
 function runCalc() {
   if (!line.length) { calcRes = []; return; }
 
-  const { Q_lpm, P_in_bar, T_C } = sysConfig;
+  const { Q_lpm, P_in_bar, T_in_C, T_out_C } = sysConfig;
   const Q_m3s = Q_lpm / 60000;
-
-  // Sıvı özelliklerini interpolasyonla al
-  const fp = waterFluidModel.getProps(T_C);
-  const fluid = { rho: fp.rho, mu: fp.mu };
+  const N = line.length;
 
   let P = P_in_bar;
+  let blocked = false;   // kapalı valf sonrası akış durur
   calcRes = [];
 
-  for (let i = 0; i < line.length; i++) {
+  for (let i = 0; i < N; i++) {
     const comp = line[i];
     const prev = i > 0 ? line[i - 1] : null;
+
+    // Segment ortalama sıcaklığı — lineer interpolasyon
+    const T_seg = T_in_C + (T_out_C - T_in_C) * ((i + 0.5) / N);
+    const fp    = waterFluidModel.getProps(T_seg);
+    const fluid = { rho: fp.rho, mu: fp.mu };
+
     let P_in_comp = P;
     let P_out_comp, v, Re, dP;
 
+    // Kapalı valf sonrası tüm komponentler 0 basınç
+    if (blocked) {
+      const D_mm = comp.d_out_mm || comp.diameter_mm || 50;
+      const D    = D_mm / 1000;
+      v  = 0;
+      Re = 0;
+      dP = P_in_comp;
+      P_out_comp = 0;
+      calcRes.push({ P_in: +P_in_comp.toFixed(4), P_out: 0, dP: +P_in_comp.toFixed(5), v: 0, Re: 0, T_C: +T_seg.toFixed(1), blocked: true });
+      P = 0;
+      continue;
+    }
+
+    // ── Kapalı valf kontrolü ───────────────────────────
+    if (comp.type === 'valve' && comp.open === false) {
+      const D_mm = comp.diameter_mm || 50;
+      const D    = D_mm / 1000;
+      v  = 0;
+      Re = 0;
+      dP = P_in_comp;
+      P_out_comp = 0;
+      blocked = true;
+      calcRes.push({ P_in: +P_in_comp.toFixed(4), P_out: 0, dP: +P_in_comp.toFixed(5), v: 0, Re: 0, T_C: +T_seg.toFixed(1), blocked: true, valveClosed: true });
+      P = 0;
+      continue;
+    }
+
     // ── Boru (straight veya reducing) ──────────────────
     if (comp.type === 'pipe') {
-      const D_mm  = comp.subtype === 'reducing' ? comp.d_out_mm  : comp.diameter_mm;
-      const D_in_mm = comp.subtype === 'reducing' ? comp.d_in_mm : D_mm;
-      const eps   = comp.eps ?? 0.046;
-      const seg   = {
+      const D_mm    = comp.subtype === 'reducing' ? comp.d_out_mm  : comp.diameter_mm;
+      const D_in_mm = comp.subtype === 'reducing' ? comp.d_in_mm   : D_mm;
+      const eps     = comp.eps ?? 0.046;
+      const seg     = {
         diameter: D_mm || 50,
         length:   comp.length_m || 5,
         dz:       comp.dz_m || 0,
         fittings: {},
       };
-      // Reducing için prevSeg olarak d_in_mm kullan
       const prevSeg = comp.subtype === 'reducing'
         ? { diameter: D_in_mm || 50 }
         : (prev ? _prevSegDiameter(prev) : null);
 
       const r = calcSegment(seg, Q_m3s, fluid, eps, FITTING_LIB, prevSeg);
-      v   = r.velocity_ms;
-      Re  = r.Re;
-      dP  = r.deltaP_bar;
+      v          = r.velocity_ms;
+      Re         = r.Re;
+      dP         = r.deltaP_bar;
       P_out_comp = +(P_in_comp - dP).toFixed(5);
 
     // ── Dirsek / Valf (K katsayılı) ────────────────────
@@ -1350,11 +1377,11 @@ function runCalc() {
       const nu = (fluid.mu / 1000) / fluid.rho;
       Re = Reynolds(v, D, nu);
       const head = comp.head_m ?? 20;
-      const addP = fluid.rho * G * head / 1e5;   // bar cinsinden basınç kazanımı
+      const addP = fluid.rho * G * head / 1e5;
       dP = -addP;
       P_out_comp = +(P_in_comp + addP).toFixed(5);
 
-    // ── Ölçüm noktası ──────────────────────────────────
+    // ── Fallback ───────────────────────────────────────
     } else {
       const D_mm = comp.diameter_mm || 50;
       const D    = D_mm / 1000;
@@ -1371,6 +1398,7 @@ function runCalc() {
       dP:    +dP.toFixed(5),
       v:     +v.toFixed(3),
       Re:    Math.round(Re),
+      T_C:   +T_seg.toFixed(1),
     });
 
     P = P_out_comp;
@@ -1403,19 +1431,35 @@ function getWarns(comp, res) {
 // ═══════════════════════════════════
 // ACTIONS
 // ═══════════════════════════════════
+function toggleValve(idx) {
+  if (!line[idx] || line[idx].type !== 'valve') return;
+  line[idx].open = line[idx].open === false ? true : false;
+  runCalc(); renderSVG(); renderProps();
+  updateStatus();
+}
+
+function setSysConfig(key, val) {
+  sysConfig[key] = val;
+  runCalc(); renderSVG(); updateStatus();
+  // Grafik varsa güncelle
+  if (typeof renderChart === 'function') renderChart();
+}
+
 function deleteSelected() {
   if (selected===null) return;
   line.splice(selected,1);
-  selected=null; runCalc(); renderSVG();
+  selected=null; runCalc(); renderSVG(); renderChart();
   document.getElementById('prop-body').innerHTML = '<div id="prop-empty"><div style="font-size:24px;opacity:0.2">◈</div><div>SELECT A COMPONENT</div></div>';
-  document.getElementById('btn-del').style.display='none';
+  const delBtn = document.getElementById('btn-del-side');
+  if (delBtn) delBtn.style.display='none';
   updateStatus();
 }
 function clearLine() {
   line=[]; calcRes=[]; selected=null;
-  renderSVG();
+  renderSVG(); renderChart();
   document.getElementById('prop-body').innerHTML='<div id="prop-empty"><div style="font-size:24px;opacity:0.2">◈</div><div>SELECT A COMPONENT</div></div>';
-  document.getElementById('btn-del').style.display='none';
+  const delBtn = document.getElementById('btn-del-side');
+  if (delBtn) delBtn.style.display='none';
   updateStatus();
 }
 function togglePG() {
@@ -1452,39 +1496,254 @@ function updateStatus() {
 }
 
 // ═══════════════════════════════════
-// RESIZE HANDLE
+// RESIZE HANDLES (3 adet)
 // ═══════════════════════════════════
-const handle    = document.getElementById('resize-handle');
-const bottomBar = document.getElementById('bottom-bar');
-let isResizing  = false;
-let startY, startH;
 
-handle.addEventListener('mousedown', e => {
-  isResizing = true;
-  startY = e.clientY;
-  startH = bottomBar.offsetHeight;
-  handle.classList.add('active');
-  document.body.style.cursor = 'ns-resize';
-  document.body.style.userSelect = 'none';
-});
+(function() {
+  let active = null;
+  let startX, startY, startW, startH;
 
-document.addEventListener('mousemove', e => {
-  if (!isResizing) return;
-  const delta = startY - e.clientY;
-  const newH  = Math.min(500, Math.max(80, startH + delta));
-  bottomBar.style.height = newH + 'px';
-});
+  // 1) Sol kolon catalog/props dikey ayırıcı
+  const leftResize   = document.getElementById('left-resize');
+  const panelCatalog = document.getElementById('panel-catalog');
+  const panelProps   = document.getElementById('panel-props');
 
-document.addEventListener('mouseup', () => {
-  if (!isResizing) return;
-  isResizing = false;
-  handle.classList.remove('active');
-  document.body.style.cursor = '';
-  document.body.style.userSelect = '';
-});
+  // 2) Sol/sağ kolon yatay ayırıcı
+  const colResize = document.getElementById('col-resize');
+  const colLeft   = document.getElementById('col-left');
+
+  // 3) Sağ kolon canvas/chart dikey ayırıcı
+  const rightResize  = document.getElementById('right-resize');
+  const panelChart   = document.getElementById('panel-chart');
+
+  function onDown(e, type) {
+    active = type;
+    startX = e.clientX;
+    startY = e.clientY;
+    if (type === 'left-v') {
+      startH = panelCatalog.offsetHeight;
+    } else if (type === 'col-h') {
+      startW = colLeft.offsetWidth;
+    } else if (type === 'right-v') {
+      startH = panelChart.offsetHeight;
+    }
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  }
+
+  leftResize.addEventListener('mousedown',  e => { leftResize.classList.add('active');  onDown(e, 'left-v'); document.body.style.cursor = 'ns-resize'; });
+  colResize.addEventListener('mousedown',   e => { colResize.classList.add('active');   onDown(e, 'col-h');  document.body.style.cursor = 'ew-resize'; });
+  rightResize.addEventListener('mousedown', e => { rightResize.classList.add('active'); onDown(e, 'right-v'); document.body.style.cursor = 'ns-resize'; });
+
+  document.addEventListener('mousemove', e => {
+    if (!active) return;
+    if (active === 'left-v') {
+      const delta = e.clientY - startY;
+      const newH  = Math.min(700, Math.max(60, startH + delta));
+      panelCatalog.style.flexBasis = newH + 'px';
+      panelCatalog.style.flexGrow  = '0';
+      panelCatalog.style.flexShrink = '0';
+    } else if (active === 'col-h') {
+      const delta = e.clientX - startX;
+      const newW  = Math.min(420, Math.max(160, startW + delta));
+      colLeft.style.width = newW + 'px';
+    } else if (active === 'right-v') {
+      const delta = startY - e.clientY;
+      const newH  = Math.min(500, Math.max(80, startH + delta));
+      panelChart.style.height = newH + 'px';
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!active) return;
+    leftResize.classList.remove('active');
+    colResize.classList.remove('active');
+    rightResize.classList.remove('active');
+    active = null;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  });
+})();
+
+// ═══════════════════════════════════
+// CHART (Canvas 2D)
+// ═══════════════════════════════════
+function renderChart() {
+  const canvas = document.getElementById('chart-canvas');
+  const empty  = document.getElementById('chart-empty');
+  if (!canvas) return;
+
+  if (!calcRes.length) {
+    empty && empty.classList.remove('hidden');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    return;
+  }
+  empty && empty.classList.add('hidden');
+
+  // Boyut ayarla
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width  = rect.width  * devicePixelRatio;
+  canvas.height = rect.height * devicePixelRatio;
+  canvas.style.width  = rect.width  + 'px';
+  canvas.style.height = rect.height + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+  const W = rect.width, H = rect.height;
+
+  const PAD_L = 48, PAD_R = 48, PAD_T = 16, PAD_B = 28;
+  const chartW = W - PAD_L - PAD_R;
+  const chartH = H - PAD_T - PAD_B;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Veri noktaları: her segment için P_in, son segment P_out da eklenir
+  const pVals = calcRes.map(r => r.P_in).concat([calcRes[calcRes.length-1].P_out]);
+  const vVals = calcRes.map(r => r.v).concat([calcRes[calcRes.length-1].v]);
+  const n     = pVals.length;
+
+  const pMin = 0, pMax = Math.max(...pVals) * 1.15 || 3;
+  const vMin = 0, vMax = Math.max(...vVals) * 1.15 || 3;
+
+  const xOf = i => PAD_L + (i / (n - 1)) * chartW;
+  const yOfP = v => PAD_T + chartH - ((v - pMin) / (pMax - pMin)) * chartH;
+  const yOfV = v => PAD_T + chartH - ((v - vMin) / (vMax - vMin)) * chartH;
+
+  // ── Komponent arka plan bantları ──
+  const compColors = {
+    pipe:  'rgba(61,158,245,0.04)',
+    elbow: 'rgba(240,165,0,0.05)',
+    valve: 'rgba(224,92,0,0.06)',
+    pump:  'rgba(46,204,113,0.06)',
+  };
+  calcRes.forEach((r, i) => {
+    const comp = line[i];
+    const x1 = xOf(i), x2 = xOf(i+1);
+    const col = compColors[comp?.type] || 'transparent';
+    ctx.fillStyle = selected === i
+      ? 'rgba(240,165,0,0.10)'
+      : col;
+    ctx.fillRect(x1, PAD_T, x2 - x1, chartH);
+
+    // Seçili ise üst çizgi
+    if (selected === i) {
+      ctx.strokeStyle = 'rgba(240,165,0,0.5)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x1, PAD_T);
+      ctx.lineTo(x1, PAD_T + chartH);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x2, PAD_T);
+      ctx.lineTo(x2, PAD_T + chartH);
+      ctx.stroke();
+    }
+  });
+
+  // ── Grid ──
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = PAD_T + (chartH / 4) * i;
+    ctx.beginPath(); ctx.moveTo(PAD_L, y); ctx.lineTo(PAD_L + chartW, y); ctx.stroke();
+  }
+
+  // ── P eğrisi (mavi) ──
+  ctx.strokeStyle = '#3d9ef5';
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  pVals.forEach((p, i) => {
+    i === 0 ? ctx.moveTo(xOf(i), yOfP(p)) : ctx.lineTo(xOf(i), yOfP(p));
+  });
+  ctx.stroke();
+
+  // Alan dolgusu
+  ctx.fillStyle = 'rgba(61,158,245,0.07)';
+  ctx.beginPath();
+  pVals.forEach((p, i) => {
+    i === 0 ? ctx.moveTo(xOf(i), yOfP(p)) : ctx.lineTo(xOf(i), yOfP(p));
+  });
+  ctx.lineTo(xOf(n-1), PAD_T + chartH);
+  ctx.lineTo(xOf(0),   PAD_T + chartH);
+  ctx.closePath();
+  ctx.fill();
+
+  // ── v eğrisi (yeşil) ──
+  ctx.strokeStyle = '#2ecc71';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 3]);
+  ctx.beginPath();
+  vVals.forEach((v, i) => {
+    i === 0 ? ctx.moveTo(xOf(i), yOfV(v)) : ctx.lineTo(xOf(i), yOfV(v));
+  });
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // ── Nokta işaretçiler (P) ──
+  pVals.forEach((p, i) => {
+    ctx.beginPath();
+    ctx.arc(xOf(i), yOfP(p), 3, 0, Math.PI * 2);
+    ctx.fillStyle = selected === i || selected === i-1 ? '#f0a500' : '#3d9ef5';
+    ctx.fill();
+  });
+
+  // ── Y ekseni sol (P) ──
+  ctx.fillStyle = 'rgba(61,158,245,0.7)';
+  ctx.font = '9px IBM Plex Mono';
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= 4; i++) {
+    const v = pMin + (pMax - pMin) * (1 - i/4);
+    ctx.fillText(v.toFixed(1), PAD_L - 5, PAD_T + (chartH/4)*i + 3);
+  }
+  ctx.fillStyle = 'rgba(61,158,245,0.5)';
+  ctx.font = '8px IBM Plex Mono';
+  ctx.textAlign = 'left';
+  ctx.fillText('bar', 2, PAD_T + 8);
+
+  // ── Y ekseni sağ (v) ──
+  ctx.fillStyle = 'rgba(46,204,113,0.7)';
+  ctx.font = '9px IBM Plex Mono';
+  ctx.textAlign = 'left';
+  for (let i = 0; i <= 4; i++) {
+    const v = vMin + (vMax - vMin) * (1 - i/4);
+    ctx.fillText(v.toFixed(2), PAD_L + chartW + 5, PAD_T + (chartH/4)*i + 3);
+  }
+  ctx.fillStyle = 'rgba(46,204,113,0.5)';
+  ctx.font = '8px IBM Plex Mono';
+  ctx.textAlign = 'left';
+  ctx.fillText('m/s', PAD_L + chartW + 5, PAD_T + chartH + 18);
+
+  // ── X ekseni — komponent isimleri ──
+  ctx.fillStyle = 'rgba(74,80,96,0.9)';
+  ctx.font = '7px IBM Plex Mono';
+  ctx.textAlign = 'center';
+  calcRes.forEach((r, i) => {
+    const comp = line[i];
+    const label = comp ? (comp.name || comp.type).slice(0,6) : '';
+    const cx = (xOf(i) + xOf(i+1)) / 2;
+    ctx.fillText(label, cx, PAD_T + chartH + 16);
+  });
+
+  // ── Chart tıklama — komponent seçimi ──
+  canvas._chartClickHandler && canvas.removeEventListener('click', canvas._chartClickHandler);
+  canvas._chartClickHandler = function(e) {
+    const bnd = canvas.getBoundingClientRect();
+    const mx  = e.clientX - bnd.left;
+    for (let i = 0; i < calcRes.length; i++) {
+      if (mx >= xOf(i) && mx < xOf(i+1)) {
+        selectComp(i);
+        break;
+      }
+    }
+  };
+  canvas.addEventListener('click', canvas._chartClickHandler);
+}
 
 // ═══════════════════════════════════
 // INIT
 // ═══════════════════════════════════
 renderCatalog();
 renderSVG();
+renderChart();
