@@ -1,0 +1,304 @@
+/* ═══════════════════════════════════════════════════════════
+   PIPELINE SVG — Minimalist çizgi tabanlı görünüm
+   Kutu yok, outline yok. Sadece elemanın kendi çizgisi.
+   Hover/sel → o çizgi parlıyor, başka hiçbir şey değişmiyor.
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Değişkenler ──────────────────────────────────────────── */
+:root {
+  --c-pipe:     #4a9eff;
+  --c-trans:    #6e3eff;   /* reducer + expander */
+  --c-elbow:    #fbbf24;
+  --c-valve:    #43d339;
+  --c-valve-cl: #f87171;
+  --c-prv:      #f472b6;
+  --c-pump:     #3444d3;
+  --c-node-in:  #34d399;
+  --c-node-out: #f87171;
+
+  /* Akış rejimleri */
+  --c-lam:  #22d3ee;
+  --c-tr:   #facc15;
+  --c-turb: #ff0000;
+
+  /* Stroke kalınlıkları */
+  --sw-idle: 2px;
+  --sw-hover: 2.5px;
+  --sw-sel:   3px;
+
+  /* Geçiş süresi */
+  --t-fast: 0.12s;
+
+  --font-mono: 'IBM Plex Mono', 'Fira Code', monospace;
+}
+
+/* ── Spine — tamamen gizli ────────────────────────────────── */
+#layer-spine { display: none; }
+
+/* ── Node A / B ───────────────────────────────────────────── */
+.pipeline-node {
+  pointer-events: none;
+}
+.pipeline-node circle {
+  r: 5px;
+  fill: none;
+}
+.pipeline-node text {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+}
+.node-inlet  circle { fill: var(--c-node-in);  }
+.node-inlet  text   { fill:   var(--c-node-in);  }
+.node-outlet circle { fill: var(--c-node-out); }
+.node-outlet text   { fill:   var(--c-node-out); }
+
+/* ── Genel komponent — ortak kurallar ─────────────────────── */
+.component {
+  cursor: pointer;
+  fill:none;
+}
+
+/* Tüm çizgilere ortak geçiş */
+.component .pipe-body,
+.component .pipe-centerline,
+.component .elbow-path,
+.component .valve-stem,
+.component .valve-tri,
+.component .pump-circle,
+.component .pump-stem,
+.component .pump-blade,
+.component .prv-spring,
+.component .trans-body {
+  transition:
+    stroke        var(--t-fast) ease,
+    stroke-width  var(--t-fast) ease,
+    fill          var(--t-fast) ease,
+    filter        var(--t-fast) ease;
+}
+
+/* ── Etiketler ────────────────────────────────────────────── */
+.component .lbl       { display: none; }
+.component.labels-on .lbl { display: block; }
+
+.lbl {
+  font-family: var(--font-mono);
+  pointer-events: none;
+  user-select: none;
+}
+.lbl-dim    { font-size: 8px;  fill: #4a5060; }
+.lbl-len    { font-size: 8px;  fill: #4a5060; }
+.lbl-vel    { font-size: 8px;  fill: var(--c-pipe); }
+.lbl-k      { font-size: 7px;  fill: #525870; }
+.lbl-name   { font-size: 8px;  fill: #525870; }
+.lbl-closed { font-size: 8px;  fill: var(--c-valve-cl); font-weight: 600; }
+.lbl-pset   { font-size: 8px;  fill: var(--c-prv); }
+.lbl-pump   { font-size: 8px;  fill: var(--c-pump); }
+.lbl-head   { font-size: 9px;  fill: var(--c-pump); font-weight: 600; }
+
+/* ── Drop indicator ───────────────────────────────────────── */
+.drop-indicator {
+  stroke:           var(--c-elbow);
+  stroke-width:     2;
+  stroke-dasharray: 4 3;
+  opacity:          0.7;
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   PIPE — düz boru
+   Çizilen şekil: ince dolgu rect + merkez çizgi
+   ═══════════════════════════════════════════════════════════ */
+.flow-line {
+  stroke-dasharray: 8 18;
+  animation: flow-anim var(--flow-dur) linear infinite;
+}
+.pipe-centerline {
+  stroke-width: 4px;
+  stroke:var(--c-pipe);
+  opacity:      1;
+}
+.pipe-arrow {
+  fill:    var(--c-pipe);
+  opacity: 1;
+}
+
+/* Hover — sadece boru rect parlıyor */
+.component.pipe:hover .pipe-centerline {
+  stroke-width: var(--sw-hover);
+  filter: drop-shadow(0 0 3px var(--c-pipe));
+}
+
+/* Seçili — daha güçlü parlama */
+.component.pipe.sel .pipe-centerline {
+  stroke-width: var(--sw-sel);
+  filter: drop-shadow(0 0 6px var(--c-pipe));
+}
+
+/* Akış rejimleri — sadece renk değişir */
+.component[data-regime="L"]  .pipe-body { stroke: var(--c-lam);  fill: rgba(34,211,238,0.05); }
+
+/*.component[data-regime="L"]  .pipe-centerline,
+.component[data-regime="L"]  .pipe-arrow { stroke: var(--c-lam); fill: var(--c-lam); }
+
+
+.component[data-regime="T"]  .pipe-body { stroke: var(--c-turb); fill: rgba(251,146,60,0.05); }
+.component[data-regime="T"]  .pipe-centerline,
+.component[data-regime="T"]  .pipe-arrow { stroke: var(--c-turb); fill: var(--c-turb); }
+*/
+
+/* ═══════════════════════════════════════════════════════════
+   TRANSITION — reducer / expander
+   ═══════════════════════════════════════════════════════════ */
+.pipe-reducer,
+.pipe-expander {
+
+  stroke:       var(--c-trans);
+  stroke-width: var(--sw-idle);
+}
+
+.component.pipe-reducer-comp:hover .pipe-reducer,
+.component.pipe-expander-comp:hover .pipe-expander {
+  stroke-width: var(--sw-hover);
+  filter: drop-shadow(0 0 3px var(--c-trans));
+}
+
+.component.pipe-reducer-comp.sel .pipe-reducer,
+.component.pipe-expander-comp.sel .pipe-expander {
+  stroke-width: var(--sw-sel);
+  filter: drop-shadow(0 0 6px var(--c-trans));
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   ELBOW — çeyrek çember (bezier path)
+   Arka plan kutu yok, sadece kavis çizgisi var.
+   ═══════════════════════════════════════════════════════════ */
+.elbow-hit {
+  /* Tıklanabilir alan — tamamen görünmez */
+  fill:         transparent;
+  stroke:       none;
+}
+.elbow-path {
+  fill:            none;
+  stroke:          var(--c-elbow);
+  stroke-width:    var(--sw-idle);
+  stroke-linecap:  round;
+}
+
+.component.elbow:hover .elbow-path {
+  stroke-width: var(--sw-hover);
+  filter: drop-shadow(0 0 3px var(--c-elbow));
+}
+.component.elbow.sel .elbow-path {
+  stroke-width: var(--sw-sel);
+  filter: drop-shadow(0 0 6px var(--c-elbow));
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   VALVE — standart valfler
+   Sembol: iki karşı üçgen + bağlantı çizgileri
+   Kutu yok.
+   ═══════════════════════════════════════════════════════════ */
+.valve-bg {
+  /* Arka plan kutu — görünmez, sadece hit alanı */
+  fill:   transparent;
+  stroke: none;
+}
+.valve-stem {
+  stroke:       var(--c-valve);
+  stroke-width: var(--sw-idle);
+  stroke-linecap: round;
+}
+.valve-tri {
+  fill:         rgba(251, 146, 60, 0.08);
+  stroke:       var(--c-valve);
+  stroke-width: var(--sw-idle);
+  stroke-linejoin: round;
+}
+
+/* Hover */
+.component.valve:hover .valve-stem,
+.component.valve:hover .valve-tri {
+  stroke-width: var(--sw-hover);
+  filter: drop-shadow(0 0 3px var(--c-valve));
+}
+/* Sel */
+.component.valve.sel .valve-stem,
+.component.valve.sel .valve-tri {
+  stroke-width: var(--sw-sel);
+  filter: drop-shadow(0 0 6px var(--c-valve));
+}
+
+/* Kapalı valf */
+.component.valve-closed .valve-stem,
+.component.valve-closed .valve-tri {
+  stroke: var(--c-valve-cl);
+}
+.component.valve-closed .valve-tri {
+  fill: rgba(248, 113, 113, 0.15);
+}
+.valve-closed-x {
+  stroke:       var(--c-valve-cl);
+  stroke-width: var(--sw-idle);
+  stroke-linecap: round;
+}
+.component.valve-closed:hover .valve-closed-x,
+.component.valve-closed.sel .valve-closed-x {
+  stroke-width: var(--sw-hover);
+}
+
+/* PRV */
+.prv-spring {
+  fill:         none;
+  stroke:       var(--c-prv);
+  stroke-width: var(--sw-idle);
+  stroke-linecap: round;
+}
+.component.valve-prv .valve-stem { stroke: var(--c-prv); }
+.component.valve-prv:hover .valve-stem,
+.component.valve-prv:hover .prv-spring {
+  stroke-width: var(--sw-hover);
+  filter: drop-shadow(0 0 3px var(--c-prv));
+}
+.component.valve-prv.sel .valve-stem,
+.component.valve-prv.sel .prv-spring {
+  stroke-width: var(--sw-sel);
+  filter: drop-shadow(0 0 6px var(--c-prv));
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   PUMP — daire + çark
+   Kutu yok, sadece daire ve bağlantı çizgileri.
+   ═══════════════════════════════════════════════════════════ */
+.pump-bg {
+  fill:   transparent;
+  stroke: none;
+}
+.pump-stem {
+  stroke:       var(--c-pump);
+  stroke-width: var(--sw-idle);
+  stroke-linecap: round;
+}
+.pump-circle {
+  fill:         rgba(52, 211, 153, 0.06);
+  stroke:       var(--c-pump);
+  stroke-width: var(--sw-idle);
+}
+.pump-blade {
+  fill:    var(--c-pump);
+  opacity: 0.6;
+}
+
+.component.pump:hover .pump-circle,
+.component.pump:hover .pump-stem {
+  stroke-width: var(--sw-hover);
+  filter: drop-shadow(0 0 4px var(--c-pump));
+}
+.component.pump.sel .pump-circle,
+.component.pump.sel .pump-stem {
+  stroke-width: var(--sw-sel);
+  filter: drop-shadow(0 0 8px var(--c-pump));
+}
