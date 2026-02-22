@@ -45,7 +45,7 @@
 }
 .pipeline-node text {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 15px;
   font-weight: 700;
 }
 .node-inlet  circle { fill: var(--c-node-in);  }
@@ -86,15 +86,15 @@
   pointer-events: none;
   user-select: none;
 }
-.lbl-dim    { font-size: 8px;  fill: #4a5060; }
-.lbl-len    { font-size: 8px;  fill: #4a5060; }
-.lbl-vel    { font-size: 8px;  fill: var(--c-pipe); }
-.lbl-k      { font-size: 7px;  fill: #525870; }
-.lbl-name   { font-size: 8px;  fill: #525870; }
-.lbl-closed { font-size: 8px;  fill: var(--c-valve-cl); font-weight: 600; }
-.lbl-pset   { font-size: 8px;  fill: var(--c-prv); }
-.lbl-pump   { font-size: 8px;  fill: var(--c-pump); }
-.lbl-head   { font-size: 9px;  fill: var(--c-pump); font-weight: 600; }
+.lbl-dim    { font-size: 18px;  fill: #4a5060; }
+.lbl-len    { font-size: 18px;  fill: #4a5060; }
+.lbl-vel    { font-size: 18px;  fill: var(--c-pipe); }
+.lbl-k      { font-size: 18px;  fill: #525870; }
+.lbl-name   { font-size: 18px;  fill: #525870; }
+.lbl-closed { font-size: 18px;  fill: var(--c-valve-cl); font-weight: 600; }
+.lbl-pset   { font-size: 18px;  fill: var(--c-prv); }
+.lbl-pump   { font-size: 18px;  fill: var(--c-pump); }
+.lbl-head   { font-size: 18px;  fill: var(--c-pump); font-weight: 600; }
 
 /* ── Drop indicator ───────────────────────────────────────── */
 .drop-indicator {

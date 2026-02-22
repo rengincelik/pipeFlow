@@ -16,6 +16,9 @@
   ════════════════════════════════════ -->
   <header id="topbar">
 
+    <!-- Birinci satır: Logo + Parametreler -->
+    <div class="topbar-row topbar-row-fill">
+
     <!-- Logo -->
     <div class="logo">
       <div class="logo-box">
@@ -27,7 +30,6 @@
         </svg>
       </div>
       <span>PIPEFLOW</span>
-      <span class="logo-version">v2</span>
     </div>
 
     <div class="topbar-sep"></div>
@@ -108,7 +110,10 @@
 
     </div>
 
-    <div class="topbar-sep"></div>
+    </div> <!-- /topbar-row -->
+
+    <!-- İkinci satır: Araçlar + Status -->
+    <div class="topbar-row">
 
     <!-- Araç butonları -->
     <div class="topbar-tools">
@@ -143,11 +148,13 @@
       </button>
     </div>
 
-    <!-- Status bar — sağa yaslanmış -->
+    <!-- Status bar -->
     <div id="status-bar" data-status="ok">
       <span class="status-dot"></span>
       <span class="status-text">READY</span>
     </div>
+
+    </div> <!-- /topbar-row -->
 
   </header>
 

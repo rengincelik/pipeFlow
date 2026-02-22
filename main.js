@@ -522,7 +522,6 @@ window.togglePG = () => {
   });
 })();
 
-
 // ── THEME ─────────────────────────────────────────────────────
 window.toggleTheme = () => {
   // Geçiş sırasında transition'ları kapat — flash önleme
@@ -553,6 +552,30 @@ window.toggleTheme = () => {
     document.getElementById('theme-btn').title = 'Switch to Dark';
   }
 })();
+
+// ── TOPBAR YÜKSEKLİĞİ ────────────────────────────────────────
+// ResizeObserver kullanıyoruz ama loop'u engellemek için
+// --topbar-h'yi CSS'den kaldırıp layout'u JS ile set ediyoruz.
+const _topbarEl = document.getElementById('topbar');
+const _layoutEl = document.getElementById('layout');
+let   _lastTopbarH = 0;
+
+function _applyTopbarHeight(h) {
+  if (h === _lastTopbarH || h === 0) return;
+  _lastTopbarH = h;
+  // CSS variable yerine direkt style — layout observer'ı tetiklemez
+  _layoutEl.style.top = h + 'px';
+}
+
+new ResizeObserver(entries => {
+  // borderBoxSize daha güvenilir
+  const h = entries[0].borderBoxSize?.[0]?.blockSize
+         ?? entries[0].contentRect.height
+         ?? _topbarEl.offsetHeight;
+  _applyTopbarHeight(Math.round(h));
+}).observe(_topbarEl);
+
+_applyTopbarHeight(_topbarEl.offsetHeight);
 
 // ── INIT ─────────────────────────────────────────────────────
 renderCatalog();
