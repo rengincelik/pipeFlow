@@ -34,6 +34,12 @@ const canvasScroll = document.getElementById('canvas-scroll');
 // ── RENDERER ─────────────────────────────────────────────────
 const renderer = new SVGRenderer(svgCanvas);
 renderer.onCompClick = (id) => pipelineStore.select(id);
+renderer.onPumpClick  = () => {
+  pipelineStore.deselect();
+  _pumpSelected = true;
+  _redraw();
+  _renderPumpProps();
+};
 
 // ── CHART RENDERER ────────────────────────────────────────────
 const chartCanvas = document.getElementById('chart-canvas');
@@ -42,18 +48,25 @@ const chart       = new ChartRenderer(chartCanvas);
 svgCanvas.addEventListener('click', e => {
   if (e.target === svgCanvas || e.target.closest('#layer-spine')) {
     pipelineStore.deselect();
+    _pumpSelected = false;
+    _redraw();
   }
 });
 
 // ── STORE SUBSCRIPTIONS ──────────────────────────────────────
-let _showLabels = true;
+let _showLabels  = true;
+let _pumpSelected = false;
 
 pipelineStore.on('components:change', _redraw);
-pipelineStore.on('calc:done', ({ results, P_out_final, status } = {}) => {
+pipelineStore.on('calc:done', ({ results, P_out_final, status, pumpResult } = {}) => {
   _updateStatusBar(P_out_final, status);
   _drawChart(results);
+  _updateHUD(pumpResult);
+  // Hat değişince çalışan pompayı durdur
+  if (_pumpRunning) _stopPump();
 });
 pipelineStore.on('selection:change', () => {
+  _pumpSelected = false;
   _redraw();
   _renderProps();
   _drawChart(pipelineStore.lastResults);
@@ -63,11 +76,12 @@ function _redraw() {
   const layouts = pipelineStore.layout;
   const show    = pipelineStore.length > 0;
 
-  emptyHint?.classList.toggle('hidden', show);
+  emptyHint?.classList.add('hidden');  // pompa ikonu her zaman görünür
 
   renderer.render(layouts, {
-    selectedId: pipelineStore.selectedId,
-    showLabels: _showLabels,
+    selectedId:   pipelineStore.selectedId,
+    showLabels:   _showLabels,
+    pumpSelected: _pumpSelected,
   });
 
   if (show) {
@@ -145,6 +159,28 @@ function renderCatalog() {
         </div>`;
     }
 
+    // Çok eleman — açılır grup
+    return `
+      <div class="cat-group">
+        <div class="cat-expand-row" onclick="toggleGroup(${gi})">
+          <div class="cat-icon">${_catIcon(item)}</div>
+          <div style="flex:1">
+            <div class="cat-name">${grp.group}</div>
+            <div class="cat-desc">${grp.items.length} types</div>
+          </div>
+          <span class="expand-icon" id="ei_${gi}">▶</span>
+        </div>
+        <div class="subtypes-wrap" id="sw_${gi}">
+          ${grp.items.map((it, ii) => `
+            <div class="cat-subitem" draggable="true"
+                 data-gi="${gi}" data-ii="${ii}"
+                 ondragstart="onCatDrag(event,this)">
+              <span class="cat-subitem-name">${it.name}</span>
+              <span class="cat-subitem-k">${it.desc ?? ''}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>`;
   }).join('');
 }
 
@@ -501,6 +537,159 @@ window.togglePG = () => {
 })();
 
 // ── THEME ─────────────────────────────────────────────────────
+// ─── Pompa Properties Panel ───────────────────────────────
+function _renderPumpProps() {
+  const propBody = document.getElementById('prop-body');
+  const delBtn   = document.getElementById('btn-del-side');
+  if (delBtn) delBtn.style.display = 'none';
+
+  const cfg = SystemConfig.snapshot();
+  propBody.innerHTML = `
+    <div class="ps">
+      <div class="ps-title">Pump</div>
+      <div class="pr">
+        <span class="pl">Type</span>
+        <select class="p-select" onchange="setSysConfig('pump_type', this.value)">
+          <option value="centrifugal" ${cfg.pump_type==='centrifugal'?'selected':''}>Centrifugal</option>
+          <option value="gear"        ${cfg.pump_type==='gear'       ?'selected':''}>Gear</option>
+          <option value="piston"      ${cfg.pump_type==='piston'     ?'selected':''}>Piston</option>
+        </select>
+      </div>
+      <div class="pr">
+        <span class="pl">Power</span>
+        <input class="p-input" type="number" value="${cfg.pump_P_w}" min="1" step="50"
+          onchange="setSysConfig('pump_P_w', +this.value)">
+        <span class="pu">W</span>
+      </div>
+      <div class="pr">
+        <span class="pl">Efficiency</span>
+        <input class="p-input" type="number" value="${Math.round(cfg.pump_eta*100)}" min="1" max="99" step="1"
+          onchange="setSysConfig('pump_eta', +this.value/100)">
+        <span class="pu">%</span>
+      </div>
+    </div>
+    ${pipelineStore.pumpResult ? `
+    <div class="ps">
+      <div class="ps-title">Performance</div>
+      <div class="reading-card">
+        <div class="r-row">
+          <span class="r-lbl">Available head</span>
+          <span><span class="r-val">${pipelineStore.pumpResult.H_available.toFixed(1)}</span><span class="r-unit">m</span></span>
+        </div>
+        <div class="r-row">
+          <span class="r-lbl">Required head</span>
+          <span><span class="r-val">${pipelineStore.pumpResult.H_required.toFixed(1)}</span><span class="r-unit">m</span></span>
+        </div>
+        <div class="r-row">
+          <span class="r-lbl">Status</span>
+          <span class="badge ${pipelineStore.pumpResult.sufficient ? 'ok' : 'err'}">
+            ${pipelineStore.pumpResult.sufficient ? '✓ Sufficient' : `✗ ${Math.round(pipelineStore.pumpResult.ratio*100)}%`}
+          </span>
+        </div>
+      </div>
+    </div>` : ''}
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════
+// POMPA SAYAÇ SİSTEMİ
+// ═══════════════════════════════════════════════════════════
+
+let _pumpRunning  = false;
+let _pumpInterval = null;
+let _pumpSeconds  = 0;
+let _pumpVolL     = 0;
+let _lastRatio    = 0;
+
+function _updateHUD(pumpResult) {
+  if (!pumpResult) { _lastRatio = 0; return; }
+  _lastRatio = pumpResult.ratio;
+  // Pompa properties paneli açıksa güncelle
+  if (_pumpSelected) _renderPumpProps();
+  // Akış animasyonu
+  _applyFlowAnimation(_pumpRunning ? _lastRatio : 0);
+}
+
+function _applyFlowAnimation(ratio) {
+  const flowLines = document.querySelectorAll('.flow-line');
+  flowLines.forEach(el => {
+    if (ratio <= 0) {
+      el.style.animationPlayState = 'paused';
+      el.style.opacity = '0';
+    } else {
+      el.style.animationPlayState = 'running';
+      el.style.opacity = String(Math.max(0.3, ratio * 0.65));
+      // Hıza göre animasyon süresi — ratio düşükse yavaş
+      const baseDur = parseFloat(el.style.getPropertyValue('--flow-dur')) || 1.2;
+      el.style.setProperty('--flow-dur', (baseDur / ratio) + 's');
+    }
+  });
+}
+
+function _formatTime(secs) {
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function _startPump() {
+  if (pipelineStore.length === 0) {
+    _updateStatusBar(null, { code: 'warn', label: 'HAT BOŞ' });
+    return;
+  }
+  if (_lastRatio <= 0 && pipelineStore.pumpResult) {
+    // Hat var ama pompa yetersiz — yine de başlat, animasyon partial
+  }
+
+  _pumpRunning  = true;
+  _pumpSeconds  = 0;
+  _pumpVolL     = 0;
+
+  const btn = document.getElementById('hud-start-btn');
+  btn.classList.add('running');
+  document.getElementById('hud-btn-icon').textContent  = '⏹';
+  document.getElementById('hud-btn-label').textContent = 'STOP';
+
+  const Q_lpm = window._sysSnap?.()?.Q_lpm ?? 30;
+
+  _applyFlowAnimation(_lastRatio);
+
+  _pumpInterval = setInterval(() => {
+    _pumpSeconds++;
+    // Sadece pompa yeterli ise hacim say
+    if (_lastRatio >= 1) {
+      _pumpVolL += Q_lpm / 60;  // L/s → her saniye
+    }
+    document.getElementById('hud-time').textContent = _formatTime(_pumpSeconds);
+    document.getElementById('hud-vol').textContent  =
+      _pumpVolL < 1000
+        ? `${_pumpVolL.toFixed(1)} L`
+        : `${(_pumpVolL / 1000).toFixed(2)} m³`;
+  }, 1000);
+}
+
+function _stopPump() {
+  _pumpRunning = false;
+  clearInterval(_pumpInterval);
+  _pumpInterval = null;
+
+  const btn = document.getElementById('hud-start-btn');
+  btn.classList.remove('running');
+  document.getElementById('hud-btn-icon').textContent  = '▶';
+  document.getElementById('hud-btn-label').textContent = 'START';
+
+  _applyFlowAnimation(0);
+}
+
+window.togglePump = () => {
+  if (_pumpRunning) _stopPump();
+  else _startPump();
+};
+
+// SystemConfig snapshot helper — import edilen modül direkt kullanılır
+window._sysSnap = () => SystemConfig.snapshot();
+
 window.toggleTheme = () => {
   // Geçiş sırasında transition'ları kapat — flash önleme
   document.documentElement.classList.add('no-transition');

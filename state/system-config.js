@@ -19,10 +19,15 @@ class SystemConfigClass extends EventEmitter {
       diameter_mm: 53.1,      // DN50
       material_id: 'steel_new',
       eps_mm:      0.046,
+      length_m:    5,
       Q_lpm:       30,
       P_in_bar:    2.0,
       T_in_C:      20,
       T_out_C:     20,
+      // ── Pompa ───────────────────────────────
+      pump_P_w:    500,        // motor gücü [W]
+      pump_eta:    0.70,       // verim [0-1]
+      pump_type:   'centrifugal',
     };
     this._values = { ...this._defaults };
   }

@@ -84,18 +84,23 @@ export class PipelineStore extends EventEmitter {
   _recalc() {
     if (!this._components.length) {
       this._calcResults = [];
-      this.lastResults = [];
-      this.emit('calc:done', { results: [], P_out_final: 0, status: null });
+      this.lastResults  = [];
+      this.pumpResult   = null;
+      this.emit('calc:done', { results: [], P_out_final: 0, status: null, pumpResult: null });
       return;
     }
 
     const cfg    = SystemConfig.snapshot();
     const fluid  = fluidRegistry.get(cfg.fluid_id).getProps(cfg.T_in_C);
-    const fluidP = { rho: fluid.rho, mu_mPas: fluid.mu_mPas };
     const Q_m3s  = cfg.Q_lpm / 60000;
     const N      = this._components.length;
 
-    let P       = cfg.P_in_bar;
+    // ── Pompa head hesabı ──────────────────────────────────
+    // H_available = P_w * eta / (rho * g * Q_m3s)
+    const G_CONST = 9.80665;
+    const H_available = (cfg.pump_P_w * cfg.pump_eta) / (fluid.rho * G_CONST * Q_m3s);
+
+    let P       = cfg.P_in_bar + (fluid.rho * G_CONST * H_available) / 1e5;
     let blocked = false;
     const results = [];
 
@@ -141,16 +146,29 @@ export class PipelineStore extends EventEmitter {
 
     this._calcResults = results;
 
+    // ── Pompa yeterliliği ──────────────────────────────────
+    // Hat toplam head ihtiyacı
+    const H_required = results.reduce((sum, r) => sum + (r.hf?.total ?? 0), 0);
+    const ratio      = H_required > 0 ? Math.min(H_available / H_required, 1) : 1;
+
+    this.pumpResult = {
+      H_available: +H_available.toFixed(2),
+      H_required:  +H_required.toFixed(2),
+      ratio:       +ratio.toFixed(3),
+      sufficient:  ratio >= 1,
+    };
+
     // Sistem durumu
     const P_out_final = results[results.length - 1]?.P_out ?? 0;
-    const status = this._evalStatus(P_out_final, results);
+    const status = this._evalStatus(P_out_final, results, ratio);
 
     this.lastResults = results;
-    this.emit('calc:done', { results, P_out_final, status });
+    this.emit('calc:done', { results, P_out_final, status, pumpResult: this.pumpResult });
   }
 
-  _evalStatus(P_out, results) {
+  _evalStatus(P_out, results, ratio = 1) {
     if (results.some(r => r.blocked)) return { code: 'blocked', label: 'BLOCKED' };
+    if (ratio < 1)   return { code: 'warn',  label: 'PUMP INSUFFICIENT' };
     if (P_out < 0)   return { code: 'error', label: 'NEGATİF BASINÇ' };
     if (P_out < 0.3) return { code: 'warn',  label: 'DÜŞÜK BASINÇ'  };
     return                  { code: 'ok',    label: 'NORMAL'         };

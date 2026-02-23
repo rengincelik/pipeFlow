@@ -302,3 +302,38 @@
   stroke-width: var(--sw-sel);
   filter: drop-shadow(0 0 8px var(--c-pump));
 }
+
+
+/* ── Pompa Node (sabit, hat başı) ────────────────────────── */
+.pump-node-circle {
+  fill:         color-mix(in srgb, var(--c-pump) 10%, transparent);
+  stroke:       var(--c-pump);
+  stroke-width: var(--sw-idle);
+  transition:   stroke-width var(--t-fast) ease, filter var(--t-fast) ease;
+}
+.pump-node:hover .pump-node-circle {
+  stroke-width: var(--sw-hover);
+  filter: drop-shadow(0 0 5px var(--c-pump));
+}
+.pump-node.selected .pump-node-circle {
+  stroke-width: var(--sw-sel);
+  filter: drop-shadow(0 0 8px var(--c-pump));
+}
+.pump-node-blade {
+  fill:    var(--c-pump);
+  opacity: 0.7;
+}
+.pump-node-stem {
+  stroke:       var(--c-pump);
+  stroke-width: var(--sw-idle);
+  stroke-linecap: round;
+}
+.pump-node-label {
+  font-family:  var(--font-mono);
+  font-size:    11px;
+  font-weight:  700;
+  fill:         var(--c-pump);
+  letter-spacing: 0.1em;
+  pointer-events: none;
+  user-select:  none;
+}
