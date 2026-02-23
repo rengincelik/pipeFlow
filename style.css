@@ -13,11 +13,11 @@
 /* ── CSS Değişkenleri ─────────────────────────────────────── */
 :root {
   --bg:       #080909;
-  --border:   #1e2028;
+  --border:   #0000ff;
 
   --text:     #c8cdd8;
-  --text-mid: #7a8494;
-  --text-dim: #424858;
+  --text-mid: #1bd4cb;
+  --text-dim: #97aeef;
 
   --blue:     #3d9ef5;
   --blue-lo:  rgba(61,158,245,0.08);
@@ -32,7 +32,7 @@
   --orange:   #e05c00;
   --purple:   #9b59b6;
 
-  --topbar-h:   58px;
+  --topbar-h:   60px;
   --col-left-w: 300px;
 
   --font-mono: 'IBM Plex Mono', 'Fira Code', monospace;
@@ -110,79 +110,84 @@ sub { font-size: 0.8em; }
 svg { display: block; }
 
 
-/* ═══════════════════════════════════════════════════════════
-   TOPBAR
-   ═══════════════════════════════════════════════════════════ */
+/* TOPBAR */
+
 #topbar {
   position: fixed;
   top: 0; left: 0; right: 0;
+  height: 80px;
   background: transparent;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 5px solid var(--border);
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  padding: 0 12px;
+  flex-wrap: nowrap;
+  padding: 12px 32px;
   gap: 0;
   z-index: 200;
   user-select: none;
+  justify-content: space-between;
 }
 
-/* Topbar satır grupları */
-.topbar-row {
+.topbar-left   {
+  margin-right: auto;
   display: flex;
   align-items: center;
-  gap: 4px;
-  height: var(--topbar-h);
-  flex-wrap: nowrap;
+  gap: 8px;
+ }
+.topbar-right  {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
-.topbar-row-fill { flex: 1; }
+.topbar-center {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+
 
 .logo { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.logo-box {
-  width: 34px; height: 34px;
-  background: var(--blue);
+
+
+
+#fluidType {
+  display: flex;
+  align-items: center;
+  padding: 0 18px;
+  border: 1px solid var(--border);
   border-radius: var(--r-sm);
-  display: flex; align-items: center; justify-content: center;
+  gap: 10px;
 }
-.logo > span:first-of-type {
-  font-family: var(--font-mono);
+#fluidType .label {
   font-size: var(--text-sm);
-  font-weight: 700;
-  letter-spacing: 0.14em;
-}
-.logo-version {
-  font-size: var(--text-xs);
+  font-weight: 800;
   color: var(--text-dim);
-  border: 1px solid var(--border);
-  padding: 1px 4px;
-  border-radius: var(--r-sm);
-  align-self: flex-start;
-  margin-top: 3px;
+  letter-spacing: 0.3em;
+  white-space: nowrap;
+}
+#fluidType .selection {
+  border: none;
+  font-size: var(--text-base);
+  color: var(--text);
+  cursor: pointer;
 }
 
-.topbar-sep {
-  width: 1px; height: 30px;
-  background: var(--border);
-  margin: 0 6px; flex-shrink: 0;
-}
 
-.sys-params { display: flex; align-items: center; gap: 5px; }
-.sys-param {
-  display: flex; align-items: center; gap: 5px;
-  padding: 0 8px; height: 45px;
-  background: transparent;
+.system-param {
+  display: flex;
+  align-items: center;
+  padding: 0 18px;
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
-  transition: border-color 0.15s;
 }
-.sys-param:focus-within { border-color: var(--blue); }
 
-.sp-label {
+.param-label {
   font-size: var(--text-sm);
   font-weight: 800;
   color: var(--text-dim);
   letter-spacing: 0.1em;
-  white-space: nowrap;
 }
 .sp-input {
   width: 50px; height: 100%;
@@ -190,15 +195,25 @@ svg { display: block; }
   font-size: var(--text-lg); font-weight: 800;
   color: var(--text); text-align: right;
 }
+
+
 .sp-input::-webkit-outer-spin-button,
-.sp-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.sp-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+}
 .sp-select {
   height: 100%; background: transparent; border: none;
   font-size: var(--text-base); color: var(--text); cursor: pointer;
 }
-.sp-unit { font-size: var(--text-lg); color: var(--text-dim); white-space: nowrap; }
+.sp-unit {
+  font-size: var(--text-lg);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
 
-.topbar-tools { display: flex; align-items: center; gap: 5px; }
+
+
+
 .tb-btn {
   display: flex; align-items: center; gap: 5px;
   height: 45px; padding: 0 14px;
@@ -215,6 +230,9 @@ svg { display: block; }
 .tb-btn.danger { color: var(--red); background: var(--red-lo); border-color: rgba(231,76,60,0.2); }
 .tb-btn.danger:hover { background: rgba(231,76,60,0.18); }
 .tb-btn svg { flex-shrink: 0; }
+
+
+
 
 #status-bar {
   display: flex; align-items: center; gap: 6px;

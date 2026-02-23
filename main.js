@@ -145,28 +145,6 @@ function renderCatalog() {
         </div>`;
     }
 
-    // Çok eleman — açılır grup
-    return `
-      <div class="cat-group">
-        <div class="cat-expand-row" onclick="toggleGroup(${gi})">
-          <div class="cat-icon">${_catIcon(item)}</div>
-          <div style="flex:1">
-            <div class="cat-name">${grp.group}</div>
-            <div class="cat-desc">${grp.items.length} types</div>
-          </div>
-          <span class="expand-icon" id="ei_${gi}">▶</span>
-        </div>
-        <div class="subtypes-wrap" id="sw_${gi}">
-          ${grp.items.map((it, ii) => `
-            <div class="cat-subitem" draggable="true"
-                 data-gi="${gi}" data-ii="${ii}"
-                 ondragstart="onCatDrag(event,this)">
-              <span class="cat-subitem-name">${it.name}</span>
-              <span class="cat-subitem-k">${it.desc ?? ''}</span>
-            </div>
-          `).join('')}
-        </div>
-      </div>`;
   }).join('');
 }
 
