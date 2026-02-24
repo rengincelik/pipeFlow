@@ -26,6 +26,16 @@ export const MATERIALS = [
  */
 export const CATALOG_DEF = [
   {
+    group: 'Elbows',
+    display: 'chips',
+    items: [
+      { type:'elbow', subtype:'rd', name:'→↓', desc:'Right → Down' },
+      { type:'elbow', subtype:'ru', name:'→↑', desc:'Right → Up'   },
+      { type:'elbow', subtype:'ur', name:'↑→', desc:'Up → Right'   },
+      { type:'elbow', subtype:'dr', name:'↓→', desc:'Down → Right' },
+    ],
+  },
+  {
     group: 'Pipes',
     items: [
       { type:'pipe', subtype:'pipe', name:'Pipe', icon:'—', desc:'Straight pipe',
@@ -47,28 +57,12 @@ export const CATALOG_DEF = [
     ],
   },
   {
-    group: 'Elbows',
-    display: 'chips',
-    items: [
-      { type:'elbow', subtype:'rd', name:'→↓', desc:'Right → Down' },
-      { type:'elbow', subtype:'ru', name:'→↑', desc:'Right → Up'   },
-      { type:'elbow', subtype:'ur', name:'↑→', desc:'Up → Right'   },
-      { type:'elbow', subtype:'dr', name:'↓→', desc:'Down → Right' },
-    ],
-  },
-  {
     group: 'Valves',
     items: [
       { type:'valve', subtype:'gate', name:'Valve', desc:'Gate / K=0.20' },
     ],
   },
-  {
-    group: 'Pumps',
-    items: [
-      { type:'pump', subtype:'centrifugal', name:'Centrifugal', desc:'Add head',
-        defaultOverrides: { head_m: 20 } },
-    ],
-  },
+
 ];
 
 /** type:subtype → catalog item için hızlı arama */

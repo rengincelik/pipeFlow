@@ -131,7 +131,7 @@ function renderCatalog() {
     if (grp.display === 'chips') {
       return `
         <div class="cat-chip-group">
-          <div class="cat-chip-label">${grp.group}</div>
+          <div class="cat-name">${grp.group}</div>
           <div class="cat-chips">
             ${grp.items.map((it, ii) => `
               <div class="cat-chip" draggable="true"
@@ -501,7 +501,7 @@ window.togglePG = () => {
         const dx = e.clientX - startX;
         const dy = e.clientY - startY;
 
-        if (kind === 'col') {
+        if (kind === 'vertical') {
           // Sol kolonun genişliği
           const newW = Math.min(380, Math.max(160, startColW + dx));
           colLeft.style.width = newW + 'px';
@@ -743,6 +743,7 @@ new ResizeObserver(entries => {
 }).observe(_topbarEl);
 
 _applyTopbarHeight(_topbarEl.offsetHeight);
+
 
 // ── INIT ─────────────────────────────────────────────────────
 renderCatalog();

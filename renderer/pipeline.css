@@ -2,9 +2,10 @@
    PIPELINE SVG — Minimalist çizgi tabanlı görünüm
    Kutu yok, outline yok. Sadece elemanın kendi çizgisi.
    Hover/sel → o çizgi parlıyor, başka hiçbir şey değişmiyor.
-   ═══════════════════════════════════════════════════════════ */
-
+   ═══════════════════════════════════════════════════════════
+*/
 /* ── Değişkenler ──────────────────────────────────────────── */
+
 :root {
   --c-pipe:     #4a9eff;
   --c-trans:    #6e3eff;   /* reducer + expander */
