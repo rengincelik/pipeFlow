@@ -29,37 +29,29 @@ export const CATALOG_DEF = [
     group: 'Elbows',
     display: 'chips',
     items: [
-      { type:'elbow', subtype:'rd', name:'→↓', desc:'Right → Down' },
-      { type:'elbow', subtype:'ru', name:'→↑', desc:'Right → Up'   },
-      { type:'elbow', subtype:'ur', name:'↑→', desc:'Up → Right'   },
-      { type:'elbow', subtype:'dr', name:'↓→', desc:'Down → Right' },
+      { type:'elbow', subtype:'rd', icon:'┐', desc:'Right → Down' },
+      { type:'elbow', subtype:'ru', icon:'┘', desc:'Right → Up'   },
+      { type:'elbow', subtype:'ur', icon:'└', desc:'Up → Right'   },
+      { type:'elbow', subtype:'dr', icon:'┌', desc:'Down → Right' },
     ],
   },
   {
     group: 'Pipes',
     items: [
-      { type:'pipe', subtype:'pipe', name:'Pipe', icon:'—', desc:'Straight pipe',
+      { type:'pipe', subtype:'pipe', icon:'━', desc:'Straight pipe',
         defaultOverrides: { length_m: 5 } },
-    ],
-  },
-  {
-    group: 'Reducers',
-    items: [
-      { type:'pipe', subtype:'reducer', name:'Reducer', icon:'▷', desc:'Diameter reduction',
+
+      { type:'pipe', subtype:'reducer', icon:'▶', desc:'Diameter reduction',
         defaultOverrides: { length_m: 9 } },
-    ],
-  },
-  {
-    group: 'Expanders',
-    items: [
-      { type:'pipe', subtype:'expander', name:'Expander', icon:'◁', desc:'Diameter expansion',
+
+      { type:'pipe', subtype:'expander', icon:'◀', desc:'Diameter expansion',
         defaultOverrides: { length_m: 9 } },
     ],
   },
   {
     group: 'Valves',
     items: [
-      { type:'valve', subtype:'gate', name:'Valve', desc:'Gate / K=0.20' },
+      { type:'valve', subtype:'gate', icon:'⦿', desc:'Gate / K=0.20' },
     ],
   },
 

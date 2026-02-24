@@ -124,71 +124,23 @@ function _drawChart(results) {
 // ── CATALOG RENDER ──────────────────────────────────────────
 function renderCatalog() {
   catBody.innerHTML = CATALOG_DEF.map((grp, gi) => {
-    const single = grp.items.length === 1;
-    const item   = grp.items[0];
-
-    // Chip görünümü (elbow)
-    if (grp.display === 'chips') {
-      return `
+    return `
         <div class="cat-chip-group">
-          <div class="cat-name">${grp.group}</div>
+          <div class="cat-chip-label">${grp.group}</div>
           <div class="cat-chips">
             ${grp.items.map((it, ii) => `
               <div class="cat-chip" draggable="true"
                    data-gi="${gi}" data-ii="${ii}"
                    ondragstart="onCatDrag(event,this)"
-                   title="${it.desc ?? it.name}">
-                ${it.name}
+                   title="${it.desc ?? it.icon}">
+                ${it.icon}
               </div>
             `).join('')}
           </div>
         </div>`;
-    }
-
-    // Tek eleman — direkt sürüklenebilir kart
-    if (single) {
-      return `
-        <div class="cat-direct" draggable="true"
-             data-gi="${gi}" data-ii="0"
-             ondragstart="onCatDrag(event,this)">
-          <div class="cat-icon">${_catIcon(item)}</div>
-          <div style="flex:1">
-            <div class="cat-name">${grp.group}</div>
-            <div class="cat-desc">${item.desc ?? ''}</div>
-          </div>
-        </div>`;
-    }
-
-    // Çok eleman — açılır grup
-    return `
-      <div class="cat-group">
-        <div class="cat-expand-row" onclick="toggleGroup(${gi})">
-          <div class="cat-icon">${_catIcon(item)}</div>
-          <div style="flex:1">
-            <div class="cat-name">${grp.group}</div>
-            <div class="cat-desc">${grp.items.length} types</div>
-          </div>
-          <span class="expand-icon" id="ei_${gi}">▶</span>
-        </div>
-        <div class="subtypes-wrap" id="sw_${gi}">
-          ${grp.items.map((it, ii) => `
-            <div class="cat-subitem" draggable="true"
-                 data-gi="${gi}" data-ii="${ii}"
-                 ondragstart="onCatDrag(event,this)">
-              <span class="cat-subitem-name">${it.name}</span>
-              <span class="cat-subitem-k">${it.desc ?? ''}</span>
-            </div>
-          `).join('')}
-        </div>
-      </div>`;
   }).join('');
 }
 
-function _catIcon(item) {
-  // Basit metin ikonu, tam SVG thumbnail isteğe bağlı
-  const icons = { pipe:'▬', elbow:'↵', valve:'⊘', pump:'◉' };
-  return `<span style="font-size:16px">${icons[item.type] ?? '?'}</span>`;
-}
 
 window.toggleGroup = (gi) => {
   document.getElementById(`sw_${gi}`)?.classList.toggle('open');
