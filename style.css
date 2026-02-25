@@ -442,6 +442,14 @@ html[data-theme="light"] .theme-toggle .slider {
   overflow: visible;
 }  /* line bunun içinde birikiyor*/
 
+.drop-indicator {
+  stroke: #4af;
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
 
 
 /* HUD WIDGET — canvas sağ alt köşe */
@@ -589,25 +597,9 @@ html[data-theme="light"] .theme-toggle .slider {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /* PROPERTIES PANEL */
 #prop-body {
-  padding: 10px;
+  padding: 20px;
 }
 #prop-empty {
   display: flex;
@@ -629,74 +621,90 @@ html[data-theme="light"] .theme-toggle .slider {
   color: var(--text-dim);
   opacity: 0.5; }
 
-.ps {
-  padding: 10px 12px;
+
+
+
+.prop-section {
+  padding: 10px;
   border-bottom: 1px solid var(--border);
 }
-.ps-title {
+.section-title {
   font-size: var(--text-xs);
   font-weight: 700;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--text-dim);
-  margin-bottom: 6px;
+  text-align: center;
+  border: 1px solid var(--blue);
 }
 
-.pr { display: flex; align-items: center; gap: 8px; min-height: 32px; margin-bottom: 2px; }
-.pl { font-size: var(--text-sm); color: var(--text-dim); min-width: 80px; flex-shrink: 0; }
-.pv { font-size: var(--text-base); color: var(--text); }
-.pv.dim { color: var(--text-dim); }
-.pu { font-size: var(--text-sm); color: var(--text-dim); }
+.prop-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  min-height: 32px;
+  padding: 10px;
+  width: 100%;
+  justify-content: space-evenly;
+}
 
-.p-input {
-  width: 80px; height: 32px;
-  background: transparent; border: 1px solid var(--border);
-  border-radius: var(--r-sm); color: var(--text);
-  padding: 0 8px; font-size: var(--text-base);
+.prop-label {
+  font-size: var(--text-sm);
+  color: var(--text-dim);
+  min-width: 80px;
+  flex-shrink: 0;
+  border-bottom: 1px dashed var(--blue);
+}
+.prop-value {
+  font-size: var(--text-base);
+  color: var(--text);
+}
+.prop-value.dim {
+  color: var(--text-dim);
+}
+.prop-unit {
+  font-size: var(--text-sm);
+  color: var(--text-dim);
+}
+
+.prop-input {
+  width: 80px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  padding: 0 8px;
+  font-size: var(--text-base);
   transition: border-color 0.15s;
 }
-.p-input::-webkit-outer-spin-button,
-.p-input::-webkit-inner-spin-button { -webkit-appearance: none; }
-.p-input:focus { border-color: var(--blue); }
-
-.p-select {
-  flex: 1; height: 32px; max-width: 160px;
-  background: transparent; border: 1px solid var(--border);
-  border-radius: var(--r-sm); color: var(--text);
-  padding: 0 6px; font-size: var(--text-sm);
-  cursor: pointer; transition: border-color 0.15s;
+.prop-input::-webkit-outer-spin-button,
+.prop-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
 }
-.p-select:focus { border-color: var(--blue); }
-
-.badge {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 4px 8px; border-radius: var(--r-sm);
-  font-size: var(--text-sm); font-weight: 600;
-  letter-spacing: 0.04em; margin-bottom: 4px;
+.prop-input:focus {
+  border-color: var(--blue);
 }
-.badge.ok  { background: var(--green-lo);  color: var(--green);  border: 1px solid rgba(46,204,113,0.18); }
-.badge.wrn { background: var(--accent-lo); color: var(--accent); border: 1px solid var(--accent-mid); }
-.badge.err { background: var(--red-lo);    color: var(--red);    border: 1px solid rgba(231,76,60,0.2); }
 
-.reading-card { background: transparent; border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden; }
-.r-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 10px; border-bottom: 1px solid var(--border); }
-.r-row:last-child { border-bottom: none; }
-.r-lbl  { font-size: var(--text-sm); color: var(--text-dim); }
-.r-val  { font-size: var(--text-lg); font-weight: 600; color: var(--text); }
-.r-val.dim { font-size: var(--text-base); color: var(--text-mid); }
-.r-unit { font-size: var(--text-sm); color: var(--text-dim); margin-left: 4px; }
-
-.valve-toggle {
-  height: 32px; padding: 0 12px; border-radius: var(--r-sm);
-  font-size: var(--text-sm); font-weight: 600; letter-spacing: 0.06em;
-  cursor: pointer; border: 1px solid; transition: all 0.15s;
+.prop-select {
+  flex: 1;
+  height: 32px;
+  max-width: 160px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  padding: 0 6px;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: border-color 0.15s;
 }
-.valve-toggle.open   { background: var(--green-lo);          border-color: rgba(46,204,113,0.25); color: var(--green); }
-.valve-toggle.open:hover   { background: rgba(46,204,113,0.16); }
-.valve-toggle.closed { background: var(--red-lo);             border-color: rgba(231,76,60,0.25);  color: var(--red); }
-.valve-toggle.closed:hover { background: rgba(231,76,60,0.16); }
+.prop-select:focus {
+  border-color: var(--blue);
+}
 
-.del-btn {
+
+#del-btn {
   display: block; width: calc(100% - 24px); margin: 10px 12px;
   height: 36px; background: var(--red-lo);
   border: 1px solid rgba(231,76,60,0.18); border-radius: var(--r-sm);
@@ -704,47 +712,8 @@ html[data-theme="light"] .theme-toggle .slider {
   letter-spacing: 0.08em; text-transform: uppercase;
   cursor: pointer; transition: all 0.15s;
 }
-.del-btn:hover { background: rgba(231,76,60,0.15); border-color: rgba(231,76,60,0.3); }
+#del-btn:hover { background: rgba(231,76,60,0.15); border-color: rgba(231,76,60,0.3); }
 
 
 
 
-
-
-
-
-.system-param {
-  display: flex;
-  align-items: center;
-  padding: 0 18px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-}
-
-.param-label {
-  font-size: var(--text-sm);
-  font-weight: 800;
-  color: var(--text-dim);
-  letter-spacing: 0.1em;
-}
-.sp-input {
-  width: 50px; height: 100%;
-  background: transparent; border: none;
-  font-size: var(--text-lg); font-weight: 800;
-  color: var(--text); text-align: right;
-}
-
-
-.sp-input::-webkit-outer-spin-button,
-.sp-input::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-}
-.sp-select {
-  height: 100%; background: transparent; border: none;
-  font-size: var(--text-base); color: var(--text); cursor: pointer;
-}
-.sp-unit {
-  font-size: var(--text-lg);
-  color: var(--text-dim);
-  white-space: nowrap;
-}

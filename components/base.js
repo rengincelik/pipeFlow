@@ -265,30 +265,30 @@ export class ComponentBase extends EventEmitter {
   }
 
   get outDiameter_mm() { return this.diameter_mm; }
- 
+
 
   row(label, content, unit = '') {
-    return `<div class="pr"><span class="pl">${label}</span>${content}${unit ? `<span class="pu">${unit}</span>` : ''}</div>`;
+    return `<div class="prop-row"><span class="prop-label">${label}</span>${content}${unit ? `<span class="prop-unit">${unit}</span>` : ''}</div>`;
   }
 
   select(prop, options, currentVal) {
     const opts = options.map(o =>
       `<option value="${o.value}" ${String(o.value) === String(currentVal) ? 'selected' : ''}>${o.label}</option>`
     ).join('');
-    return `<select class="p-select" data-prop="${prop}">${opts}</select>`;
+    return `<select class="prop-selection" data-prop="${prop}">${opts}</select>`;
   }
 
   input(prop, value, step = "1") {
-    return `<input class="p-input" type="number" value="${value}" step="${step}" data-prop="${prop}">`;
+    return `<input class="prop-input" type="number" value="${value}" step="${step}" data-prop="${prop}">`;
   }
     // Sadece değer gösteren (readonly) alanlar için yeni bir metod
   value(val, unit = '') {
-    return `<span class="pv">${val}</span>`;
+    return `<span class="prop-value">${val}</span>`;
   }
 
   // "Dim" (soluk) görünen değerler için
   dimValue(val) {
-    return `<span class="pv dim">${val}</span>`;
+    return `<span class="prop-value dim">${val}</span>`;
   }
 
 }

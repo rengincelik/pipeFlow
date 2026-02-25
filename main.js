@@ -205,7 +205,6 @@ function clearLine() {
 // ── STUBS (TODO: implement or remove) ────────────────────────
 function setSysConfig(key, value) { /* TODO */ }
 function toggleLabels()           { /* TODO */ }
-function togglePG()               { /* TODO */ }
 function togglePump()             { /* TODO */ }
 
 // 4. UI STATE & REDRAW
@@ -225,8 +224,8 @@ function _renderProps() {
   }
   const isPump = comp.type === 'pump';
   DOM.propBody.innerHTML = `
-    <div class="ps"><div class="ps-title">Component: ${comp.name}</div></div>
-    <div class="ps"><div class="ps-title">Parameters</div>${comp.renderPropsHTML()}</div>
+    <div class="prop-section"><div class="section-title">Component: ${comp.name}</div></div>
+    <div class="prop-section"><div class="section-title">Parameters</div>${comp.renderPropsHTML()}</div>
     ${isPump ? '' : '<button class="btn-delete" id="del-btn" >✕ Remove</button>'}`;
 
   if(!isPump) {
@@ -245,7 +244,6 @@ function bindEvents() {
 
   // Canvas bar
   DOM.btnLabel.addEventListener('click', toggleLabels);
-  DOM.btnPressure.addEventListener('click', togglePG);
   DOM.btnFit.addEventListener('click', zoomFit);
   DOM.btnClear.addEventListener('click', clearLine);
 

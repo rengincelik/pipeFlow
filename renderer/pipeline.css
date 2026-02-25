@@ -100,10 +100,19 @@
 .pump-blade { fill: var(--c-pump); }
 
 
-.drop-indicator {
-  stroke: #4af;
-  stroke-width: 2;
-  stroke-linecap: round;
-  opacity: 0.85;
-  pointer-events: none;
+
+
+
+
+
+
+.valve-toggle {
+  height: 32px; padding: 0 12px; border-radius: var(--r-sm);
+  font-size: var(--text-sm); font-weight: 600; letter-spacing: 0.06em;
+  cursor: pointer; border: 1px solid; transition: all 0.15s;
 }
+.valve-toggle.open   { background: var(--green-lo);          border-color: rgba(46,204,113,0.25); color: var(--green); }
+.valve-toggle.open:hover   { background: rgba(46,204,113,0.16); }
+.valve-toggle.closed { background: var(--red-lo);             border-color: rgba(231,76,60,0.25);  color: var(--red); }
+.valve-toggle.closed:hover { background: rgba(231,76,60,0.16); }
+
