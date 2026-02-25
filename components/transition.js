@@ -2,8 +2,7 @@
 
 import { ComponentBase, registerComponentType } from './base.js';
 import { calcSegment } from '../core/hydraulics.js';
-import { svgEl } from '../renderer/svg-utils.js';
-import { drawSpec } from '../renderer/draw-spec.js';
+import { svgEl, drawSpec } from '../renderer/svg-utils.js';
 import { DN_LIST } from '../data/catalogs.js';
 
 const FIT_W = 30;
@@ -34,89 +33,55 @@ export class TransitionComponent extends ComponentBase {
   }
 
   // wIn/wOut: reducer → giriş geniş, çıkış dar. Expander → tersi.
-  shapeSpec(ix, iy) {
-    const len  = FIT_W;
+  shapeSpec(layout) {
+    const { ix, iy } = layout;
+    const len  = FIT_W; // Genellikle dirsek/transition için sabit genişlik
     const mx   = ix + len / 2;
+
+    // Genişlik hesapları (Sadece yatay düzleme göre)
     const wIn  = this.isReducer ? HALF : HALF - TAPER;
     const wOut = this.isReducer ? HALF - TAPER : HALF;
     const cls  = `pipe-body ${this.isReducer ? 'pipe-reducer' : 'pipe-expander'}`;
-    const dim  = `${this.d_in_mm}→${this.d_out_mm}mm`;
 
     return {
-      right: {
-        prims: [
-          { tag: 'polygon', cls,
-            points: `${ix},${iy-wIn} ${ix+len},${iy-wOut} ${ix+len},${iy+wOut} ${ix},${iy+wIn}` },
-        ],
-        labels: [
-          { x: mx, y: iy - 14, anchor: 'middle', cls: 'lbl lbl-dim', text: dim },
-        ],
-      },
-
-      down: {
-        // Giriş üstte (iy), çıkış altta (iy+len). Reducer: üst geniş → alt dar.
-        prims: [
-          { tag: 'polygon', cls,
-            points: `${ix-wIn},${iy} ${ix+wIn},${iy} ${ix+wOut},${iy+len} ${ix-wOut},${iy+len}` },
-        ],
-        labels: [
-          { x: ix + HALF + 6, y: iy + len/2, anchor: 'start', cls: 'lbl lbl-dim', text: dim },
-        ],
-      },
-
-      up: {
-        // Giriş altta (iy), çıkış üstte (iy-len). Reducer: alt geniş → üst dar.
-        prims: [
-          { tag: 'polygon', cls,
-            points: `${ix-wIn},${iy} ${ix+wIn},${iy} ${ix+wOut},${iy-len} ${ix-wOut},${iy-len}` },
-        ],
-        labels: [
-          { x: ix + HALF + 6, y: iy - len/2, anchor: 'start', cls: 'lbl lbl-dim', text: dim },
-        ],
-      },
+      itemShape: [
+        {
+          tag: 'polygon',
+          cls: cls,
+          // Yatayda ix'den (giriş) ix+len'e (çıkış) giden yamuk (trapezoid)
+          points: `${ix},${iy-wIn} ${ix+len},${iy-wOut} ${ix+len},${iy+wOut} ${ix},${iy+wIn}`
+        }
+      ],
+      anchors: [
+        { type: 'dim', x: mx, y: iy }
+      ],
+      orientation: this.entryDir // Base sınıf bunu rotate(90, ix, iy) vb. yapacak
     };
   }
 
-  calcHydraulics(Q_m3s, fluid, prev = null) {
-    const length_m = this._overrides.length_m ?? 0.3;
-    const prevSeg  = prev ? { diameter_mm: prev.outDiameter_mm } : null;
-    this.result = calcSegment(
-      { diameter_mm: this.d_out_mm, length_m, dz_m: this.dz_m, eps_mm: this.eps_mm, K_fittings: 0 },
-      Q_m3s, fluid, prevSeg
-    );
-    this.result.P_out = null;
+  calcHydraulics(Q_m3s, fluid) {
+    super.calcHydraulics(Q_m3s, fluid);
+
+    const hm = hLoss_fitting(this.K, this.result.v);
+    const dP_Pa = fluid.rho * 9.81 * hm;
+
+    this.result.hf.fittings = hm;
+    this.result.hf.total = hm;
+    this.result.dP_Pa = dP_Pa;
+
     return this.result;
   }
 
-  createSVG(layout, labelLayer) {
-    const g = svgEl('g');
-    g.dataset.compId = this.id;
-    g.classList.add('component', 'pipe', this.isReducer ? 'pipe-reducer-comp' : 'pipe-expander-comp');
-    const spec = this.shapeSpec(layout.ix, layout.iy);
-    drawSpec(g, labelLayer, spec[layout.entryDir]);
-    return g;
-  }
 
-  updateSVG(g, layout, labelLayer) {
-    super.updateSVG(g, layout);
-    while (g.firstChild) g.removeChild(g.firstChild);
-    const spec = this.shapeSpec(layout.ix, layout.iy);
-    drawSpec(g, labelLayer, spec[layout.entryDir]);
-  }
 
   renderPropsHTML() {
-    const mkOpts = (val) => DN_LIST.map(x =>
-      `<option value="${x.d}" ${Math.abs(x.d - val) < 1 ? 'selected' : ''}>${x.dn} (${x.d}mm)</option>`
-    ).join('');
-    return `
-      <div class="pr"><span class="pl">D inlet</span>
-        <select class="p-select" data-prop="d_in_mm">${mkOpts(this.d_in_mm)}</select></div>
-      <div class="pr"><span class="pl">D outlet</span>
-        <select class="p-select" data-prop="d_out_mm">${mkOpts(this.d_out_mm)}</select></div>
-      <div class="pr"><span class="pl">Length</span>
-        <input class="p-input" type="number" value="${this._overrides.length_m ?? 0.3}"
-          step="0.05" min="0.05" data-prop="length_m">
-        <span class="pu">m</span></div>`;
+    const dnOpts = DN_LIST.map(x => ({ value: x.d, label: `${x.dn} (${x.d}mm)` }));
+
+    return [
+      this.row('D inlet', this.select('d_in_mm', dnOpts, this.d_in_mm)),
+      this.row('D outlet', this.select('d_out_mm', dnOpts, this.d_out_mm)),
+      this.row('Length', this.input('length_m', this._overrides.length_m ?? 0.3, "0.05"), 'm')
+    ].join('');
   }
 
   serialize() {

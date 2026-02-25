@@ -114,7 +114,7 @@ svg { display: block; }
 #topbar {
   position: fixed;
   top: 0; left: 0; right: 0;
-  height: 60px;
+  height: var(--topbar-h);
   border-bottom: 5px solid var(--border);
   display: flex;
   align-items: center;
@@ -150,6 +150,7 @@ svg { display: block; }
   margin: 12px;
   flex-shrink: 0;
 }
+
 #fluid-type {
   display: flex;
   align-items: center;
@@ -217,7 +218,7 @@ html[data-theme="light"] .theme-toggle .slider {
 #layout {
   display: flex;
   position: fixed;
-  top: 10px; left: 10px; right: 10px; bottom: 10px;
+  top: var(--topbar-h); left: 10px; right: 10px; bottom: 10px;
   overflow: hidden;
 }
 #col-left {
@@ -427,6 +428,15 @@ html[data-theme="light"] .theme-toggle .slider {
 }
 
 
+.button {
+  border: 1px dashed var(--border);
+}
+
+.button:active {
+  border: var(--accent);
+}
+
+
 #svg-canvas {
   display: block;
   overflow: visible;
@@ -576,11 +586,6 @@ html[data-theme="light"] .theme-toggle .slider {
   background: var(--c-node-in);
   border-radius: 3px;
 }
-
-
-
-
-
 
 
 

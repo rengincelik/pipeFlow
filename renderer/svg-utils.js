@@ -1,8 +1,6 @@
 'use strict';
 
-// ═══════════════════════════════════════════════════════════
 // SVG UTILITIES — DOM tabanlı, string concat yok
-// ═══════════════════════════════════════════════════════════
 
 export const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -17,6 +15,18 @@ export function setAttrs(el, attrs) {
     if (v == null) continue;
     el.setAttribute(k, v);
   }
+}
+
+export function drawSpec(g, labelLayer, spec) {
+  for (const p of spec.prims ?? []) {
+    const { tag, cls, ...attrs } = p;
+    const el = svgEl(tag);
+    if (cls) el.setAttribute('class', cls);
+    setAttrs(el, attrs);
+    g.appendChild(el);
+  }
+
+
 }
 
 /** `<g>` içindeki ilk `.lbl-vel` gibi class'ı bul, yoksa yarat */

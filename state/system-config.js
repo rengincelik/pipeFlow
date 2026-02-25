@@ -1,13 +1,5 @@
 'use strict';
 
-// ═══════════════════════════════════════════════════════════
-// SYSTEM CONFIG — global defaults + per-component override zinciri
-//
-// Kullanım:
-//   SystemConfig.set('diameter_mm', 53.1)   → tüm override'sız elemanları etkiler
-//   comp.override('diameter_mm', 26.9)       → sadece o eleman
-//   comp.resolve('diameter_mm')              → override varsa o, yoksa SystemConfig
-// ═══════════════════════════════════════════════════════════
 
 import { EventEmitter } from '../core/event-emitter.js';
 

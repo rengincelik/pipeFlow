@@ -2,8 +2,7 @@
 
 import { ComponentBase, registerComponentType } from './base.js';
 import { reynolds, hLoss_fitting, G } from '../core/hydraulics.js';
-import { svgEl } from '../renderer/svg-utils.js';
-import { drawSpec } from '../renderer/draw-spec.js';
+import { svgEl ,drawSpec} from '../renderer/svg-utils.js';
 
 const ARM = 10;  // stemden merkeze
 const S   = 10;  // üçgen yatay
@@ -34,125 +33,82 @@ export class ValveComponent extends ComponentBase {
     this._lenPx = 54;
   }
 
-  shapeSpec(ix, iy) {
-    const len     = this._lenPx;
-    const mx      = ix + len / 2;
-    const my      = iy;
-    const nameTxt = this.open ? this.name : 'CLOSED';
-    const nameCls = `lbl ${this.open ? 'lbl-name' : 'lbl-closed'}`;
-    const kTxt    = this.open ? `K=${this.K}` : null;
+  shapeSpec(layout) {
+    const { ix, iy } = layout;
+    const len = this._lenPx;
+    const mx = ix + len / 2;
+    const my = iy;
 
-    // Yatay stem prims (merkeze ARM px kala)
-    const hStems = [
-      { tag: 'line', cls: 'valve-stem', x1: ix,       y1: iy, x2: mx - ARM, y2: my },
+    // Sadece YATAY (Right) halini tanımlıyoruz
+    const stems = [
+      { tag: 'line', cls: 'valve-stem', x1: ix, y1: iy, x2: mx - ARM, y2: my },
       { tag: 'line', cls: 'valve-stem', x1: mx + ARM, y1: my, x2: ix + len, y2: iy },
     ];
-    // Yatay üçgenler (bowtie)
-    const hTris = [
+
+    const triangles = [
       { tag: 'polygon', cls: 'valve-tri', points: `${mx-S},${my-T} ${mx+S},${my} ${mx-S},${my+T}` },
       { tag: 'polygon', cls: 'valve-tri', points: `${mx+S},${my-T} ${mx-S},${my} ${mx+S},${my+T}` },
     ];
 
-    // Dikey down: giriş üstte (ix,iy), merkez (ix, iy+len/2)
-    const dmy = iy + len / 2;
-    const vdStems = [
-      { tag: 'line', cls: 'valve-stem', x1: ix, y1: iy,       x2: ix, y2: dmy - ARM },
-      { tag: 'line', cls: 'valve-stem', x1: ix, y1: dmy + ARM, x2: ix, y2: iy + len },
-    ];
-    const vdTris = [
-      { tag: 'polygon', cls: 'valve-tri', points: `${ix-T},${dmy-S} ${ix},${dmy+S} ${ix+T},${dmy-S}` },
-      { tag: 'polygon', cls: 'valve-tri', points: `${ix-T},${dmy+S} ${ix},${dmy-S} ${ix+T},${dmy+S}` },
-    ];
-
-    // Dikey up: giriş altta (ix,iy), merkez (ix, iy-len/2)
-    const umy = iy - len / 2;
-    const vuStems = [
-      { tag: 'line', cls: 'valve-stem', x1: ix, y1: iy,       x2: ix, y2: umy + ARM },
-      { tag: 'line', cls: 'valve-stem', x1: ix, y1: umy - ARM, x2: ix, y2: iy - len },
-    ];
-    const vuTris = [
-      { tag: 'polygon', cls: 'valve-tri', points: `${ix-T},${umy-S} ${ix},${umy+S} ${ix+T},${umy-S}` },
-      { tag: 'polygon', cls: 'valve-tri', points: `${ix-T},${umy+S} ${ix},${umy-S} ${ix+T},${umy+S}` },
-    ];
+    const closedMark = this.open ? [] : closedX(mx, my);
 
     return {
-      right: {
-        prims: [...hStems, ...hTris, ...(this.open ? [] : closedX(mx, my))],
-        labels: [
-          { x: mx, y: my - 22, anchor: 'middle', cls: nameCls,        text: nameTxt },
-          { x: mx, y: my + 26, anchor: 'middle', cls: 'lbl lbl-k',    text: kTxt    },
-        ],
-      },
-      down: {
-        prims: [...vdStems, ...vdTris, ...(this.open ? [] : closedX(ix, dmy))],
-        labels: [
-          { x: ix + 18, y: dmy - 6, anchor: 'start', cls: nameCls,     text: nameTxt },
-          { x: ix + 18, y: dmy + 8, anchor: 'start', cls: 'lbl lbl-k', text: kTxt    },
-        ],
-      },
-      up: {
-        prims: [...vuStems, ...vuTris, ...(this.open ? [] : closedX(ix, umy))],
-        labels: [
-          { x: ix + 18, y: umy - 6, anchor: 'start', cls: nameCls,     text: nameTxt },
-          { x: ix + 18, y: umy + 8, anchor: 'start', cls: 'lbl lbl-k', text: kTxt    },
-        ],
-      },
+      itemShape: [...stems, ...triangles, ...closedMark],
+      anchors: [
+        { type: 'name', x: mx, y: my },
+        { type: 'k',    x: mx, y: my }
+      ],
+      orientation: this.entryDir // 'right', 'down', 'up'
     };
   }
 
+
+
   calcHydraulics(Q_m3s, fluid) {
-    const D  = this.diameter_mm / 1000;
-    const v  = Q_m3s / (Math.PI * D * D / 4);
-    const nu = (fluid.mu_mPas / 1000) / fluid.rho;
-    const Re = reynolds(v, D, nu);
+    super.calcHydraulics(Q_m3s, fluid);
+
+    // Kapalıysa akışı kes
     if (!this.open) {
-      this.result = { v: 0, Re, blocked: true, dP_Pa: Infinity, dP_bar: Infinity, hf: { total: Infinity } };
+      this.result.blocked = true;
+      this.result.v = 0;
+      this.result.dP_Pa = Infinity;
       return this.result;
     }
-    const hm    = hLoss_fitting(this.K, v);
-    const dP_Pa = fluid.rho * G * hm;
-    this.result = { v, Re, blocked: false,
-      hf: { total: hm, fittings: hm, friction: 0, elevation: 0, transition: 0 },
-      dP_Pa, dP_bar: dP_Pa / 1e5 };
+
+    // Açıksa K katsayısı üzerinden yerel kayıp hesapla
+    const hm = hLoss_fitting(this.K, this.result.v);
+    const dP_Pa = fluid.rho * 9.81 * hm;
+
+    this.result.hf.fittings = hm;
+    this.result.hf.total = hm;
+    this.result.dP_Pa = dP_Pa;
+    this.result.dP_bar = dP_Pa / 1e5;
+
     return this.result;
   }
 
-  createSVG(layout, labelLayer) {
-    const g = svgEl('g');
-    g.dataset.compId = this.id;
-    g.classList.add('component', 'valve', `valve-${this.subtype}`);
-    if (!this.open) g.classList.add('valve-closed');
-    drawSpec(g, labelLayer, this.shapeSpec(layout.ix, layout.iy)[layout.entryDir]);
-    return g;
-  }
 
-  updateSVG(g, layout, labelLayer) {
-    super.updateSVG(g, layout);
-    g.classList.toggle('valve-closed', !this.open);
-    while (g.firstChild) g.removeChild(g.firstChild);
-    drawSpec(g, labelLayer, this.shapeSpec(layout.ix, layout.iy)[layout.entryDir]);
-  }
+
+
 
   renderPropsHTML() {
-    const VALVE_TYPES = [
-      { subtype: 'gate',      label: 'Gate Valve',  K: 0.20 },
-      { subtype: 'ball',      label: 'Ball Valve',  K: 0.10 },
-      { subtype: 'butterfly', label: 'Butterfly',   K: 0.80 },
-      { subtype: 'globe',     label: 'Globe Valve', K: 6.00 },
-      { subtype: 'check',     label: 'Check Valve', K: 2.50 },
-      { subtype: 'prv',       label: 'PRV',         K: null  },
+    const vTypes = [
+      { value: 'gate', label: 'Gate Valve' },
+      { value: 'ball', label: 'Ball Valve' },
+      { value: 'butterfly', label: 'Butterfly' },
+      { value: 'globe', label: 'Globe Valve' },
+      { value: 'check', label: 'Check Valve' }
     ];
-    const typeOpts = VALVE_TYPES.map(t =>
-      `<option value="${t.subtype}" ${this.subtype === t.subtype ? 'selected' : ''}>${t.label}</option>`
-    ).join('');
-    const btn = `<button class="valve-toggle ${this.open ? 'open' : 'closed'}" data-action="toggle-valve">
+
+    const toggleBtn = `<button class="valve-toggle ${this.open ? 'open' : 'closed'}" data-action="toggle-valve">
       ${this.open ? '⬤ OPEN' : '◯ CLOSED'}</button>`;
-    return `
-      <div class="pr"><span class="pl">Type</span>
-        <select class="p-select" data-action="change-valve-type">${typeOpts}</select></div>
-      <div class="pr"><span class="pl">Diameter</span><span class="pv">${this.diameter_mm} mm</span></div>
-      <div class="pr"><span class="pl">K value</span><span class="pv">${this.K}</span></div>
-      <div class="pr"><span class="pl">State</span>${btn}</div>`;
+
+    return [
+      this.row('Type', this.select('subtype', vTypes, this.subtype, 'change-valve-type')),
+      this.row('Diameter', this.value(this.diameter_mm), 'mm' ),
+      this.row('K value', this.value(this.K)),
+      this.row('State', toggleBtn)
+    ].join('');
   }
 
   serialize() { return { ...super.serialize(), open: this.open, K: this.K }; }

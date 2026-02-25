@@ -338,3 +338,32 @@
   pointer-events: none;
   user-select:  none;
 }
+
+
+/* Ana Geometri */
+.item-geometry .pipe-body {
+  stroke: #5820b9;
+  fill: none;
+}
+
+.item-geometry .valve-tri {
+  stroke: hsl(114, 84%, 36%);
+  stroke-width: 1;
+}
+
+/* Etiketler */
+.lbl {
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+  font-size: 10px;
+  fill: #333;
+  pointer-events: none; /* Yazıya tıklayınca arkadaki hitbox çalışsın */
+}
+
+.lbl-dim { font-weight: bold; fill: #2980b9; }
+.lbl-vel { fill: #27ae60; font-style: italic; }
+
+/* Durumlar (States) */
+.component.selected .pipe-body {
+  stroke: #e67e22; /* Seçili eleman turuncu olsun */
+  stroke-width: 3;
+}

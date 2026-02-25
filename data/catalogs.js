@@ -27,12 +27,11 @@ export const MATERIALS = [
 export const CATALOG_DEF = [
   {
     group: 'Elbows',
-    display: 'chips',
     items: [
       { type:'elbow', subtype:'rd', icon:'┐', desc:'Right → Down' },
       { type:'elbow', subtype:'ru', icon:'┘', desc:'Right → Up'   },
-      { type:'elbow', subtype:'ur', icon:'└', desc:'Up → Right'   },
-      { type:'elbow', subtype:'dr', icon:'┌', desc:'Down → Right' },
+      { type:'elbow', subtype:'ur', icon:'┌', desc:'Up → Right'   },
+      { type:'elbow', subtype:'dr', icon:'└', desc:'Down → Right' },
     ],
   },
   {
@@ -52,6 +51,12 @@ export const CATALOG_DEF = [
     group: 'Valves',
     items: [
       { type:'valve', subtype:'gate', icon:'⦿', desc:'Gate / K=0.20' },
+    ],
+  },
+  {
+    group: 'Pump',
+    items: [
+      { type:'pump', subtype:'centrifugal', icon:'⦿', desc:'Gate / K=0.20' },
     ],
   },
 

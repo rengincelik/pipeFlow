@@ -55,13 +55,11 @@ export class SVGRenderer {
     this.svg.appendChild(this._layerOverlay);
   }
 
-  render(layouts, { selectedId = null, dropIdx = null, showLabels = true, pumpSelected = false } = {}) {
-    this._pumpSelected = pumpSelected;
+  render(layouts, { selectedId = null, dropIdx = null, showLabels = true } = {}) {
+
     if (!layouts.length) {
       this._clearAll();
       this._updateViewBox([], []);
-      // Hat boşken de pompa ikonunu göster
-      this._renderEmptyPump();
       return;
     }
     this._updateViewBox(
@@ -100,83 +98,57 @@ export class SVGRenderer {
     }
   }
 
-  _renderComponents(layouts, selectedId, showLabels) {
-    const seenIds = new Set();
-    this._layerLabels.innerHTML = '';
+_renderComponents(layouts, selectedId, showLabels) {
+  const seenIds = new Set();
+  // Önemli: Etiket katmanını her renderda temizliyoruz
+  // çünkü etiketler dinamik (akış verisi değiştikçe güncellenmeli)
+  this._layerLabels.innerHTML = '';
 
-    layouts.forEach(entry => {
-      const { comp } = entry;
-      seenIds.add(comp.id);
-      comp._selected = comp.id === selectedId;
+  layouts.forEach(entry => {
+    const { comp } = entry;
+    seenIds.add(comp.id);
 
-      let g = this._compEls.get(comp.id);
-      if (!g) {
-        g = comp.createSVG(entry, this._layerLabels);
-        g.classList.toggle('labels-on', showLabels);
-        g.addEventListener('click', e => {
-          e.stopPropagation();
-          this.onCompClick?.(comp.id);
-        });
-        this._layerComps.appendChild(g);
-        this._compEls.set(comp.id, g);
-      } else {
-        g.classList.toggle('labels-on', showLabels);
-        comp.updateSVG(g, entry, this._layerLabels);
-      }
-    });
 
-    for (const [id, g] of this._compEls) {
-      if (!seenIds.has(id)) { g.remove(); this._compEls.delete(id); }
+    let g = this._compEls.get(comp.id);
+    if (!g) {
+      // 1. Yeni eleman oluşturma
+      g = comp.createSVG(entry, this._layerLabels);
+      g.addEventListener('click', e => {
+        e.stopPropagation();
+        this.onCompClick?.(comp.id);
+      });
+      this._layerComps.appendChild(g);
+      this._compEls.set(comp.id, g);
+    } else {
+      // 2. Mevcut elemanı güncelleme (Yeni koordinatlar ve etiketler)
+      // Artık updateSVG'yi Base sınıfta tanımlayacağız
+      comp.updateSVG(g, entry, this._layerLabels);
+    }
+    g.classList.toggle('selected', comp.id === selectedId);
+
+  });
+
+  // Silinen elemanları temizle
+  for (const [id, g] of this._compEls) {
+    if (!seenIds.has(id)) {
+      g.remove();
+      this._compEls.delete(id);
     }
   }
+}
 
   _renderNodes(layouts) {
     this._layerNodes.innerHTML = '';
+    // A node — Hat başı (Giriş)
+    const first = layouts[0];
+    this._layerNodes.appendChild(createNode(first.ix, first.iy, 'A', 'node-inlet'));
     // B node — hat sonu
     const last = layouts[layouts.length - 1];
     this._layerNodes.appendChild(createNode(last.ox, last.oy, 'B', 'node-outlet'));
-    // Pompa ikonu — A node yerine, her zaman görünür
-    this._renderPumpNode(layouts[0].ix, layouts[0].iy);
+
   }
 
-  // Hat başında sabit pompa ikonu
-  _renderPumpNode(x, y) {
-    const R = 18;
-    const g = svgEl('g');
-    g.classList.add('pump-node');
-    if (this._pumpSelected) g.classList.add('selected');
-    g.style.cursor = 'pointer';
 
-    const circle = svgEl('circle');
-    setAttrs(circle, { cx: x, cy: y, r: R, class: 'pump-node-circle' });
-    g.appendChild(circle);
-
-    // Çark bıçakları
-    const blade = svgEl('path');
-    setAttrs(blade, {
-      d: `M${x},${y} L${x-5},${y-8} L${x+8},${y-3} Z`,
-      class: 'pump-node-blade'
-    });
-    g.appendChild(blade);
-
-    // Bağlantı çizgisi (pompadan ilk elemana)
-    const stem = svgEl('line');
-    setAttrs(stem, { x1: x + R, y1: y, x2: x + R + 6, y2: y, class: 'pump-node-stem' });
-    g.appendChild(stem);
-
-    // Label
-    const lbl = svgEl('text');
-    setAttrs(lbl, { x, y: y - R - 8, 'text-anchor': 'middle', class: 'pump-node-label' });
-    lbl.textContent = 'PUMP';
-    g.appendChild(lbl);
-
-    g.addEventListener('click', e => {
-      e.stopPropagation();
-      this.onPumpClick?.();
-    });
-
-    this._layerNodes.appendChild(g);
-  }
 
   _renderDropIndicator(layouts, dropIdx) {
     this._layerOverlay.innerHTML = '';
@@ -209,28 +181,7 @@ export class SVGRenderer {
     this._compEls.clear();
   }
 
-  // Hat boşken canvas ortasında pompa ikonu
-  _renderEmptyPump() {
-    this._updateViewBox([ORIGIN_X + 200], [ORIGIN_Y]);
-    this._renderPumpNode(ORIGIN_X, ORIGIN_Y);
-    // Hint çizgisi — sağa doğru kesik
-    const line = svgEl('line');
-    setAttrs(line, {
-      x1: ORIGIN_X + 18, y1: ORIGIN_Y,
-      x2: ORIGIN_X + 120, y2: ORIGIN_Y,
-      stroke: 'var(--border)', 'stroke-width': '2',
-      'stroke-dasharray': '6 4'
-    });
-    this._layerNodes.appendChild(line);
-    const hint = svgEl('text');
-    setAttrs(hint, {
-      x: ORIGIN_X + 130, y: ORIGIN_Y + 5,
-      'text-anchor': 'start', class: 'pump-node-label'
-    });
-    hint.textContent = '← drag components here';
-    this._layerNodes.appendChild(hint);
-  }
+
 
   onCompClick = null;
-  onPumpClick  = null;
 }
