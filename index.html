@@ -24,7 +24,7 @@
       <!-- Fluid seçimi -->
       <div id="fluid-type">
         <span class="label">Fluid</span>
-        <select class="selection" id="select-fluid" onchange="setSysConfig('fluid_id', this.value)">
+        <select class="selection" id="select-fluid">
           <option value="water">Water (H₂O)</option>
         </select>
       </div>
@@ -34,7 +34,7 @@
 
     <div class="topbar-right">
 
-      <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()" aria-label="Toggle theme">
+      <button class="theme-toggle" id="theme-btn"   aria-label="Toggle theme">
         <span class="theme-icon sun">
           <svg viewBox="0 0 24 24">
             <circle cx="12" cy="12" r="5" fill="currentColor"/>
@@ -102,34 +102,31 @@
       <!-- Canvas Paneli -->
       <div id="panel-canvas">
         <div id="canvas-bar">
-          <button class="button" id="btn-label" onclick="toggleLabels()" title="Toggle Labels">
+          <button class="button" id="btn-label"  title="Toggle Labels">
             Labels
           </button>
-          <button class="button" id="btn-pressure" onclick="togglePG()" title="Pressure Gradient Overlay">
+          <button class="button" id="btn-pressure"   title="Pressure Gradient Overlay">
             <svg width="12" height="12" viewBox="0 0 12 12"><path d="M1 10 Q3 4 6 5 Q9 6 11 2" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
             P-Grad
           </button>
-          <button class="button" onclick="zoomFit()" title="Fit to View">
+          <button class="button" id="btn-fit" title="Fit to View">
             <svg width="12" height="12" viewBox="0 0 12 12"><rect x="1" y="1" width="4" height="4" rx="0.5" fill="none" stroke="currentColor" stroke-width="1"/><rect x="7" y="7" width="4" height="4" rx="0.5" fill="none" stroke="currentColor" stroke-width="1"/><line x1="5" y1="3" x2="7" y2="3" stroke="currentColor" stroke-width="1"/><line x1="9" y1="5" x2="9" y2="7" stroke="currentColor" stroke-width="1"/></svg>
             Fit
           </button>
-          <button class="button" onclick="clearLine()" title="Clear all">
+          <button class="button"  id="btn-clear" title="Clear all">
             <svg width="12" height="12" viewBox="0 0 12 12"><line x1="2" y1="2" x2="10" y2="10" stroke="currentColor" stroke-width="1.4"/><line x1="10" y1="2" x2="2" y2="10" stroke="currentColor" stroke-width="1.4"/></svg>
             Clear
           </button>
-          <button class="button" onclick="exportJSON()" title="Export JSON">
-            <svg width="12" height="12" viewBox="0 0 12 12"><rect x="2" y="1" width="8" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="1"/><line x1="4" y1="4" x2="8" y2="4" stroke="currentColor" stroke-width="1"/><line x1="4" y1="6" x2="8" y2="6" stroke="currentColor" stroke-width="1"/><line x1="4" y1="8" x2="6" y2="8" stroke="currentColor" stroke-width="1"/></svg>
-            Export
-          </button>
+
 
         </div>
         <!-- SVG Canvas -->
-        <div id="canvas-scroll" ondragover="onDragOver(event)" ondrop="onDrop(event)" ondragleave="onDragLeave(event)">
+        <div id="canvas-scroll"   >
           <svg id="svg-canvas" xmlns="http://www.w3.org/2000/svg"></svg>
         </div>
         <!-- HUD Widget -->
         <div id="hud">
-          <button id="hud-start-btn" onclick="togglePump()" class="hud-start-btn">
+          <button id="hud-start-btn"  class="hud-start-btn">
             <span id="hud-btn-icon">▶</span>
             <span id="hud-btn-label">START</span>
           </button>

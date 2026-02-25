@@ -265,8 +265,7 @@ export class ComponentBase extends EventEmitter {
   }
 
   get outDiameter_mm() { return this.diameter_mm; }
-
-  // ComponentBase.js içine eklenecek yardımcılar:
+ 
 
   row(label, content, unit = '') {
     return `<div class="pr"><span class="pl">${label}</span>${content}${unit ? `<span class="pu">${unit}</span>` : ''}</div>`;
