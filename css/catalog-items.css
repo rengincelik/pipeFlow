@@ -1,0 +1,53 @@
+/* CATALOG */
+
+.cat-chip-group {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+}
+.cat-chip-label {
+  display: flex;
+  align-items: center;
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--text-mid);
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.5em;
+
+}
+.cat-chip-label::before,
+.cat-chip-label::after {
+  content: "";
+  flex-grow: 1;
+  height: 5px;                 /* çizgi kalınlığı */
+  background: var(--border);   /* çizgi rengi */
+}
+.cat-chip-label::after {
+  margin-left: -0.5em;
+}
+.cat-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-evenly;
+  padding: 10px;
+
+}
+.cat-chip {
+  font-size: var(--text-base);
+  padding: 5px;
+  border: 1px solid var(--blue);
+  border-radius: var(--r-sm);
+  cursor: grab;
+  color: var(--text);
+  user-select: none;
+  line-height: 1;
+  box-shadow: 0 0 8px var(--blue); /* dış glow */
+}
+.cat-chip:hover  {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.cat-chip:active {
+  cursor: grabbing;
+}

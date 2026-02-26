@@ -1,0 +1,22 @@
+#fluid-type {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 0 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  gap: 10px;
+}
+#fluid-type .label {
+  font-size: var(--text-sm);
+  font-weight: 800;
+  color: var(--text-dim);
+  letter-spacing: 0.3em;
+  white-space: nowrap;
+}
+#fluid-type .selection {
+  border: none;
+  font-size: var(--text-base);
+  color: var(--text);
+  cursor: pointer;
+}

@@ -1,0 +1,52 @@
+
+/* Start butonu */
+.hud-start-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  color: var(--text-mid);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.hud-start-btn:hover {
+  border-color: var(--green);
+  color: var(--green);
+  background: var(--green-lo);
+}
+.hud-start-btn.running {
+  border-color: var(--red);
+  color: var(--red);
+  background: var(--red-lo);
+}
+/* Sayaçlar */
+#hud-counters {
+  display: flex;
+  flex-direction: column;
+  width: auto;
+  overflow: visible;
+}
+.hud-counter-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  width: auto;
+  overflow: visible;
+}
+.hud-counter-label {
+  font-size: var(--text-sm);
+  overflow: visible;
+}
+.hud-counter-val {
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.05em;
+  overflow: visible;
+}
