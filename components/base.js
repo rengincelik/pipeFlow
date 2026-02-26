@@ -33,7 +33,9 @@ export class ComponentBase extends EventEmitter {
     this._overrides = {};
     this.result     = null;
   }
-
+  getParams() {
+    return { type: this.type, subtype: this.subtype };
+  }
   // ── Çözümleme kısayolları ──────────────────────────────
   get diameter_mm() { return this.resolve('diameter_mm'); }
   get eps_mm()      { return this.resolve('eps_mm'); }
@@ -177,13 +179,7 @@ export class ComponentBase extends EventEmitter {
   }
 
   getLabelContent(type) {
-    // Dinamik veri eşleştirme
-    const data = {
-      'dim': `⌀${this.diameter_mm}mm`,
-      'len': `${this._overrides.length_m ?? 5}m`,
-      'vel': this.result?.v != null ? `v=${this.result.v.toFixed(2)}m/s` : null
-    };
-    return data[type];
+
   }
   // ComponentBase.js içinde
   updateSVG(g, layout, labelLayer) {
@@ -222,7 +218,6 @@ export class ComponentBase extends EventEmitter {
 
 
 
-  // ComponentBase.js içinde
   calcHydraulics(Q_m3s, fluid) {
     const D = this.diameter_mm / 1000;
     const area = (Math.PI * D * D) / 4;

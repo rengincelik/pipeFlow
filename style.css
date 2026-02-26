@@ -2,7 +2,9 @@
 @import "css/pipeline.css";
 @import "css/property-elements.css";
 @import "css/catalog-items.css";
-
+@import "css/chart.css";
+@import "css/fluid-type.css";
+@import "css/hud.css";
 
 
 /* PIPEFLOW — Ana Stil Dosyası */
@@ -315,45 +317,6 @@ html[data-theme="light"] .theme-toggle .slider {
   padding: 10px;
 }
 
-/* RESIZE HANDLES */
-.resize-handler {
-  height: 3px;
-  background: var(--blue);
-  cursor: ns-resize;
-  flex-shrink: 0;
-  transition: background 0.15s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.resize-grip {
-  width: 30%;
-  height: 10px;
-  background: inherit; /* parent rengini miras al */
-  border-radius: 8px;
-  pointer-events: none;
-  z-index: 50;
-}
-.resize-handler[data-resize="vertical"] {
-
-  height: 100%;
-  width: 3px;
-  cursor: ew-resize;
-  flex-direction: column;
-}
-.resize-grip[data-resize="vertical"] {
-  width: 10px;
-  height: 30%;
-}
-.resize-handler:hover,
-.resize-handler.active {
-  background: var(--accent);
-}
-
-
-
-
-
 /* CANVAS */
 #canvas-bar {
   border: 3px solid var(--border);
@@ -414,22 +377,7 @@ html[data-theme="light"] .theme-toggle .slider {
 
 
 
-/* HUD WIDGET — canvas sağ alt köşe */
-#hud {
-  position:absolute;
-  bottom: 30px;
-  right: 30px;
-  align-items: center;
-  justify-content: space-evenly ;
-  border: 1px solid var(--border);
-  border-radius: var(45px);
-  padding: 15px;
-  display: flex;
-  flex-direction: column;
-  width: 180px;
-  z-index: 100;
-  user-select: none;
-}
+
 
 
 /* SCROLLBARS */
@@ -440,6 +388,45 @@ html[data-theme="light"] .theme-toggle .slider {
 ::-webkit-scrollbar-thumb {
   background: var(--c-node-in);
   border-radius: 3px;
+}
+
+
+
+
+
+/* RESIZE HANDLES */
+.resize-handler {
+  height: 3px;
+  background: var(--blue);
+  cursor: ns-resize;
+  flex-shrink: 0;
+  transition: background 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.resize-grip {
+  width: 30%;
+  height: 10px;
+  background: inherit; /* parent rengini miras al */
+  border-radius: 8px;
+  pointer-events: none;
+  z-index: 50;
+}
+.resize-handler[data-resize="vertical"] {
+
+  height: 100%;
+  width: 3px;
+  cursor: ew-resize;
+  flex-direction: column;
+}
+.resize-grip[data-resize="vertical"] {
+  width: 10px;
+  height: 30%;
+}
+.resize-handler:hover,
+.resize-handler.active {
+  background: var(--accent);
 }
 
 

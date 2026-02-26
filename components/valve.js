@@ -1,7 +1,6 @@
 'use strict';
 
 import { ComponentBase, registerComponentType } from './base.js';
-import { reynolds, hLoss_fitting, G } from '../core/hydraulics.js';
 import { svgEl ,drawSpec} from '../renderer/svg-utils.js';
 
 const ARM = 10;  // stemden merkeze
@@ -32,7 +31,15 @@ export class ValveComponent extends ComponentBase {
     this.open  = true;
     this._lenPx = 54;
   }
-
+  getParams() {
+    return {
+      type:        'valve',
+      subtype:     this.subtype,            // 'gate' | 'globe' | 'butterfly'
+      diameter_mm: this.resolve('diameter_mm'),
+      opening:     this.opening ?? 1.0,     // 0–1 arası, runtime'da değişir
+      K_table:     this.K_table,            // [{ opening, K }, ...] lookup
+    };
+  }
   shapeSpec(layout) {
     const { ix, iy } = layout;
     const len = this._lenPx;
@@ -55,37 +62,13 @@ export class ValveComponent extends ComponentBase {
     return {
       itemShape: [...stems, ...triangles, ...closedMark],
       anchors: [
-        { type: 'name', x: mx, y: my },
-        { type: 'k',    x: mx, y: my }
+        { type: 'label', x: mx, y: my },
       ],
       orientation: this.entryDir // 'right', 'down', 'up'
     };
   }
 
 
-
-  calcHydraulics(Q_m3s, fluid) {
-    super.calcHydraulics(Q_m3s, fluid);
-
-    // Kapalıysa akışı kes
-    if (!this.open) {
-      this.result.blocked = true;
-      this.result.v = 0;
-      this.result.dP_Pa = Infinity;
-      return this.result;
-    }
-
-    // Açıksa K katsayısı üzerinden yerel kayıp hesapla
-    const hm = hLoss_fitting(this.K, this.result.v);
-    const dP_Pa = fluid.rho * 9.81 * hm;
-
-    this.result.hf.fittings = hm;
-    this.result.hf.total = hm;
-    this.result.dP_Pa = dP_Pa;
-    this.result.dP_bar = dP_Pa / 1e5;
-
-    return this.result;
-  }
 
 
 
@@ -202,15 +185,7 @@ export class PRVComponent extends ComponentBase {
     };
   }
 
-  calcHydraulics(Q_m3s, fluid) {
-    const D  = this.diameter_mm / 1000;
-    const v  = Q_m3s / (Math.PI * D * D / 4);
-    const nu = (fluid.mu_mPas / 1000) / fluid.rho;
-    const Re = reynolds(v, D, nu);
-    this.result = { v, Re, P_set_bar: this.P_set_bar, isPRV: true,
-                    dP_Pa: 0, dP_bar: 0, hf: { total: 0 } };
-    return this.result;
-  }
+
 
   createSVG(layout, labelLayer) {
     const g = svgEl('g');

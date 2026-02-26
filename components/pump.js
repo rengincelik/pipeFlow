@@ -1,8 +1,6 @@
 'use strict';
 
 import { ComponentBase, registerComponentType } from './base.js';
-import { reynolds, G } from '../core/hydraulics.js';
-import { svgEl ,drawSpec} from '../renderer/svg-utils.js';
 
 const R = 18;  // daire yarıçapı
 
@@ -10,11 +8,21 @@ export class PumpComponent extends ComponentBase {
   constructor() {
     super('pump', 'centrifugal');
     this.name       = 'Centrifugal';
+    this.Q_m3s = this.resolve('Q_m3s'),
     this.head_m     = 20;
     this.efficiency = 0.75;
     this._lenPx     = 64;
   }
-
+  getParams() {
+    return {
+      type:       'pump',
+      subtype:    this.subtype,
+      Q_m3s:      this.resolve('Q_m3s'),
+      H_m:        this.resolve('head_m'),
+      efficiency: this.resolve('efficiency'),   // 0–1 arası
+      diameter_mm: this.resolve('diameter_mm'),
+    };
+  }
 shapeSpec(layout) {
   const { ix, iy } = layout;
   const len = this._lenPx;
@@ -29,8 +37,8 @@ shapeSpec(layout) {
       { tag: 'path',   cls: 'pump-blade',  d: `M${mx},${iy} L${mx-5},${iy-7} L${mx+7},${iy-3} Z` },
     ],
     anchors: [
-      { type: 'pump_label', x: mx, y: iy },
-      { type: 'head',       x: mx, y: iy }
+      { type: 'label', x: mx, y: iy },
+
     ],
     orientation: this.entryDir
   };
@@ -38,20 +46,6 @@ shapeSpec(layout) {
 
 
 
-  calcHydraulics(Q_m3s, fluid) {
-    super.calcHydraulics(Q_m3s, fluid);
-
-    // Head (basma yüksekliği) değerini basınca çevir
-    const addP_Pa = fluid.rho * 9.81 * this.head_m;
-
-    this.result.isPump = true;
-    this.result.head_m = this.head_m;
-    this.result.dP_Pa = -addP_Pa; // Basınç artışı negatif kayıp demektir
-    this.result.dP_bar = -addP_Pa / 1e5;
-    this.result.hf.total = -this.head_m;
-
-    return this.result;
-  }
 
 
 
@@ -60,7 +54,8 @@ shapeSpec(layout) {
   renderPropsHTML() {
     return [
       this.row('Head', this.input('head_m', this.head_m, "1"), 'm'),
-      this.row('Efficiency', this.input('efficiency', this.efficiency, "0.01"))
+      this.row('Efficiency', this.input('efficiency', this.efficiency, "0.01")),
+      this.row('Q', this.input(this.Q_m3s, "0.005"), 'L/s')
     ].join('');
   }
 

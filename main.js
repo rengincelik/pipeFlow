@@ -7,6 +7,9 @@ import { SVGRenderer }     from './renderer/svg-renderer.js';
 import { ChartRenderer }   from './renderer/chart-renderer.js';
 import { createComponent } from './components/base.js';
 import { CATALOG_DEF}     from './data/catalogs.js';
+import { SimulationEngine, SysState } from './Simulation/SimulationEngine.js';
+import { FlowAnimator } from './renderer/flow-animator.js';
+
 
 // Bileşenleri register et (Yan etkili importlar)
 import './components/pipe.js';
@@ -38,7 +41,19 @@ const DOM = {
   btnExport:    document.getElementById('btn-export'),
   hudStartBtn:  document.getElementById('hud-start-btn'),
 
+  hudTime: document.getElementById('hud-time'),
+  hudVol:  document.getElementById('hud-vol'),
+  hudIcon: document.getElementById('hud-btn-icon'),
+  hudLabel: document.getElementById('hud-btn-label'),
+
 };
+
+// Fluid'i SystemConfig'den veya selectFluid'den al
+const fluid = { rho: 1000, mu: 0.001 }; // başlangıç: su
+
+const engine = new SimulationEngine(pipelineStore, fluid);
+
+
 
 // ── INITIALIZE RENDERERS ─────────────────────────────────────
 const renderer = new SVGRenderer(DOM.svgCanvas);
@@ -201,11 +216,30 @@ function clearLine() {
   setupInitialState();
   _redraw();
 }
+function togglePump() {
+  if (engine.sysState === SysState.IDLE) {
+    engine.start();
+    animator.start();
+        // Sıfırla
+    DOM.hudTime.textContent = '00:00:00';
+    DOM.hudVol.textContent  = '0.0 L';
+    DOM.hudIcon.textContent  = '⏹';
+    DOM.hudLabel.textContent = 'STOP';
+    DOM.hudStartBtn.classList.add('running');
+  } else {
+    engine.stop();
+    animator.stop();
+    DOM.hudIcon.textContent  = '▶';
+    DOM.hudLabel.textContent = 'START';
+    DOM.hudStartBtn.classList.remove('running');
 
+  }
+}
 // ── STUBS (TODO: implement or remove) ────────────────────────
-function setSysConfig(key, value) { /* TODO */ }
+function setSysConfig(key, value) { /* TODO */
+
+}
 function toggleLabels()           { /* TODO */ }
-function togglePump()             { /* TODO */ }
 
 // 4. UI STATE & REDRAW
 
@@ -254,6 +288,13 @@ function bindEvents() {
   DOM.canvasScroll.addEventListener('dragover',   (e) => Interactions.onDragOver(e));
   DOM.canvasScroll.addEventListener('drop',       (e) => Interactions.onDrop(e));
   DOM.canvasScroll.addEventListener('dragleave',  (e) => Interactions.onDragLeave(e));
+
+  // ── Engine bağlantıları ──────────────────────────────
+  engine
+    .onTick(handleTick)
+    .onAlarm(handleAlarms)
+    .onStateChange(updateHUDState);
+
 }
 
 // ── APP START ────────────────────────────────────────────────
@@ -265,10 +306,61 @@ pipelineStore.on('selection:change', () => {
 
 renderer.onCompClick = (id) => pipelineStore.select(id);
 
-//muhtemelen buraya ilk eleman olarak pompayı ekleyecek birşey yaz
 
+function handleTick(snapshot) {
+  // Engine snapshot'ını ChartRenderer formatına çevir
+  animator.update(pipelineStore.layout, snapshot);
+  const chartData = {
+    results:    snapshot.nodes.map(n => ({
+      P_in:    n.P_in  / 1e5,   // Pa → bar
+      P_out:   n.P_out / 1e5,
+      v:       n.v,
+      dP_major: n.dP_major / 1e5,
+      dP_minor: n.dP_minor / 1e5,
+    })),
+    components: pipelineStore.components,
+    selectedIdx: pipelineStore.selectedId
+      ? pipelineStore.components.findIndex(c => c.id === pipelineStore.selectedId)
+      : null,
+  };
 
+  chart.draw(chartData);
+  updateHUD(snapshot);
+}
 
+engine.onTick(handleTick);
+
+function updateHUD(snapshot) {
+  // Zaman — saniyeyi SS:DD:SS formatına çevir
+  const t   = snapshot.t;
+  const h   = Math.floor(t / 3600);
+  const m   = Math.floor((t % 3600) / 60);
+  const s   = Math.floor(t % 60);
+  DOM.hudTime.textContent =
+    `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+
+  // Hacim — litre cinsinden
+  const vol = snapshot.totalVolume_m3 * 1000;
+  DOM.hudVol.textContent = vol < 1000
+    ? `${vol.toFixed(1)} L`
+    : `${(vol / 1000).toFixed(2)} m³`;
+}
+
+function handleAlarms(alarms) {
+  if (!alarms.length) {
+    DOM.hudStartBtn.classList.remove('alarm');
+    return;
+  }
+  const critical = alarms.some(a => a.level === 'critical');
+  DOM.hudStartBtn.classList.toggle('alarm', critical);
+  // İstersen alarm listesini bir panelde de gösterebilirsin
+  console.warn('ALARM:', alarms.map(a => a.message).join(' | '));
+}
+
+function updateHUDState(sys, pump) {
+  DOM.hudStartBtn.dataset.state = sys;
+  // CSS'te [data-state="alarm"] { background: red } gibi kullanabilirsin
+}
 
 // 🚀 VARSAYILAN POMPAYI EKLEME
 function setupInitialState() {
@@ -295,6 +387,8 @@ function setupInitialState() {
 
 LayoutManager.init();
 CatalogManager.render();
+// renderer init'ten sonra:
+const animator = new FlowAnimator(renderer._layerOverlay);
 
 bindEvents();
 setupInitialState();

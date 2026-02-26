@@ -1,8 +1,6 @@
 'use strict';
 
 import { ComponentBase, registerComponentType } from './base.js';
-import { calcSegment } from '../core/hydraulics.js';
-import { svgEl, drawSpec } from '../renderer/svg-utils.js';
 import { DN_LIST } from '../data/catalogs.js';
 
 const FIT_W = 30;
@@ -20,7 +18,15 @@ export class TransitionComponent extends ComponentBase {
     this._overrides.d_in_mm  = this.isReducer ? 53.1 : 26.9;
     this._overrides.d_out_mm = this.isReducer ? 26.9 : 53.1;
   }
-
+  getParams() {
+    return {
+      type:       'transition',
+      subtype:    this.subtype,              // 'reducer' | 'expander'
+      D_in_mm:    this.resolve('D_in_mm'),
+      D_out_mm:   this.resolve('D_out_mm'),
+      length_m:   this.resolve('length_m'),
+    };
+  }
   get d_in_mm()        { return this._overrides.d_in_mm  ?? this.resolve('diameter_mm'); }
   get d_out_mm()       { return this._overrides.d_out_mm ?? this.resolve('diameter_mm'); }
   get outDiameter_mm() { return this.d_out_mm; }
@@ -53,24 +59,12 @@ export class TransitionComponent extends ComponentBase {
         }
       ],
       anchors: [
-        { type: 'dim', x: mx, y: iy }
+        { type: 'label', x: mx, y: iy }
       ],
       orientation: this.entryDir // Base sınıf bunu rotate(90, ix, iy) vb. yapacak
     };
   }
 
-  calcHydraulics(Q_m3s, fluid) {
-    super.calcHydraulics(Q_m3s, fluid);
-
-    const hm = hLoss_fitting(this.K, this.result.v);
-    const dP_Pa = fluid.rho * 9.81 * hm;
-
-    this.result.hf.fittings = hm;
-    this.result.hf.total = hm;
-    this.result.dP_Pa = dP_Pa;
-
-    return this.result;
-  }
 
 
 

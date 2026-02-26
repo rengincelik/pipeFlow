@@ -1,4 +1,19 @@
-
+/* HUD WIDGET — canvas sağ alt köşe */
+#hud {
+  position:absolute;
+  bottom: 30px;
+  right: 30px;
+  align-items: center;
+  justify-content: space-evenly ;
+  border: 1px solid var(--border);
+  border-radius: var(45px);
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  width: 180px;
+  z-index: 100;
+  user-select: none;
+}
 /* Start butonu */
 .hud-start-btn {
   display: flex;

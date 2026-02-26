@@ -1,8 +1,6 @@
 'use strict';
 
-import { ComponentBase, registerComponentType, DIR_VEC } from './base.js';
-import { reynolds, hLoss_fitting, G } from '../core/hydraulics.js';
-import { svgEl ,drawSpec} from '../renderer/svg-utils.js';
+import { ComponentBase, registerComponentType, DIR_VEC } from './base.js'; 
 
 const ARM = 27;
 
@@ -16,7 +14,14 @@ export class ElbowComponent extends ComponentBase {
                     ur: ['up','right'],   dr: ['down','right'] };
     [this.entryDir, this.exitDir] = dirs[subtype] ?? ['right', 'down'];
   }
-
+  getParams() {
+    return {
+      type:        'elbow',
+      subtype:     this.subtype,
+      K:           this.resolve('K'),
+      diameter_mm: this.resolve('diameter_mm'),
+    };
+  }
   computeExit(ix, iy) {
     const eVec    = DIR_VEC[this.entryDir];
     const xVec    = DIR_VEC[this.exitDir];
@@ -47,24 +52,13 @@ shapeSpec(layout) {
       }
     ],
     anchors: [
-      { type: 'k', x: cx, y: cy }
+      { type: 'label', x: ix, y: iy },
     ],
     orientation: 'static' // Dönmesin, koordinatları zaten doğru
   };
 }
 
-  calcHydraulics(Q_m3s, fluid) {
-    super.calcHydraulics(Q_m3s, fluid);
 
-    const hm = hLoss_fitting(this.K, this.result.v);
-    const dP_Pa = fluid.rho * 9.81 * hm;
-
-    this.result.hf.fittings = hm;
-    this.result.hf.total = hm;
-    this.result.dP_Pa = dP_Pa;
-
-    return this.result;
-  }
 
 
 

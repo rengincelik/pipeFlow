@@ -17,9 +17,11 @@ class SystemConfigClass extends EventEmitter {
       T_in_C:      20,
       T_out_C:     20,
       // ── Pompa ───────────────────────────────
+      Q_m3s: 0.005,  // 5 L/s default
       pump_P_w:    500,        // motor gücü [W]
       pump_eta:    0.70,       // verim [0-1]
       pump_type:   'centrifugal',
+
     };
     this._values = { ...this._defaults };
   }
