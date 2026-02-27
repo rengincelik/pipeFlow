@@ -46,6 +46,8 @@ const DOM = {
   hudIcon: document.getElementById('hud-btn-icon'),
   hudLabel: document.getElementById('hud-btn-label'),
 
+  flowCanvas: document.getElementById('flow-canvas'),
+
 };
 
 // Fluid'i SystemConfig'den veya selectFluid'den al
@@ -388,7 +390,7 @@ function setupInitialState() {
 LayoutManager.init();
 CatalogManager.render();
 // renderer init'ten sonra:
-const animator = new FlowAnimator(renderer._layerOverlay);
+const animator = new FlowAnimator(DOM.svgCanvas, DOM.flowCanvas);
 
 bindEvents();
 setupInitialState();
