@@ -9,6 +9,7 @@ import { createComponent } from './components/base.js';
 import { CATALOG_DEF}     from './data/catalogs.js';
 import { SimulationEngine, SysState } from './Simulation/SimulationEngine.js';
 import { FlowAnimator } from './renderer/flow-animator.js';
+import { TooltipManager } from './renderer/tooltip-manager.js';
 
 
 // Bileşenleri register et (Yan etkili importlar)
@@ -300,11 +301,17 @@ function bindEvents() {
 }
 
 // ── APP START ────────────────────────────────────────────────
-pipelineStore.on('components:change', _redraw);
+pipelineStore.on('components:change', () => {
+  _redraw();
+  tooltip.rebind(DOM.svgCanvas);
+  if (engine.sysState === SysState.RUNNING) animator.reset();
+
+});
 pipelineStore.on('selection:change', () => {
   _redraw();
   _renderProps();
 });
+
 
 renderer.onCompClick = (id) => pipelineStore.select(id);
 
@@ -391,8 +398,9 @@ LayoutManager.init();
 CatalogManager.render();
 // renderer init'ten sonra:
 const animator = new FlowAnimator(DOM.svgCanvas, DOM.flowCanvas);
+const tooltip = new TooltipManager(DOM.svgCanvas, engine, pipelineStore);
 
 bindEvents();
 setupInitialState();
-
+tooltip.rebind(DOM.svgCanvas);
 
