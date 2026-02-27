@@ -17,6 +17,8 @@ const PX_PER_M        = 18;     // svg-renderer ile aynı oran
 const BASE_SPEED      = 40;     // px/s — v=1m/s için referans hız
 const MAX_VIS_SPEED   = 120;    // px/s üst sınır (çok hızlı dönmesin)
 const RAMP_ALPHA_RATE = 0.04;   // dairelerin fade-in hızı (0-1)
+const FILL_SPEED_PX_S = 60; // sıvının boruyu doldurma hızı px/s (BASE_SPEED ile aynı olabilir)
+
 
 // Renk: hıza göre beyazdan maviye
 function particleColor(alpha) {
@@ -63,11 +65,13 @@ export class FlowAnimator {
     if (this._running) return;
     this._running  = true;
     this._lastTime = null;
+    this._startTime = performance.now() / 1000;
     this._rafId    = requestAnimationFrame(t => this._loop(t));
   }
 
   stop() {
     this._running = false;
+    this._startTime = null;
     if (this._rafId) {
       cancelAnimationFrame(this._rafId);
       this._rafId = null;
@@ -78,40 +82,50 @@ export class FlowAnimator {
 
   // ── Segment senkronizasyonu ────────────────────────────────
 
-  _syncSegments(layouts, snapshot) {
-    const nodes = snapshot?.nodes ?? [];
+_syncSegments(layouts, snapshot) {
+  const nodes = snapshot?.nodes ?? [];
+  const now   = performance.now() / 1000;
 
-    // Yeni segment listesi oluştur
-    const newSegs = layouts.map((l, i) => {
-      const node     = nodes[i];
-      const v        = node?.v ?? 0;
-      const blocked  = node?.nodeState === 'blocked' || node?.nodeState === 'dry';
-      const lenPx    = Math.hypot(l.ox - l.ix, l.oy - l.iy);
+  const newSegs = layouts.map((l, i) => {
+    const node    = nodes[i];
+    const v       = node?.v ?? 0;
+    const blocked = node?.nodeState === 'blocked' || node?.nodeState === 'dry';
+    const lenPx   = Math.hypot(l.ox - l.ix, l.oy - l.iy);
 
-      // Kaç parçacık?
-      const len_m    = lenPx / PX_PER_M;
-      const count    = blocked ? 0 : Math.min(MAX_PARTICLES,
-                         Math.max(MIN_PARTICLES, Math.round(len_m * PARTICLES_PER_M)));
+    // Mevcut segmenti koru — arrivalTime'ı değiştirme
+    const existing = this._segments[i];
+    if (existing) {
+      existing.v       = v;
+      existing.blocked = blocked;
+      return existing;
+    }
 
-      // Mevcut segment varsa parçacıklarını koru
-      const existing = this._segments[i];
-      let particles;
-      if (existing && existing.count === count) {
-        particles = existing.particles;
-      } else {
-        // Yeni segment veya count değişti — eşit aralıklı başlangıç
-        particles = Array.from({ length: count }, (_, k) => ({
-          t:     k / count,
-          alpha: 0,           // fade-in başlar
-        }));
-      }
+    // Yeni segment — arrivalTime hesapla
+    // Bir önceki segmentin arrivalTime + dolma süresi
+    const prev         = this._segments[i - 1] ?? null;
+    const prevArrival  = prev?.arrivalTime ?? this._startTime ?? now;
+    const prevLen      = prev?.lenPx ?? 0;
+    const fillDuration = prevLen / FILL_SPEED_PX_S;
+    const arrivalTime  = i === 0 ? (this._startTime ?? now) : prevArrival + fillDuration;
 
-      return { x1: l.ix, y1: l.iy, x2: l.ox, y2: l.oy, lenPx, v, blocked, count, particles };
-    });
+    const count = Math.min(MAX_PARTICLES,
+                    Math.max(MIN_PARTICLES, Math.round((lenPx / PX_PER_M) * PARTICLES_PER_M)));
 
+    const particles = Array.from({ length: count }, (_, k) => ({
+      t: k / count, alpha: 0,
+    }));
+
+    return { x1: l.ix, y1: l.iy, x2: l.ox, y2: l.oy, lenPx, v, blocked, count, particles, arrivalTime };
+  });
+
+  // Sadece yeni segmentler eklendiyse circles'ı yeniden oluştur
+  if (newSegs.length !== this._segments.length) {
     this._segments = newSegs;
     this._rebuildCircles();
+  } else {
+    this._segments = newSegs;
   }
+}
 
   // ── SVG circle elementlerini yeniden oluştur ───────────────
 
@@ -148,42 +162,40 @@ export class FlowAnimator {
     this._rafId = requestAnimationFrame(t => this._loop(t));
   }
 
-  _step(dt) {
-    this._segments.forEach((seg, si) => {
-      const circles = this._circles[si];
-      if (!circles || !circles.length) return;
+_step(dt) {
+  const now = performance.now() / 1000;
 
-      // Hıza göre görsel hız — fiziksel hız ile orantılı
-      const visSpeed = seg.blocked
-        ? 0
-        : Math.min(MAX_VIS_SPEED, seg.v * BASE_SPEED) * this._rampF;
+  this._segments.forEach((seg, si) => {
+    const circles = this._circles[si];
+    if (!circles?.length) return;
 
-      // t artışı: visSpeed px/s → t/s = visSpeed / lenPx
-      const dt_t = seg.lenPx > 0 ? (visSpeed * dt) / seg.lenPx : 0;
+    // Sıvı henüz buraya ulaşmadıysa dondur
+    const arrived = now >= (seg.arrivalTime ?? 0);
+    if (!arrived) {
+      circles.forEach(c => { c.style.display = 'none'; });
+      return;
+    }
 
-      seg.particles.forEach((p, pi) => {
-        // Konum güncelle
-        p.t = (p.t + dt_t) % 1;
+    const visSpeed = seg.blocked
+      ? 0
+      : Math.min(MAX_VIS_SPEED, seg.v * BASE_SPEED) * this._rampF;
 
-        // Fade-in
-        if (seg.blocked) {
-          p.alpha = Math.max(0, p.alpha - RAMP_ALPHA_RATE);
-        } else {
-          p.alpha = Math.min(1, p.alpha + RAMP_ALPHA_RATE);
-        }
+    const dt_t = seg.lenPx > 0 ? (visSpeed * dt) / seg.lenPx : 0;
 
-        // SVG güncelle
-        const c  = circles[pi];
-        const px = seg.x1 + (seg.x2 - seg.x1) * p.t;
-        const py = seg.y1 + (seg.y2 - seg.y1) * p.t;
+    seg.particles.forEach((p, pi) => {
+      p.t = (p.t + dt_t) % 1;
+      p.alpha = seg.blocked
+        ? Math.max(0, p.alpha - RAMP_ALPHA_RATE)
+        : Math.min(1, p.alpha + RAMP_ALPHA_RATE);
 
-        c.setAttribute('cx', px.toFixed(1));
-        c.setAttribute('cy', py.toFixed(1));
-        c.setAttribute('fill', particleColor(p.alpha * this._rampF));
-
-        // Görünürlük
-        c.style.display = p.alpha < 0.02 ? 'none' : '';
-      });
+      const c  = circles[pi];
+      const px = seg.x1 + (seg.x2 - seg.x1) * p.t;
+      const py = seg.y1 + (seg.y2 - seg.y1) * p.t;
+      c.setAttribute('cx', px.toFixed(1));
+      c.setAttribute('cy', py.toFixed(1));
+      c.setAttribute('fill', particleColor(p.alpha * this._rampF));
+      c.style.display = p.alpha < 0.02 ? 'none' : '';
     });
-  }
+  });
+}
 }
