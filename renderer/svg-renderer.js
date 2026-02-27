@@ -55,8 +55,10 @@ export class SVGRenderer {
     this.svg.appendChild(this._layerOverlay);
   }
 
-  render(layouts, { selectedId = null, dropIdx = null, showLabels = true } = {}) {
 
+render(layouts, { selectedId = null, dropIdx = null, showLabels = true, warnings = [] } = {})  {
+
+  
     if (!layouts.length) {
       this._clearAll();
       this._updateViewBox([], []);
@@ -70,6 +72,8 @@ export class SVGRenderer {
     this._renderComponents(layouts, selectedId, showLabels);
     this._renderNodes(layouts);
     this._renderDropIndicator(layouts, dropIdx);
+    this._renderWarnings(layouts, warnings);
+
   }
 
   _updateViewBox(xs, ys) {
@@ -98,44 +102,44 @@ export class SVGRenderer {
     }
   }
 
-_renderComponents(layouts, selectedId, showLabels) {
-  const seenIds = new Set();
-  // Önemli: Etiket katmanını her renderda temizliyoruz
-  // çünkü etiketler dinamik (akış verisi değiştikçe güncellenmeli)
-  this._layerLabels.innerHTML = '';
+  _renderComponents(layouts, selectedId, showLabels) {
+    const seenIds = new Set();
+    // Önemli: Etiket katmanını her renderda temizliyoruz
+    // çünkü etiketler dinamik (akış verisi değiştikçe güncellenmeli)
+    this._layerLabels.innerHTML = '';
 
-  layouts.forEach(entry => {
-    const { comp } = entry;
-    seenIds.add(comp.id);
+    layouts.forEach(entry => {
+      const { comp } = entry;
+      seenIds.add(comp.id);
 
 
-    let g = this._compEls.get(comp.id);
-    if (!g) {
-      // 1. Yeni eleman oluşturma
-      g = comp.createSVG(entry, this._layerLabels);
-      g.addEventListener('click', e => {
-        e.stopPropagation();
-        this.onCompClick?.(comp.id);
-      });
-      this._layerComps.appendChild(g);
-      this._compEls.set(comp.id, g);
-    } else {
-      // 2. Mevcut elemanı güncelleme (Yeni koordinatlar ve etiketler)
-      // Artık updateSVG'yi Base sınıfta tanımlayacağız
-      comp.updateSVG(g, entry, this._layerLabels);
-    }
-    g.classList.toggle('selected', comp.id === selectedId);
+      let g = this._compEls.get(comp.id);
+      if (!g) {
+        // 1. Yeni eleman oluşturma
+        g = comp.createSVG(entry, this._layerLabels);
+        g.addEventListener('click', e => {
+          e.stopPropagation();
+          this.onCompClick?.(comp.id);
+        });
+        this._layerComps.appendChild(g);
+        this._compEls.set(comp.id, g);
+      } else {
+        // 2. Mevcut elemanı güncelleme (Yeni koordinatlar ve etiketler)
+        // Artık updateSVG'yi Base sınıfta tanımlayacağız
+        comp.updateSVG(g, entry, this._layerLabels);
+      }
+      g.classList.toggle('selected', comp.id === selectedId);
 
-  });
+    });
 
-  // Silinen elemanları temizle
-  for (const [id, g] of this._compEls) {
-    if (!seenIds.has(id)) {
-      g.remove();
-      this._compEls.delete(id);
+    // Silinen elemanları temizle
+    for (const [id, g] of this._compEls) {
+      if (!seenIds.has(id)) {
+        g.remove();
+        this._compEls.delete(id);
+      }
     }
   }
-}
 
   _renderNodes(layouts) {
     this._layerNodes.innerHTML = '';
@@ -148,6 +152,103 @@ _renderComponents(layouts, selectedId, showLabels) {
 
   }
 
+
+  _renderWarnings(layouts, warnings) {
+    // Önceki uyarı ikonlarını temizle
+    this._layerOverlay.querySelectorAll('.warning-node').forEach(el => el.remove());
+
+    warnings.forEach(w => {
+      const layout = layouts[w.atIndex];
+      if (!layout) return;
+
+      // Bağlantı noktası — mevcut elemanın çıkışı
+      const x = layout.ox;
+      const y = layout.oy;
+
+      const g = svgEl('g');
+      g.classList.add('warning-node');
+      g.style.cursor = 'pointer';
+
+      // Arka plan dairesi
+      const circle = svgEl('circle');
+      setAttrs(circle, { cx: x, cy: y, r: 8, fill: '#ef4444', opacity: '0.9' });
+
+      // Uyarı ikonu (!)
+      const text = svgEl('text');
+      setAttrs(text, {
+        x, y: y + 4,
+        'text-anchor': 'middle',
+        fill: 'white',
+        'font-size': '10',
+        'font-weight': 'bold',
+        'pointer-events': 'none',
+      });
+      text.textContent = '!';
+
+      g.appendChild(circle);
+      g.appendChild(text);
+
+      // Hover tooltip
+      g.addEventListener('mouseenter', (e) => {
+        this._showWarningTooltip(e.clientX, e.clientY, w.message);
+      });
+      g.addEventListener('mousemove', (e) => {
+        this._moveWarningTooltip(e.clientX, e.clientY);
+      });
+      g.addEventListener('mouseleave', () => {
+        this._hideWarningTooltip();
+      });
+
+      this._layerOverlay.appendChild(g);
+    });
+  }
+
+  _showWarningTooltip(x, y, message) {
+    let tip = document.getElementById('warning-tooltip');
+    if (!tip) {
+      tip = document.createElement('div');
+      tip.id = 'warning-tooltip';
+      tip.style.cssText = `
+        position: fixed;
+        z-index: 9999;
+        pointer-events: none;
+        background: #1a1a2e;
+        border: 1px solid #ef4444;
+        border-radius: 5px;
+        padding: 7px 11px;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 11px;
+        color: #fca5a5;
+        max-width: 260px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+        white-space: pre-wrap;
+      `;
+      document.body.appendChild(tip);
+    }
+    tip.textContent = message;
+    tip.style.opacity = '1';
+    this._moveWarningTooltip(x, y);
+  }
+
+  _moveWarningTooltip(x, y) {
+    const tip = document.getElementById('warning-tooltip');
+    if (!tip) return;
+    const tw = tip.offsetWidth  || 200;
+    const th = tip.offsetHeight || 40;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let left = x + 12;
+    let top  = y + 12;
+    if (left + tw > vw - 8) left = x - tw - 12;
+    if (top  + th > vh - 8) top  = y - th - 12;
+    tip.style.left = left + 'px';
+    tip.style.top  = top  + 'px';
+  }
+
+_hideWarningTooltip() {
+  const tip = document.getElementById('warning-tooltip');
+  if (tip) tip.style.opacity = '0';
+}
 
 
   _renderDropIndicator(layouts, dropIdx) {

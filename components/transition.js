@@ -1,7 +1,8 @@
 'use strict';
 
 import { ComponentBase, registerComponentType } from './base.js';
-import { DN_LIST } from '../data/catalogs.js';
+
+import { TRANSITION_PAIRS, EXPANDER_PAIRS } from '../data/catalogs.js';
 
 const FIT_W = 30;
 const HALF  = 9;
@@ -22,9 +23,9 @@ export class TransitionComponent extends ComponentBase {
     return {
       type:       'transition',
       subtype:    this.subtype,              // 'reducer' | 'expander'
-      D_in_mm:    this.resolve('D_in_mm'),
-      D_out_mm:   this.resolve('D_out_mm'),
-      length_m:   this.resolve('length_m'),
+      D_in_mm:    this.resolve('d_in_mm'),
+      D_out_mm:   this.resolve('d_out_mm'),
+      length_m:   this._overrides.length_m ?? 0.3,
     };
   }
   get d_in_mm()        { return this._overrides.d_in_mm  ?? this.resolve('diameter_mm'); }
@@ -68,15 +69,36 @@ export class TransitionComponent extends ComponentBase {
 
 
 
-  renderPropsHTML() {
-    const dnOpts = DN_LIST.map(x => ({ value: x.d, label: `${x.dn} (${x.d}mm)` }));
 
-    return [
-      this.row('D inlet', this.select('d_in_mm', dnOpts, this.d_in_mm)),
-      this.row('D outlet', this.select('d_out_mm', dnOpts, this.d_out_mm)),
-      this.row('Length', this.input('length_m', this._overrides.length_m ?? 0.3, "0.05"), 'm')
-    ].join('');
+renderPropsHTML() {
+  const allPairs = this.isReducer ? TRANSITION_PAIRS : EXPANDER_PAIRS;
+
+  // Sadece girişi mevcut d_in_mm ile eşleşenleri göster
+  const pairs = allPairs.filter(p => p.d_in === this.d_in_mm);
+
+    // Eğer mevcut çıkış artık listede yoksa ilkini seç
+  const hasMatch = pairs.some(p => p.d_out === this.d_out_mm);
+  if (!hasMatch && pairs.length > 0) {
+    this._overrides.d_out_mm = pairs[0].d_out;
   }
+
+  const curVal = `${this.d_in_mm}|${this.d_out_mm}`;
+
+  const opts = pairs.map(p =>
+    `<option value="${p.d_in}|${p.d_out}" ${`${p.d_in}|${p.d_out}` === curVal ? 'selected' : ''}>
+      ${p.label}
+    </option>`
+  ).join('');
+
+  return [
+    this.row('Fitting', `<select class="prop-selection" data-prop="transition_pair">
+      ${opts}
+    </select>`),
+    this.row('D in',  this.dimValue(`${this.d_in_mm} mm`)),
+    this.row('D out', this.dimValue(`${this.d_out_mm} mm`)),
+    this.row('Length', this.input('length_m', this._overrides.length_m ?? 0.3, '0.05'), 'm'),
+  ].join('');
+}
 
   serialize() {
     return { ...super.serialize(), length_m: this._overrides.length_m ?? 0.3,

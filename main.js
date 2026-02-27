@@ -247,9 +247,9 @@ function toggleLabels()           { /* TODO */ }
 // 4. UI STATE & REDRAW
 
 function _redraw() {
-
   renderer.render(pipelineStore.layout, {
-    selectedId: pipelineStore.selectedId
+    selectedId: pipelineStore.selectedId,
+    warnings:   pipelineStore.getWarnings(),
   });
 }
 
@@ -270,6 +270,46 @@ function _renderProps() {
     pipelineStore.remove(pipelineStore.selectedId);
     _renderProps();
   });}
+
+  // ── Prop değişim listener'ları ──────────────────────────
+  DOM.propBody.querySelectorAll('[data-prop]').forEach(el => {
+    const event = el.tagName === 'SELECT' ? 'change' : 'input';
+    el.addEventListener(event, () => {
+      const prop = el.dataset.prop;
+      const raw  = el.value;
+
+      // transition_pair özel case
+      if (prop === 'transition_pair') {
+        const [d_in, d_out] = raw.split('|').map(Number);
+        comp._overrides.d_in_mm  = d_in;
+        comp._overrides.d_out_mm = d_out;
+        pipelineStore._propagateDiameter(
+          pipelineStore.components.indexOf(comp)
+        );
+        pipelineStore.emit('components:change');
+        _renderProps(); // paneli güncelle — D in / D out değerleri değişti
+        return;
+      }
+
+      // Sayısal değerler
+      const num = parseFloat(raw);
+      if (!isNaN(num)) {
+        comp.override(prop, num);
+      } else {
+        comp.override(prop, raw);
+      }
+      // Çap ile ilgili bir değişiklikse downstream'i güncelle
+      const diameterProps = ['diameter_mm', 'd_out_mm'];
+      if (diameterProps.includes(prop)) {
+        pipelineStore._propagateDiameter(
+          pipelineStore.components.indexOf(comp)
+        );
+      }
+
+      pipelineStore.emit('components:change');
+    });
+  });
+
 }
 
 

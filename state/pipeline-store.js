@@ -15,19 +15,44 @@ export class PipelineStore extends EventEmitter {
     SystemConfig.on('change', () => this.emit('components:change'));
   }
   insert(comp, atIndex = this._components.length) {
-    // Önceki komptan çap mirası
     if (atIndex > 0) {
-      const prev = this._components[atIndex - 1];
+      const prev  = this._components[atIndex - 1];
       const prevD = prev.outDiameter_mm;
-      if (comp.type !== 'pipe' && !comp.hasOverride('diameter_mm')) {
+
+      const isTransition = comp.subtype === 'reducer' || comp.subtype === 'expander';
+
+      if (isTransition) {
+        // Giriş çapı her zaman öncekinden gelsin
+        comp._overrides.d_in_mm = prevD;
+      } else if (!comp.hasOverride('diameter_mm')) {
         comp.override('diameter_mm', prevD);
       }
     }
-    this._components.splice(atIndex, 0, comp);
 
+    this._components.splice(atIndex, 0, comp);
+    this._propagateDiameter(atIndex);
     this.emit('components:change');
     return this;
   }
+
+  _propagateDiameter(fromIdx) {
+    for (let i = fromIdx + 1; i < this._components.length; i++) {
+      const prev  = this._components[i - 1];
+      const curr  = this._components[i];
+      const prevD = prev.outDiameter_mm;
+
+      const isTransition = curr.subtype === 'reducer' || curr.subtype === 'expander';
+
+      if (isTransition) {
+        // Giriş çapını güncelle, kendi çıkışı değişmez
+        curr._overrides.d_in_mm = prevD;
+        // break yok — zincir devam eder, sonraki eleman transition'ın çıkışını alır
+      } else if (!curr.hasOverride('diameter_mm')) {
+        curr.override('diameter_mm', prevD);
+      }
+    }
+  }
+
   remove(compId) {
     const idx = this._components.findIndex(c => c.id === compId);
     if (idx === -1) return this;
@@ -72,6 +97,42 @@ export class PipelineStore extends EventEmitter {
   get layout() { return computeLayout(this._components); }
   get components() { return [...this._components]; }
   get length()     { return this._components.length; }
+
+
+  getWarnings() {
+    const warnings = [];
+    const comps    = this._components;
+
+    for (let i = 0; i < comps.length - 1; i++) {
+      const curr = comps[i];
+      const next = comps[i + 1];
+
+      const currOut = curr.outDiameter_mm;
+      const nextIn  = next.subtype === 'reducer' || next.subtype === 'expander'
+        ? next.d_in_mm
+        : next.diameter_mm;
+
+      if (Math.abs(currOut - nextIn) > 0.5) {
+        const hasManual = next.hasOverride('diameter_mm') ||
+                          next._overrides.d_in_mm != null;
+
+        warnings.push({
+          atIndex:  i,           // i ile i+1 arasındaki bağlantı noktası
+          fromComp: curr,
+          toComp:   next,
+          fromD:    currOut,
+          toD:      nextIn,
+          manual:   hasManual,
+          message:  hasManual
+            ? `${curr.name || curr.type} (${currOut}mm) → ${next.name || next.type} (${nextIn}mm) — manual override`
+            : `Diameter mismatch: ${currOut}mm → ${nextIn}mm`,
+        });
+      }
+    }
+
+    return warnings;
+  }
+
 
 }
 
