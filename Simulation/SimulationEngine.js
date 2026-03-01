@@ -172,21 +172,13 @@ function calcPipe(params, P_in, Q_m3s, fluid) {
   const Re   = reynolds(v, D, fluid.rho, fluid.mu);
   const f    = frictionFactor(Re, params.eps_mm, D);
   const L    = params.length_m;
+  const h    = params.height_m;
 
-  // Darcy-Weisbach: dP = f * (L/D) * 0.5 * rho * v²
-  const dP_major = f * (L / (D / 1000)) * 0.5 * fluid.rho * v * v;
-  const P_out    = Math.max(0, P_in - dP_major);
+  const dP_major   = f * (L / (D / 1000)) * 0.5 * fluid.rho * v * v;
+  const dP_gravity = fluid.rho * GRAVITY * h;
+  const P_out      = Math.max(0, P_in - dP_major - dP_gravity);
 
-  return {
-    P_out,
-    D_out_mm:  D,
-    dP_major,
-    dP_minor:  0,
-    v,
-    Re,
-    f,
-    nodeState: NodeState.FLOWING,
-  };
+  return { P_out, D_out_mm: D, dP_major, dP_minor: 0, v, Re, f, nodeState: NodeState.FLOWING };
 }
 
 function calcElbow(params, P_in, Q_m3s, fluid) {
@@ -511,6 +503,9 @@ export class SimulationEngine {
 
     // ── Callback'leri çağır ───────────────────────────────
     if (this._onTick)  this._onTick(snapshot);
+
+
+
   }
 
 

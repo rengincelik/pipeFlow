@@ -19,7 +19,7 @@ export class PumpComponent extends ComponentBase {
       type:       'pump',
       subtype:    this.subtype,
       Q_m3s:      this.resolve('Q_m3s'),
-      H_m:        this.resolve('head_m'),
+      H_m:        this.resolve('head_m') ?? 20,
       efficiency: this.resolve('efficiency'),
       diameter_mm: this.resolve('diameter_mm'),
     };
@@ -49,9 +49,9 @@ export class PumpComponent extends ComponentBase {
 
 
   renderPropsHTML() {
-    const headVal = this._overrides.head_m     ?? this.head_m     ?? 10;
-    const etaVal  = this._overrides.efficiency ?? this.efficiency ?? 0.7;
-    const Q_lps   = ((this._overrides.Q_m3s   ?? this.Q_m3s      ?? 0.005) * 1000).toFixed(1);
+    const headVal = this._overrides.head_m ;
+    const etaVal  = this._overrides.efficiency ;
+    const Q_lps   = ((this._overrides.Q_m3s ) * 1000).toFixed(1);
     const etaPct  = Math.round(etaVal * 100);
 
     return [

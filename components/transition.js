@@ -33,12 +33,7 @@ export class TransitionComponent extends ComponentBase {
   get d_out_mm()       { return this._overrides.d_out_mm ?? this.resolve('diameter_mm'); }
   get outDiameter_mm() { return this.d_out_mm; }
 
-  get dz_m() {
-    const len = this._overrides.length_m ?? 0.3;
-    if (this.entryDir === 'down') return  len;
-    if (this.entryDir === 'up')   return -len;
-    return 0;
-  }
+
 
   // wIn/wOut: reducer → giriş geniş, çıkış dar. Expander → tersi.
   shapeSpec(layout) {
@@ -75,8 +70,8 @@ export class TransitionComponent extends ComponentBase {
 renderPropsHTML() {
   const allPairs = this.isReducer ? TRANSITION_PAIRS : EXPANDER_PAIRS;
   const pairs    = allPairs.filter(p => p.d_in === this.d_in_mm);
-
   const hasMatch = pairs.some(p => p.d_out === this.d_out_mm);
+
   if (!hasMatch && pairs.length > 0) {
     this._overrides.d_out_mm = pairs[0].d_out;
   }
@@ -91,7 +86,8 @@ renderPropsHTML() {
   ).join('');
 
   return [
-    this.row('Fitting', `<select class="prop-selection" data-prop="transition_pair">${opts}</select>`),
+    this.row('Fitting',
+      `<select class="prop-selection" data-prop="transition_pair">${opts}</select>`),
 
     this.row('D in',
       this.dimValue(`${this.d_in_mm} mm`) +
@@ -102,13 +98,13 @@ renderPropsHTML() {
       this.hint(this.d_out_mm, v => Units.diameter(v))),
 
     this.row('Length',
-      this.input('length_m', lenVal, '0.05') +
+      this.input('length_m', lenVal ) +
       this.hint(lenVal, v => Units.length(v)), 'm'),
   ].join('');
 }
 
   serialize() {
-    return { ...super.serialize(), length_m: this._overrides.length_m ?? 0.3,
+    return { ...super.serialize(), length_m: this._overrides.length_m ,
              d_in_mm: this.d_in_mm, d_out_mm: this.d_out_mm };
   }
 }

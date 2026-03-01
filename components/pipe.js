@@ -24,6 +24,8 @@ export class PipeComponent extends ComponentBase {
       length_m:    this.resolve('length_m'),
       diameter_mm: this.resolve('diameter_mm'),
       eps_mm:      this.resolve('eps_mm'),
+      height_m:    this._height_m,
+
     };
   }
 
@@ -32,15 +34,15 @@ export class PipeComponent extends ComponentBase {
       MAX_PX,
       Math.max(
         MIN_PX,
-        (this._overrides.length_m ?? 6) * (MAX_PX-MIN_PX)*0.01
+        (this.resolve('length_m')) * (MAX_PX-MIN_PX)*0.01
       )
     );
   }
 
-  get dz_m() {
-    const len = this._overrides.length_m ?? 6;
-    if (this.entryDir === 'down') return  len;
-    if (this.entryDir === 'up')   return -len;
+  get _height_m() {
+    const len = this.resolve('length_m') ;
+    if (this.entryDir === 'down') return -len;
+    if (this.entryDir === 'up')   return len;
     return 0;
   }
 

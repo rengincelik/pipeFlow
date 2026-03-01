@@ -42,10 +42,10 @@ export const CATALOG_DEF = [
         defaultOverrides: { length_m: 6 } },
 
       { type:'pipe', subtype:'reducer', icon:'▶', desc:'Diameter reduction',
-        defaultOverrides: { length_m: 1 } },
+        defaultOverrides: { length_m: 0.1 } },
 
       { type:'pipe', subtype:'expander', icon:'◀', desc:'Diameter expansion',
-        defaultOverrides: { length_m: 1 } },
+        defaultOverrides: { length_m: 0.1 } },
     ],
   },
   {

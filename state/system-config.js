@@ -7,19 +7,31 @@ class SystemConfigClass extends EventEmitter {
   constructor() {
     super();
     this._defaults = {
+      // ── Fluid ───────────────────────────────
       fluid_id:    'water',
-      diameter_mm: 53.1,      // DN50
-      material_id: 'steel_new',
-      eps_mm:      0.046,
-      Q_lpm:       30,
+      T_in_C:      20,
       P_in_bar:    2.0,
-      T_in_C:      21,
+
+      // ── Boru ────────────────────────────────
+      diameter_mm: 53.1,       // DN50
+      material_id: 'steel_new',
+      eps_mm:      0.046,      // çelik pürüzlülüğü (mm)
+      length_m:    5,
+
       // ── Pompa ───────────────────────────────
-      Q_m3s: 0.001,  // 5 L/s default
-      pump_P_w:    200,        // motor gücü [W]
-      pump_eta:    0.70,       // verim [0-1]
+      Q_m3s:       0.001,      // 1 L/s
+      head_m:      20,         // metre
+      efficiency:  0.70,
       pump_type:   'centrifugal',
 
+      // ── Vana ────────────────────────────────
+      opening:     1.0,        // tam açık
+
+      // ── Dirsek ──────────────────────────────
+      K:           0.9,        // standart dirsek
+
+      // ── Transition ──────────────────────────
+      transition_length_m: 0.3,
     };
     this._values = { ...this._defaults };
   }

@@ -10,7 +10,7 @@ export class ElbowComponent extends ComponentBase {
   constructor(subtype = 'rd') {
     super('elbow', subtype);
     this.name   = 'Elbow';
-    this.K      = 0.90;
+    this.K      = this.resolve('K');
     this._lenPx = ARM;
     const dirs  = { rd: ['right','down'], ru: ['right','up'],
                     ur: ['up','right'],   dr: ['down','right'] };
@@ -20,7 +20,7 @@ export class ElbowComponent extends ComponentBase {
     return {
       type:        'elbow',
       subtype:     this.subtype,
-      K:           this.resolve('K'),
+      K:           this.resolve('K')?? 0.9,
       diameter_mm: this.resolve('diameter_mm'),
     };
   }
