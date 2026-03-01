@@ -43,6 +43,21 @@ export class ComponentBase extends EventEmitter {
 
   _onOverrideChange(key) { this.emit('override:change', key); }
 
+
+  // override() metodunu güncelle:
+  override(key, value, isUserSet = false) {
+    this._overrides[key] = value;
+    this._userOverrides = this._userOverrides ?? new Set();
+    if (isUserSet) this._userOverrides.add(key);
+    else this._userOverrides?.delete(key);
+    this._onOverrideChange(key);
+  }
+
+  hasUserOverride(key) {
+    return this._userOverrides?.has(key) ?? false;
+  }
+
+
   // ── Çıkış noktası hesabı ───────────────────────────────
   /**
    * Giriş noktası + yön + uzunluktan çıkış noktasını hesaplar.

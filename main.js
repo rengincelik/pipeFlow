@@ -221,6 +221,18 @@ function clearLine() {
 }
 function togglePump() {
   if (engine.sysState === SysState.IDLE) {
+        // Uyarı kontrolü
+    const warnings = pipelineStore.getWarnings();
+    if (warnings.length > 0) {
+      // Uyarı ikonunu flash'la
+      DOM.hudStartBtn.classList.add('blocked');
+      setTimeout(() => DOM.hudStartBtn.classList.remove('blocked'), 1000);
+      // İlk uyarı mesajını göster
+      const w = warnings[0];
+      _showBlockToast(`Cannot start: ${w.message}`);
+      return;
+    }
+
     engine.start();
     animator.start();
         // Sıfırla
@@ -251,14 +263,20 @@ function _redraw() {
     selectedId: pipelineStore.selectedId,
     warnings:   pipelineStore.getWarnings(),
   });
+  // Geçici debug — _redraw() içine ekle:
+  console.log('components:', pipelineStore.components.map(c => `${c.id}:${c.type}`));
+  console.log('layout:', pipelineStore.layout.map(l => `${l.comp.id}:${l.comp.type}`));
 }
 
 function _renderProps() {
+
+
   const comp = pipelineStore.selectedComp;
   if (!comp) {
     DOM.propBody.innerHTML = '<div id="prop-empty">SELECT A COMPONENT</div>';
     return;
   }
+ 
   const isPump = comp.type === 'pump';
   DOM.propBody.innerHTML = `
     <div class="prop-section"><div class="section-title">Component: ${comp.name}</div></div>
@@ -283,20 +301,25 @@ function _renderProps() {
         const [d_in, d_out] = raw.split('|').map(Number);
         comp._overrides.d_in_mm  = d_in;
         comp._overrides.d_out_mm = d_out;
+
+        // transition_pair kullanıcı tarafından set edildi
+        comp._userOverrides = comp._userOverrides ?? new Set();
+        comp._userOverrides.add('d_in_mm');
+        comp._userOverrides.add('d_out_mm');
         pipelineStore._propagateDiameter(
           pipelineStore.components.indexOf(comp)
         );
         pipelineStore.emit('components:change');
-        _renderProps(); // paneli güncelle — D in / D out değerleri değişti
+        _renderProps();
         return;
       }
 
       // Sayısal değerler
       const num = parseFloat(raw);
       if (!isNaN(num)) {
-        comp.override(prop, num);
+        comp.override(prop, num, true);
       } else {
-        comp.override(prop, raw);
+        comp.override(prop, raw), true;
       }
       // Çap ile ilgili bir değişiklikse downstream'i güncelle
       const diameterProps = ['diameter_mm', 'd_out_mm'];
@@ -312,6 +335,34 @@ function _renderProps() {
 
 }
 
+function _showBlockToast(message) {
+  let toast = document.getElementById('block-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'block-toast';
+    toast.style.cssText = `
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1a1a2e;
+      border: 1px solid #ef4444;
+      border-radius: 6px;
+      padding: 10px 18px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      color: #fca5a5;
+      z-index: 9999;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    `;
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message;
+  toast.style.opacity = '1';
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
+}
 
 // ── 6. EVENT BINDINGS ────────────────────────────────────────
 function bindEvents() {

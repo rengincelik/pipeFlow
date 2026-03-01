@@ -35,23 +35,29 @@ export class PipelineStore extends EventEmitter {
     return this;
   }
 
-  _propagateDiameter(fromIdx) {
-    for (let i = fromIdx + 1; i < this._components.length; i++) {
-      const prev  = this._components[i - 1];
-      const curr  = this._components[i];
-      const prevD = prev.outDiameter_mm;
+_propagateDiameter(fromIdx = 1) {
+  const comps = this._components;
 
-      const isTransition = curr.subtype === 'reducer' || curr.subtype === 'expander';
+  for (let i = Math.max(1, fromIdx); i < comps.length; i++) {
+    const prev  = comps[i - 1];
+    const curr  = comps[i];
+    const prevD = prev.outDiameter_mm;
 
-      if (isTransition) {
-        // Giriş çapını güncelle, kendi çıkışı değişmez
-        curr._overrides.d_in_mm = prevD;
-        // break yok — zincir devam eder, sonraki eleman transition'ın çıkışını alır
-      } else if (!curr.hasOverride('diameter_mm')) {
-        curr.override('diameter_mm', prevD);
-      }
+    console.log(`[propagate] i:${i} prev:${prev.id}(out:${prevD}) → curr:${curr.id}(in:${curr.diameter_mm}) hasOverride:${curr.hasOverride('diameter_mm')}`);
+
+    const isTransition = curr.subtype === 'reducer' || curr.subtype === 'expander';
+
+    if (isTransition) {
+      curr._overrides.d_in_mm = prevD;
+      console.log(`  → transition d_in set to ${prevD}`);
+    } else if (!curr.hasUserOverride('diameter_mm')) {
+      curr.override('diameter_mm', prevD);
+      console.log(`  → diameter set to ${prevD}`);
+    } else {
+      console.log(`  → skipped (user override exists)`);
     }
   }
+}
 
   remove(compId) {
     const idx = this._components.findIndex(c => c.id === compId);
@@ -113,8 +119,8 @@ export class PipelineStore extends EventEmitter {
         : next.diameter_mm;
 
       if (Math.abs(currOut - nextIn) > 0.5) {
-        const hasManual = next.hasOverride('diameter_mm') ||
-                          next._overrides.d_in_mm != null;
+        const hasManual = next.hasUserOverride('diameter_mm') ||
+                  next._overrides.d_in_mm != null;
 
         warnings.push({
           atIndex:  i,           // i ile i+1 arasındaki bağlantı noktası
