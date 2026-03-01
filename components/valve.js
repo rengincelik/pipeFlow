@@ -83,14 +83,23 @@ export class ValveComponent extends ComponentBase {
       { value: 'check', label: 'Check Valve' }
     ];
 
-    const toggleBtn = `<button class="valve-toggle ${this.open ? 'open' : 'closed'}" data-action="toggle-valve">
-      ${this.open ? '⬤ OPEN' : '◯ CLOSED'}</button>`;
+    // opening_pct yoksa varsayılan 100 (tam açık)
+    const pct = this.opening_pct ?? (this.open ? 100 : 0);
 
     return [
       this.row('Type', this.select('subtype', vTypes, this.subtype, 'change-valve-type')),
-      this.row('Diameter', this.value(this.diameter_mm), 'mm' ),
+      this.row('Diameter', this.value(this.diameter_mm), 'mm'),
       this.row('K value', this.value(this.K)),
-      this.row('State', toggleBtn)
+      // SLIDER BURAYA EKLENİYOR
+      `<div class="prop-row">
+        <label>Opening</label>
+        <div class="slider-container" style="display: flex; align-items: center; gap: 8px; flex: 1;">
+          <input type="range" data-prop="opening_pct" min="0" max="100" value="${pct}" style="flex: 1;">
+          <span style="min-width: 35px; font-family: monospace;">${pct}%</span>
+        </div>
+      </div>`,
+      // Eski State butonunu kaldırmak yerine yanına veya altına görsel bir indicator olarak bırakabilirsin
+      this.row('State', `<span class="valve-status-tag ${pct > 0 ? 'open' : 'closed'}">${pct > 0 ? '⬤ OPEN' : '◯ CLOSED'}</span>`)
     ].join('');
   }
 

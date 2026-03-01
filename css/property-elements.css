@@ -115,3 +115,17 @@
 }
 #del-btn:hover { background: rgba(231,76,60,0.15); border-color: rgba(231,76,60,0.3); }
 
+.prop-slider {
+  width: 100%;
+  cursor: pointer;
+  accent-color: #3b82f6; /* Vana açıkken mavi/yeşil tonu */
+}
+
+.valve-status-tag {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: bold;
+}
+.valve-status-tag.open { background: #065f46; color: #34d399; }
+.valve-status-tag.closed { background: #7f1d1d; color: #f87171; }

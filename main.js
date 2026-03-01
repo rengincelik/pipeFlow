@@ -157,6 +157,32 @@ const UI = {
           if (['diameter_mm', 'd_out_mm'].includes(prop)) pipelineStore._propagateDiameter(pipelineStore.components.indexOf(comp));
         }
         pipelineStore.emit('components:change');
+        // Ana dosyadaki bindPropInputs fonksiyonu içine:
+
+        if (prop === 'opening_pct') {
+          const val = parseInt(raw);
+
+          // 1. Etiketi (yüzde yazısını) anlık güncelle
+          const label = el.nextElementSibling;
+          if (label) label.textContent = val + '%';
+
+          // 2. State etiketini güncelle
+          const statusTag = DOM.propBody.querySelector('.valve-status-tag');
+          if (statusTag) {
+            statusTag.textContent = val > 0 ? '⬤ OPEN' : '◯ CLOSED';
+            statusTag.className = `valve-status-tag ${val > 0 ? 'open' : 'closed'}`;
+          }
+
+          // 3. Veriyi komponent üzerinde güncelle
+          comp.opening_pct = val;
+          comp.open = val > 0; // %0 ise kapalı, değilse açık
+
+          // 4. Engine'e gönder (0-1 aralığında)
+          engine.setValveOpening(comp.id, val / 100);
+
+          // 5. Değişikliği yay
+          pipelineStore.emit('components:change');
+        }
       };
     });
   },
