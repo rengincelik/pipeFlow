@@ -1,6 +1,5 @@
 'use strict';
 
-
 import { EventEmitter } from '../core/event-emitter.js';
 
 class SystemConfigClass extends EventEmitter {
@@ -12,54 +11,44 @@ class SystemConfigClass extends EventEmitter {
       T_in_C:      20,
       P_in_bar:    2.0,
 
-      // ── Boru ────────────────────────────────
+      // ── Boru / Genel ────────────────────────
       diameter_mm: 53.1,       // DN50
       material_id: 'steel_new',
-      eps_mm:      0.046,      // çelik pürüzlülüğü (mm)
+      eps_mm:      0.046,
       length_m:    5,
 
       // ── Pompa ───────────────────────────────
       Q_m3s:       0.001,      // 1 L/s
-      head_m:      20,         // metre
+      head_m:      20,
       efficiency:  0.70,
       pump_type:   'centrifugal',
 
       // ── Vana ────────────────────────────────
-      opening:     1.0,        // tam açık
+      opening:     1.0,
 
       // ── Dirsek ──────────────────────────────
-      K:           0.9,        // standart dirsek
+      K:           0.9,
 
       // ── Transition ──────────────────────────
-      transition_length_m: 0.3,
     };
     this._values = { ...this._defaults };
   }
 
-  /** Sistem geneli değer ata */
   set(key, value) {
     this._values[key] = value;
     this.emit('change', { key, value });
   }
 
-  /** Sistem geneli değer oku */
   get(key) { return this._values[key]; }
 
-  /** Tüm değerleri döner (snapshot) */
   snapshot() { return { ...this._values }; }
 
-  /** Fabrika sıfırlama */
   reset() { this._values = { ...this._defaults }; this.emit('reset'); }
 }
 
 export const SystemConfig = new SystemConfigClass();
 
 // ── OVERRIDE MİXIN ──────────────────────────────────────────
-/**
- * Bir nesneye override zinciri ekler.
- * Kullanım: Object.assign(myObj, OverrideMixin)
- * ya da ComponentBase'e mixin olarak kullan.
- */
 export const OverrideMixin = {
   _overrides: null,
 
@@ -67,19 +56,27 @@ export const OverrideMixin = {
     if (!this._overrides) this._overrides = {};
   },
 
-  /** Bu eleman için değeri override et */
-  override(key, value) {
+  /**
+   * Prop değerini override et.
+   * @param {string}  key
+   * @param {*}       value
+   * @param {boolean} isUserSet — true: kullanıcı set etti (prop panel)
+   *                              false: sistem set etti (propagasyon, miras)
+   */
+  override(key, value, isUserSet = false) {
     this._ensureOverrides();
     if (value === null || value === undefined) {
       delete this._overrides[key];
     } else {
       this._overrides[key] = value;
     }
+    this._userOverrides = this._userOverrides ?? new Set();
+    if (isUserSet) this._userOverrides.add(key);
+    else           this._userOverrides.delete(key);
     this._onOverrideChange?.(key, value);
     return this;
   },
 
-  /** Override varsa döner, yoksa null */
   getOverride(key) {
     return this._overrides?.[key] ?? null;
   },
@@ -89,27 +86,29 @@ export const OverrideMixin = {
     return this._overrides?.[key] ?? SystemConfig.get(key);
   },
 
-  /** Override'ı sil (sisteme geri döner) */
   clearOverride(key) {
     this._ensureOverrides();
     delete this._overrides[key];
+    this._userOverrides?.delete(key);
     this._onOverrideChange?.(key, undefined);
     return this;
   },
 
-  /** Tüm override'ları sil */
   clearAllOverrides() {
     this._overrides = {};
+    this._userOverrides = new Set();
     this._onOverrideChange?.('*', undefined);
     return this;
   },
 
-  /** Override'ı var mı? */
   hasOverride(key) {
     return Boolean(this._overrides && key in this._overrides);
   },
 
-  /** Override map'ini serialize et */
+  hasUserOverride(key) {
+    return this._userOverrides?.has(key) ?? false;
+  },
+
   serializeOverrides() {
     return this._overrides ? { ...this._overrides } : {};
   },

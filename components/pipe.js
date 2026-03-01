@@ -4,19 +4,24 @@ import { ComponentBase, registerComponentType } from './base.js';
 import { DN_LIST, MATERIALS } from '../data/catalogs.js';
 import { Units } from '../data/unit-system.js';
 
-const MIN_PX   = 100;
-const MAX_PX   = 500;
+const MIN_PX = 100;
+const MAX_PX = 500;
 
 export class PipeComponent extends ComponentBase {
+
+  static get CONSTRAINTS() {
+    return {
+      length_m: { min: 0.5, max: 200, step: 0.5, unit: 'm' },
+    };
+  }
+
   constructor() {
     super('pipe', 'pipe');
     this.name     = 'Pipe';
     this.entryDir = 'right';
     this.exitDir  = 'right';
-    this.constraints ={
-      length_m: {min:1, max:100, step:1 }
-    }
   }
+
   getParams() {
     return {
       type:        this.type,
@@ -25,54 +30,42 @@ export class PipeComponent extends ComponentBase {
       diameter_mm: this.resolve('diameter_mm'),
       eps_mm:      this.resolve('eps_mm'),
       height_m:    this._height_m,
-
     };
   }
 
   get _lenPx() {
     return Math.min(
       MAX_PX,
-      Math.max(
-        MIN_PX,
-        (this.resolve('length_m')) * (MAX_PX-MIN_PX)*0.01
-      )
+      Math.max(MIN_PX, this.resolve('length_m') * (MAX_PX - MIN_PX) * 0.01)
     );
   }
 
   get _height_m() {
-    const len = this.resolve('length_m') ;
+    const len = this.resolve('length_m');
     if (this.entryDir === 'down') return -len;
-    if (this.entryDir === 'up')   return len;
+    if (this.entryDir === 'up')   return  len;
     return 0;
   }
 
-  // ── Şekil tanımları — world coord, yöne göre ─────────
   shapeSpec(layout) {
     const { ix, iy } = layout;
-
     const len = this._lenPx;
-    const mx = ix + len / 2;
+    const mx  = ix + len / 2;
 
     return {
       itemShape: [
-        { tag: 'line',  cls: 'pipe-centerline', x1: ix + 4, y1: iy, x2: ix + len - 4, y2: iy },
+        { tag: 'line', cls: 'pipe-centerline', x1: ix + 4, y1: iy, x2: ix + len - 4, y2: iy },
       ],
-      anchors: [
-        { type: 'label', x: mx, y: iy },
-      ],
-      orientation: this.entryDir // Borunun yönü (right, down, up)
+      anchors:     [{ type: 'label', x: mx, y: iy }],
+      orientation: this.entryDir,
     };
   }
 
-
   renderPropsHTML() {
-    const dnOptions  = DN_LIST.map(x => ({
-      value: x.d,
-      label: `${x.dn} (${x.d}mm)`
-    }));
+    const dnOptions  = DN_LIST.map(x => ({ value: x.d, label: `${x.dn} (${x.d}mm)` }));
     const matOptions = MATERIALS.map(m => ({ value: m.id, label: m.name }));
-    const lenVal = this._overrides.length_m;
-    const dVal   = this.diameter_mm;
+    const lenVal     = this.resolve('length_m');
+    const dVal       = this.diameter_mm;
 
     return [
       this.row('Diameter',
@@ -82,10 +75,10 @@ export class PipeComponent extends ComponentBase {
       this.row('Material',
         this.select('material_id', matOptions, this.resolve('material_id'))),
 
+      // slider — min/max/step CONSTRAINTS'ten otomatik gelir
       this.row('Length',
-        this.slider('length_m', lenVal ) +
+        this.slider('length_m', lenVal) +
         this.hint(lenVal, v => Units.length(v)), 'm'),
-
 
       this.row('Roughness ε',
         this.dimValue(this.eps_mm), 'mm'),
@@ -93,10 +86,8 @@ export class PipeComponent extends ComponentBase {
   }
 
   serialize() {
-    return {
-      ...super.serialize(),
-      length_m: this._overrides.length_m
-    };
+    return { ...super.serialize() };
+    // length_m overrides üzerinden serialize edilir — ayrıca eklemeye gerek yok
   }
 }
 

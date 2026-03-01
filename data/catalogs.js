@@ -38,14 +38,11 @@ export const CATALOG_DEF = [
   {
     group: 'Pipes',
     items: [
-      { type:'pipe', subtype:'pipe', icon:'━', desc:'Straight pipe',
-        defaultOverrides: { length_m: 6 } },
+      { type:'pipe', subtype:'pipe', icon:'━', desc:'Straight pipe', },
 
-      { type:'pipe', subtype:'reducer', icon:'▶', desc:'Diameter reduction',
-        defaultOverrides: { length_m: 0.1 } },
+      { type:'pipe', subtype:'reducer', icon:'▶', desc:'Diameter reduction', },
 
-      { type:'pipe', subtype:'expander', icon:'◀', desc:'Diameter expansion',
-        defaultOverrides: { length_m: 0.1 } },
+      { type:'pipe', subtype:'expander', icon:'◀', desc:'Diameter expansion', },
     ],
   },
   {

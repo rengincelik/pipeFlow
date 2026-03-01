@@ -1,108 +1,114 @@
 'use strict';
 
 import { ComponentBase, registerComponentType } from './base.js';
-import { svgEl ,drawSpec} from '../renderer/svg-utils.js';
-
+import { svgEl, drawSpec } from '../renderer/svg-utils.js';
 import { Units } from '../data/unit-system.js';
 
+const ARM = 10;
+const S   = 10;
+const T   = 8;
 
-const ARM = 10;  // stemden merkeze
-const S   = 10;  // üçgen yatay
-const T   = 8;   // üçgen dikey
-
-// Kapalı X primitifleri — merkez cx,cy
 function closedX(cx, cy) {
   return [
-    { tag: 'line', cls: 'valve-closed-x', x1: cx-7, y1: cy-7, x2: cx+7, y2: cy+7 },
-    { tag: 'line', cls: 'valve-closed-x', x1: cx+7, y1: cy-7, x2: cx-7, y2: cy+7 },
+    { tag: 'line', cls: 'valve-closed-x', x1: cx - 7, y1: cy - 7, x2: cx + 7, y2: cy + 7 },
+    { tag: 'line', cls: 'valve-closed-x', x1: cx + 7, y1: cy - 7, x2: cx - 7, y2: cy + 7 },
   ];
 }
 
+// Vana tipi başına sabit K değerleri
+const VALVE_DEFS = {
+  gate:      { name: 'Gate Valve',  K: 0.20 },
+  ball:      { name: 'Ball Valve',  K: 0.10 },
+  butterfly: { name: 'Butterfly',   K: 0.80 },
+  globe:     { name: 'Globe Valve', K: 6.00 },
+  check:     { name: 'Check Valve', K: 2.50 },
+};
+
 export class ValveComponent extends ComponentBase {
+
+  static get CONSTRAINTS() {
+    return {
+      opening_pct: { min: 0, max: 100, step: 1, unit: '%' },
+    };
+  }
+
   constructor(subtype = 'gate') {
     super('valve', subtype);
-    const defs = {
-      gate:      { name: 'Gate Valve',  K: 0.20 },
-      ball:      { name: 'Ball Valve',  K: 0.10 },
-      butterfly: { name: 'Butterfly',   K: 0.80 },
-      globe:     { name: 'Globe Valve', K: 6.00 },
-      check:     { name: 'Check Valve', K: 2.50 },
-    };
-    const d    = defs[subtype] ?? defs.gate;
-    this.name  = d.name;
-    this.K     = d.K;
-    this.open  = true;
+    const d   = VALVE_DEFS[subtype] ?? VALVE_DEFS.gate;
+    this.name = d.name;
+    this.K    = d.K;
+    this.open = true;
     this._lenPx = 54;
   }
+
   getParams() {
     return {
       type:        'valve',
-      subtype:     this.subtype,            // 'gate' | 'globe' | 'butterfly'
+      subtype:     this.subtype,
       diameter_mm: this.resolve('diameter_mm'),
-      opening:     this.opening ?? 1.0,     // 0–1 arası, runtime'da değişir
-      K_table:     this.K_table,            // [{ opening, K }, ...] lookup
+      opening:     this.opening ?? 1.0,
+      K_table:     this.K_table,
     };
   }
+
   shapeSpec(layout) {
     const { ix, iy } = layout;
     const len = this._lenPx;
-    const mx = ix + len / 2;
-    const my = iy;
+    const mx  = ix + len / 2;
+    const my  = iy;
 
-    // Sadece YATAY (Right) halini tanımlıyoruz
     const stems = [
-      { tag: 'line', cls: 'valve-stem', x1: ix, y1: iy, x2: mx - ARM, y2: my },
+      { tag: 'line', cls: 'valve-stem', x1: ix,       y1: iy, x2: mx - ARM, y2: my },
       { tag: 'line', cls: 'valve-stem', x1: mx + ARM, y1: my, x2: ix + len, y2: iy },
     ];
-
     const triangles = [
-      { tag: 'polygon', cls: 'valve-tri', points: `${mx-S},${my-T} ${mx+S},${my} ${mx-S},${my+T}` },
-      { tag: 'polygon', cls: 'valve-tri', points: `${mx+S},${my-T} ${mx-S},${my} ${mx+S},${my+T}` },
+      { tag: 'polygon', cls: 'valve-tri', points: `${mx - S},${my - T} ${mx + S},${my} ${mx - S},${my + T}` },
+      { tag: 'polygon', cls: 'valve-tri', points: `${mx + S},${my - T} ${mx - S},${my} ${mx + S},${my + T}` },
     ];
-
     const closedMark = this.open ? [] : closedX(mx, my);
 
     return {
-      itemShape: [...stems, ...triangles, ...closedMark],
-      anchors: [
-        { type: 'label', x: mx, y: my },
-      ],
-      orientation: this.entryDir // 'right', 'down', 'up'
+      itemShape:   [...stems, ...triangles, ...closedMark],
+      anchors:     [{ type: 'label', x: mx, y: my }],
+      orientation: this.entryDir,
     };
   }
 
+  renderPropsHTML() {
+    const vTypes = [
+      { value: 'gate',      label: 'Gate Valve'  },
+      { value: 'ball',      label: 'Ball Valve'  },
+      { value: 'butterfly', label: 'Butterfly'   },
+      { value: 'globe',     label: 'Globe Valve' },
+      { value: 'check',     label: 'Check Valve' },
+    ];
 
+    const pct  = this.opening_pct ?? (this.open ? 100 : 0);
+    const dVal = this.diameter_mm;
 
+    return [
+      this.row('Type',
+        this.select('subtype', vTypes, this.subtype)),
 
-renderPropsHTML() {
-  const vTypes = [
-    { value: 'gate',      label: 'Gate Valve'  },
-    { value: 'ball',      label: 'Ball Valve'  },
-    { value: 'butterfly', label: 'Butterfly'   },
-    { value: 'globe',     label: 'Globe Valve' },
-    { value: 'check',     label: 'Check Valve' },
-  ];
+      this.row('Diameter',
+        this.value(dVal) +
+        this.hint(dVal, v => Units.diameter(v)), 'mm'),
 
-  const pct  = this.opening_pct ?? (this.open ? 100 : 0);
-  const dVal = this.diameter_mm;
+      this.row('K value',
+        this.value(this.K)),
 
-  return [
-    this.row('Type',     this.select('subtype', vTypes, this.subtype)),
-    this.row('Diameter',
-      this.value(dVal) +
-      this.hint(dVal, v => Units.diameter(v)), 'mm'),
-    this.row('K value',  this.value(this.K)),
-    this.row('Opening',  this.slider('opening_pct', pct)),
-    this.row('State',    `<span class="valve-status-tag ${pct > 0 ? 'on' : 'off'}">
-      ${pct > 0 ? 'OPEN' : 'CLOSED'}</span>`),
+      // slider — min/max/step CONSTRAINTS'ten otomatik gelir
+      this.row('Opening',
+        this.slider('opening_pct', pct)),
 
+      this.row('State', `<span class="valve-status-tag ${pct > 0 ? 'on' : 'off'}">
+        ${pct > 0 ? 'OPEN' : 'CLOSED'}</span>`),
+    ].join('');
+  }
 
-  ].join('');
-}
-
-
-
-  serialize() { return { ...super.serialize(), open: this.open, K: this.K }; }
+  serialize() {
+    return { ...super.serialize(), open: this.open, K: this.K };
+  }
 
   applySerializedData(d) {
     super.applySerializedData(d);
@@ -118,6 +124,13 @@ renderPropsHTML() {
 
 // ── PRV ───────────────────────────────────────────────────
 export class PRVComponent extends ComponentBase {
+
+  static get CONSTRAINTS() {
+    return {
+      P_set_bar: { min: 0.1, max: 100, step: 0.1, unit: 'bar' },
+    };
+  }
+
   constructor() {
     super('valve', 'prv');
     this.name      = 'PRV';
@@ -133,12 +146,12 @@ export class PRVComponent extends ComponentBase {
     const pset = `P≤${this.P_set_bar}bar`;
 
     const hStems = [
-      { tag: 'line', cls: 'valve-stem', x1: ix, y1: iy, x2: mx - ARM, y2: iy },
-      { tag: 'line', cls: 'valve-stem', x1: mx + ARM, y1: iy, x2: ix + len, y2: iy },
+      { tag: 'line', cls: 'valve-stem', x1: ix,       y1: iy,        x2: mx - ARM, y2: iy        },
+      { tag: 'line', cls: 'valve-stem', x1: mx + ARM, y1: iy,        x2: ix + len, y2: iy        },
     ];
     const hTris = [
-      { tag: 'polygon', cls: 'valve-tri', points: `${mx-S},${iy-T} ${mx+S},${iy} ${mx-S},${iy+T}` },
-      { tag: 'polygon', cls: 'valve-tri', points: `${mx+S},${iy-T} ${mx-S},${iy} ${mx+S},${iy+T}` },
+      { tag: 'polygon', cls: 'valve-tri', points: `${mx - S},${iy - T} ${mx + S},${iy} ${mx - S},${iy + T}` },
+      { tag: 'polygon', cls: 'valve-tri', points: `${mx + S},${iy - T} ${mx - S},${iy} ${mx + S},${iy + T}` },
     ];
 
     const vdStems = [
@@ -146,8 +159,8 @@ export class PRVComponent extends ComponentBase {
       { tag: 'line', cls: 'valve-stem', x1: ix, y1: dmy + ARM, x2: ix, y2: iy + len  },
     ];
     const vdTris = [
-      { tag: 'polygon', cls: 'valve-tri', points: `${ix-T},${dmy-S} ${ix},${dmy+S} ${ix+T},${dmy-S}` },
-      { tag: 'polygon', cls: 'valve-tri', points: `${ix-T},${dmy+S} ${ix},${dmy-S} ${ix+T},${dmy+S}` },
+      { tag: 'polygon', cls: 'valve-tri', points: `${ix - T},${dmy - S} ${ix},${dmy + S} ${ix + T},${dmy - S}` },
+      { tag: 'polygon', cls: 'valve-tri', points: `${ix - T},${dmy + S} ${ix},${dmy - S} ${ix + T},${dmy + S}` },
     ];
 
     const vuStems = [
@@ -155,15 +168,15 @@ export class PRVComponent extends ComponentBase {
       { tag: 'line', cls: 'valve-stem', x1: ix, y1: umy - ARM, x2: ix, y2: iy - len  },
     ];
     const vuTris = [
-      { tag: 'polygon', cls: 'valve-tri', points: `${ix-T},${umy-S} ${ix},${umy+S} ${ix+T},${umy-S}` },
-      { tag: 'polygon', cls: 'valve-tri', points: `${ix-T},${umy+S} ${ix},${umy-S} ${ix+T},${umy+S}` },
+      { tag: 'polygon', cls: 'valve-tri', points: `${ix - T},${umy - S} ${ix},${umy + S} ${ix + T},${umy - S}` },
+      { tag: 'polygon', cls: 'valve-tri', points: `${ix - T},${umy + S} ${ix},${umy - S} ${ix + T},${umy + S}` },
     ];
 
     return {
       right: {
         prims: [
           ...hStems, ...hTris,
-          { tag: 'path', cls: 'prv-spring', d: `M${mx-6},${iy-10} Q${mx},${iy-22} ${mx+6},${iy-10}` },
+          { tag: 'path', cls: 'prv-spring', d: `M${mx - 6},${iy - 10} Q${mx},${iy - 22} ${mx + 6},${iy - 10}` },
         ],
         labels: [
           { x: mx, y: iy - 26, anchor: 'middle', cls: 'lbl lbl-name', text: 'PRV'  },
@@ -173,7 +186,7 @@ export class PRVComponent extends ComponentBase {
       down: {
         prims: [
           ...vdStems, ...vdTris,
-          { tag: 'path', cls: 'prv-spring', d: `M${ix+10},${dmy-6} Q${ix+22},${dmy} ${ix+10},${dmy+6}` },
+          { tag: 'path', cls: 'prv-spring', d: `M${ix + 10},${dmy - 6} Q${ix + 22},${dmy} ${ix + 10},${dmy + 6}` },
         ],
         labels: [
           { x: ix + 28, y: dmy - 8, anchor: 'start', cls: 'lbl lbl-name', text: 'PRV'  },
@@ -183,7 +196,7 @@ export class PRVComponent extends ComponentBase {
       up: {
         prims: [
           ...vuStems, ...vuTris,
-          { tag: 'path', cls: 'prv-spring', d: `M${ix+10},${umy-6} Q${ix+22},${umy} ${ix+10},${umy+6}` },
+          { tag: 'path', cls: 'prv-spring', d: `M${ix + 10},${umy - 6} Q${ix + 22},${umy} ${ix + 10},${umy + 6}` },
         ],
         labels: [
           { x: ix + 28, y: umy - 8, anchor: 'start', cls: 'lbl lbl-name', text: 'PRV'  },
@@ -192,8 +205,6 @@ export class PRVComponent extends ComponentBase {
       },
     };
   }
-
-
 
   createSVG(layout, labelLayer) {
     const g = svgEl('g');
@@ -210,14 +221,19 @@ export class PRVComponent extends ComponentBase {
   }
 
   renderPropsHTML() {
-    return `
-      <div class="pr"><span class="pl">Diameter</span><span class="pv">${this.diameter_mm} mm</span></div>
-      <div class="pr"><span class="pl">P set</span>
-        <input class="p-input" type="number" value="${this.P_set_bar}" step="0.1" min="0" data-prop="P_set_bar">
-        <span class="pu">bar</span></div>`;
+    return [
+      this.row('Diameter',
+        this.value(`${this.diameter_mm} mm`)),
+
+      // input — min/max/step CONSTRAINTS'ten otomatik gelir
+      this.row('P set',
+        this.input('P_set_bar', this.P_set_bar), 'bar'),
+    ].join('');
   }
 
-  serialize() { return { ...super.serialize(), P_set_bar: this.P_set_bar }; }
+  serialize() {
+    return { ...super.serialize(), P_set_bar: this.P_set_bar };
+  }
 }
 
 registerComponentType('valve', 'prv', () => new PRVComponent());

@@ -5,8 +5,7 @@
 import { EventEmitter }    from '../core/event-emitter.js';
 import { OverrideMixin }   from '../state/system-config.js';
 import { svgEl, setAttrs } from '../renderer/svg-utils.js';
-import { Units } from '../data/unit-system.js';
-
+import { Units }           from '../data/unit-system.js';
 
 let _idCounter = 0;
 
@@ -17,29 +16,40 @@ export const DIR_VEC = {
   up:    { dx:  0, dy: -1 },
 };
 
-
-
 export class ComponentBase extends EventEmitter {
   constructor(type, subtype) {
     super();
-    this.id       = ++_idCounter;
-    this.type     = type;
-    this.subtype  = subtype;
-    this.name     = '';
-    this.entryDir = 'right';
-    this.exitDir  = 'right';
-    this.constraints = {};
+    this.id          = ++_idCounter;
+    this.type        = type;
+    this.subtype     = subtype;
+    this.name        = '';
+    this.entryDir    = 'right';
+    this.exitDir     = 'right';
 
     Object.assign(this, OverrideMixin);
-    this._overrides = {};
-    this.result     = null;
+    this._overrides  = {};
+    this._userOverrides = new Set();
+    this.result      = null;
   }
-  getParams() {
-    return {
-      type: this.type,
-      subtype: this.subtype
-    };
+
+  // ── Static CONSTRAINTS — alt sınıf override eder ──────────
+  /**
+   * Format:
+   * {
+   *   prop_name: { min, max, step, unit? }
+   * }
+   * "unit" opsiyonel — renderPropsHTML'de görüntülenecekse
+   */
+  static get CONSTRAINTS() { return {}; }
+
+  /**
+   * Belirli bir prop için constraint döner.
+   * Instance üzerinden çağrılabilmesi için instance method olarak da var.
+   */
+  getConstraint(key) {
+    return this.constructor.CONSTRAINTS[key] ?? null;
   }
+
   // ── Çözümleme kısayolları ──────────────────────────────
   get diameter_mm() { return this.resolve('diameter_mm'); }
   get eps_mm()      { return this.resolve('eps_mm'); }
@@ -47,24 +57,13 @@ export class ComponentBase extends EventEmitter {
 
   _onOverrideChange(key) { this.emit('override:change', key); }
 
- 
-  override(key, value, isUserSet = false) {
-    this._overrides[key] = value;
-    this._userOverrides = this._userOverrides ?? new Set();
-    if (isUserSet) this._userOverrides.add(key);
-    else this._userOverrides?.delete(key);
-    this._onOverrideChange(key);
+  getParams() {
+    return { type: this.type, subtype: this.subtype };
   }
-
-  hasUserOverride(key) {
-    return this._userOverrides?.has(key) ?? false;
-  }
-
-
 
   computeExit(ix, iy) {
     const vec = DIR_VEC[this.entryDir];
-    const len = this._lenPx ?? 54;   // alt sınıf set eder
+    const len = this._lenPx ?? 54;
     return {
       ox:      ix + vec.dx * len,
       oy:      iy + vec.dy * len,
@@ -72,40 +71,35 @@ export class ComponentBase extends EventEmitter {
     };
   }
 
-
   createSVG(layout, labelLayer) {
-      const g = svgEl('g');
-      g.classList.add('component', this.type, `id-${this.id}`);
+    const g = svgEl('g');
+    g.classList.add('component', this.type, `id-${this.id}`);
 
-      // 1. İçeriği Çiz (Geometri ve Dönüşüm)
-      const spec = this.shapeSpec(layout);
-      const content = this.drawContent(spec, layout);
-      g.appendChild(content);
+    const spec    = this.shapeSpec(layout);
+    const content = this.drawContent(spec, layout);
+    g.appendChild(content);
 
-      // 2. Hitbox (Boyutu content'ten alacak)
-      const hitbox = svgEl('rect');
-      hitbox.classList.add('hitbox');
-      hitbox.setAttribute('fill', 'transparent');
-      hitbox.setAttribute('pointer-events', 'all');
-      g.insertBefore(hitbox, content); // Hitbox en altta ama tıklanabilir
+    const hitbox = svgEl('rect');
+    hitbox.classList.add('hitbox');
+    hitbox.setAttribute('fill', 'transparent');
+    hitbox.setAttribute('pointer-events', 'all');
+    g.insertBefore(hitbox, content);
 
-      // 3. Akıllı Etiketler (Dinamik İçerik ve Ofset)
-      if (labelLayer && spec.anchors) {
-        this.renderSmartLabels(labelLayer, spec.anchors, spec.orientation);
-      }
-
-      // 4. Hitbox Otomasyonu
-      setTimeout(() => {
-        const bbox = content.getBBox();
-        const pad = 8;
-        hitbox.setAttribute('x', bbox.x - pad);
-        hitbox.setAttribute('y', bbox.y - pad);
-        hitbox.setAttribute('width', bbox.width + pad * 2);
-        hitbox.setAttribute('height', bbox.height + pad * 2);
-      }, 0);
-
-      return g;
+    if (labelLayer && spec.anchors) {
+      this.renderSmartLabels(labelLayer, spec.anchors, spec.orientation);
     }
+
+    setTimeout(() => {
+      const bbox = content.getBBox();
+      const pad  = 8;
+      hitbox.setAttribute('x',      bbox.x - pad);
+      hitbox.setAttribute('y',      bbox.y - pad);
+      hitbox.setAttribute('width',  bbox.width  + pad * 2);
+      hitbox.setAttribute('height', bbox.height + pad * 2);
+    }, 0);
+
+    return g;
+  }
 
   drawContent(spec, layout) {
     const contentGroup = svgEl('g');
@@ -114,31 +108,22 @@ export class ComponentBase extends EventEmitter {
     if (spec.itemShape) {
       spec.itemShape.forEach(p => {
         const el = svgEl(p.tag);
-
-        // Sınıfları ekle
         if (p.cls) {
           p.cls.split(' ').filter(Boolean).forEach(c => el.classList.add(c));
         }
-
-        // Attribute'ları güvenli bir şekilde bas
         Object.entries(p).forEach(([key, val]) => {
-          // Obje olan değerleri (örn: layout) attribute olarak basma!
           if (!['tag', 'cls'].includes(key) && val != null && typeof val !== 'object') {
             el.setAttribute(key, val);
           }
         });
-
         contentGroup.appendChild(el);
       });
     }
 
-    // Yönlendirme
     if (spec.orientation && spec.orientation !== 'static') {
-      const angleMap = { 'down': 90, 'up': -90, 'left': 180, 'right': 0 };
-      const angle = angleMap[spec.orientation] || 0;
-
+      const angleMap = { down: 90, up: -90, left: 180, right: 0 };
+      const angle    = angleMap[spec.orientation] || 0;
       if (angle !== 0) {
-        // ix ve iy'nin sayı olduğundan emin olalım (parseFloat veya Number)
         const cx = Number(layout.ix);
         const cy = Number(layout.iy);
         contentGroup.setAttribute('transform', `rotate(${angle}, ${cx}, ${cy})`);
@@ -148,86 +133,57 @@ export class ComponentBase extends EventEmitter {
     return contentGroup;
   }
 
-
   renderSmartLabels(labelLayer, anchors, orientation) {
-      const isVertical = orientation === 'up' || orientation === 'down';
+    const isVertical = orientation === 'up' || orientation === 'down';
+    anchors.forEach(anchor => {
+      const text = this.getLabelContent(anchor.type);
+      if (!text) return;
 
-      anchors.forEach(anchor => {
-        const text = this.getLabelContent(anchor.type);
-        if (!text) return;
+      const el = svgEl('text');
+      el.classList.add('lbl', `lbl-${anchor.type}`);
 
-        const el = svgEl('text');
-        el.classList.add('lbl', `lbl-${anchor.type}`);
-
-        // Ofset Tablosu (Burayı istediğin gibi global yönetebilirsin)
-        let dx = 0, dy = 0;
-        const offsets = {
-          'dim': isVertical ? { dx: 18, dy: -8 } : { dx: 0, dy: -22 },
-          'len': isVertical ? { dx: 18, dy: 2 }  : { dx: 0, dy: -12 },
-          'vel': isVertical ? { dx: 18, dy: 12 } : { dx: 0, dy: -2 }
-        };
-
-        const off = offsets[anchor.type] || { dx: 0, dy: 0 };
-        el.setAttribute('x', anchor.x + off.dx);
-        el.setAttribute('y', anchor.y + off.dy);
-        el.setAttribute('text-anchor', isVertical ? 'start' : 'middle');
-        el.textContent = text;
-
-        labelLayer.appendChild(el);
-      });
+      const offsets = {
+        dim: isVertical ? { dx: 18, dy: -8  } : { dx: 0, dy: -22 },
+        len: isVertical ? { dx: 18, dy:  2  } : { dx: 0, dy: -12 },
+        vel: isVertical ? { dx: 18, dy: 12  } : { dx: 0, dy:  -2 },
+      };
+      const off = offsets[anchor.type] || { dx: 0, dy: 0 };
+      el.setAttribute('x', anchor.x + off.dx);
+      el.setAttribute('y', anchor.y + off.dy);
+      el.setAttribute('text-anchor', isVertical ? 'start' : 'middle');
+      el.textContent = text;
+      labelLayer.appendChild(el);
+    });
   }
 
-  getLabelContent(type) {
-  }
+  getLabelContent(type) {}
 
   updateSVG(g, layout, labelLayer) {
-    // 1. Koordinatlar değişmiş olabilir, içeriği yeniden üretelim
-    // (veya sadece transform ile grubu taşıyalım)
-    const spec = this.shapeSpec(layout);
-
-    // İçeriği temizleyip yeniden çizmek en garantisidir (özellikle boyutu değişen Pipe için)
+    const spec          = this.shapeSpec(layout);
     const geometryLayer = g.querySelector('.item-geometry');
-    if (geometryLayer) {
-      geometryLayer.remove();
-    }
+    if (geometryLayer) geometryLayer.remove();
 
     const newContent = this.drawContent(spec, layout);
     g.appendChild(newContent);
 
-    // 2. Etiketleri güncelle (Dinamik veri ve yeni konum için)
     if (labelLayer && spec.anchors) {
       this.renderSmartLabels(labelLayer, spec.anchors, spec.orientation);
     }
 
-    // 3. Hitbox'ı yeni boyuta göre tazele
     const hitbox = g.querySelector('.hitbox');
     setTimeout(() => {
       if (!newContent.getBBox || !hitbox) return;
       const bbox = newContent.getBBox();
-      const pad = 8;
-      hitbox.setAttribute('x', bbox.x - pad);
-      hitbox.setAttribute('y', bbox.y - pad);
-      hitbox.setAttribute('width', bbox.width + pad * 2);
+      const pad  = 8;
+      hitbox.setAttribute('x',      bbox.x - pad);
+      hitbox.setAttribute('y',      bbox.y - pad);
+      hitbox.setAttribute('width',  bbox.width  + pad * 2);
       hitbox.setAttribute('height', bbox.height + pad * 2);
     }, 0);
   }
 
   calcHydraulics(Q_m3s, fluid) {
-    const D = this.diameter_mm / 1000;
-    const area = (Math.PI * D * D) / 4;
-    const v = Q_m3s / area;
-    const nu = (fluid.mu_mPas / 1000) / fluid.rho;
-    const Re = reynolds(v, D, nu);
-
-    // Varsayılan sonuç objesi (Her bileşen bunu genişletecek)
-    this.result = {
-      v,
-      Re,
-      dP_Pa: 0,
-      hf: { total: 0, fittings: 0, friction: 0, elevation: 0 }
-    };
-
-    return this.result;
+ 
   }
 
   renderPropsHTML() { return ''; }
@@ -255,18 +211,19 @@ export class ComponentBase extends EventEmitter {
 
   get outDiameter_mm() { return this.diameter_mm; }
 
+  // ── renderPropsHTML yardımcıları ──────────────────────────
 
   hint(val, unitFn) {
     if (Units.isMetric) return '';
     return `<span class="prop-hint">${unitFn(val)}</span>`;
   }
+
   row(label, content, unit = '') {
     return `<div class="prop-row">
-    <span class="prop-label">${label}</span>${content}${unit
-      ? `<span class="prop-unit">${unit}</span>`
-      : ''
-    }
-      </div>`;
+      <span class="prop-label">${label}</span>${content}${unit
+        ? `<span class="prop-unit">${unit}</span>`
+        : ''}
+    </div>`;
   }
 
   select(prop, options, currentVal) {
@@ -275,17 +232,42 @@ export class ComponentBase extends EventEmitter {
     ).join('');
     return `<select class="prop-selection" data-prop="${prop}">${opts}</select>`;
   }
-  slider(prop, value, min = "0", max = "100") {
-    return `
-      <div class="prop-slider-group">
-        <input type="range" data-prop="${prop}" min="${min}" max="${max}" value="${value}" class="prop-range">
-        <span class="prop-slider-value">${value}%</span>
-      </div>`;
-  }
-  input(prop, value, step = "1") {
-    return `<input class="prop-input" type="number" value="${value}" step="${step}" data-prop="${prop}">`;
+
+  /**
+   * Sayısal input — CONSTRAINTS'ten otomatik min/max/step alır.
+   * Explicit argümanlar CONSTRAINTS'i override eder.
+   */
+  input(prop, value, step, min, max) {
+    const c    = this.getConstraint(prop) ?? {};
+    const _step = step ?? c.step ?? 1;
+    const _min  = min  ?? c.min;
+    const _max  = max  ?? c.max;
+
+    const minAttr = _min != null ? `min="${_min}"` : '';
+    const maxAttr = _max != null ? `max="${_max}"` : '';
+
+    return `<input class="prop-input" type="number"
+      value="${value}" step="${_step}" ${minAttr} ${maxAttr}
+      data-prop="${prop}">`;
   }
 
+  /**
+   * Range slider — CONSTRAINTS'ten otomatik min/max/step alır.
+   */
+  slider(prop, value, step, min, max) {
+    const c    = this.getConstraint(prop) ?? {};
+    const _min  = min  ?? c.min  ?? 0;
+    const _max  = max  ?? c.max  ?? 100;
+    const _step = step ?? c.step ?? 1;
+
+    return `
+      <div class="prop-slider-group">
+        <input type="range" data-prop="${prop}"
+          min="${_min}" max="${_max}" step="${_step}"
+          value="${value}" class="prop-range">
+        <span class="prop-slider-value">${value}${c.unit ?? ''}</span>
+      </div>`;
+  }
 
   value(val, unit = '') {
     return `<span class="prop-value">${val}</span>`;
@@ -294,7 +276,6 @@ export class ComponentBase extends EventEmitter {
   dimValue(val) {
     return `<span class="prop-value dim">${val}</span>`;
   }
-
 }
 
 // ── FACTORY MAP ───────────────────────────────────────────
@@ -316,5 +297,3 @@ export function deserializeComponent(data) {
   comp.applySerializedData(data);
   return comp;
 }
-
-
