@@ -22,10 +22,10 @@ const BAR_PAD_TOP = 8;   // basınç grafiği ile bar arasındaki boşluk
 
 
 export class ChartRenderer {
-  /** @param {HTMLCanvasElement} canvas */
   constructor(canvas) {
     this.canvas   = canvas;
     this.ctx      = canvas.getContext('2d');
+    this.emptyPlaceholder = document.getElementById('chart-empty');
     this._ro      = new ResizeObserver(() => this._resize());
     this._ro.observe(canvas.parentElement);
     this._resize();
@@ -56,7 +56,23 @@ export class ChartRenderer {
     const { results, components } = data;
     const ctx = this.ctx;
     const W = this._cw, H = this._ch;
+    const hasData = results && results.length > 0;
+
+
+    if (this.emptyPlaceholder) {
+      // Veri varsa yazıyı gizle (opacity 0), yoksa göster
+      this.emptyPlaceholder.style.display = hasData ? 'none' : 'flex';
+    }
+    if (!hasData) {
+      // Veri yoksa canvas'ı temizle ve çık
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = C_BG;
+      ctx.fillRect(0, 0, W, H);
+      return;
+    }
+
     const pl = PAD.left, pr = PAD.right, pt = PAD.top, pb = PAD.bottom;
+
 
     // Bar şeridi alanı: grafik altında
     const barAreaH = BAR_H + BAR_PAD_TOP;

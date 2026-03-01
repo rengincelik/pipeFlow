@@ -97,7 +97,10 @@ const Actions = {
       else if (kind === 'left') DOM.panelProps.style.height = Math.min(500, Math.max(80, startPropH - (me.clientY - startY))) + 'px';
       else if (kind === 'right') DOM.panelChart.style.height = Math.min(500, Math.max(80, startChartH - (me.clientY - startY))) + 'px';
     };
-    const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
   },
@@ -142,7 +145,8 @@ const UI = {
 
   bindPropInputs(comp) {
     DOM.propBody.querySelectorAll('[data-prop]').forEach(el => {
-      el.oninput = () => {
+      const eventName = el.tagName === 'SELECT' ? 'onchange' : 'oninput';
+      el[eventName] = () => {
         const prop = el.dataset.prop;
         const raw = el.value;
         if (prop === 'transition_pair') {
@@ -151,15 +155,7 @@ const UI = {
           comp.override('d_out_mm', d_out, true);
           pipelineStore._propagateDiameter(pipelineStore.components.indexOf(comp));
           this.renderProps();
-        } else {
-          const num = parseFloat(raw);
-          comp.override(prop, isNaN(num) ? raw : num, true);
-          if (['diameter_mm', 'd_out_mm'].includes(prop)) pipelineStore._propagateDiameter(pipelineStore.components.indexOf(comp));
-        }
-        pipelineStore.emit('components:change');
-        // Ana dosyadaki bindPropInputs fonksiyonu içine:
-
-        if (prop === 'opening_pct') {
+        }else if (prop === 'opening_pct') {
           const val = parseInt(raw);
 
           // 1. Etiketi (yüzde yazısını) anlık güncelle
@@ -181,8 +177,17 @@ const UI = {
           engine.setValveOpening(comp.id, val / 100);
 
           // 5. Değişikliği yay
-          pipelineStore.emit('components:change');
+        } else {
+          const num = parseFloat(raw);
+          comp.override(prop, isNaN(num) ? raw : num, true);
+          if (['diameter_mm', 'd_out_mm'].includes(prop)){
+            pipelineStore._propagateDiameter(pipelineStore.components.indexOf(comp));
+          }
         }
+        pipelineStore.emit('components:change');
+        // Ana dosyadaki bindPropInputs fonksiyonu içine:
+
+
       };
     });
   },
@@ -225,7 +230,8 @@ function bindEvents() {
     _fluidId = e.target.value;
     const range = fluidRegistry.get(_fluidId)?.meta.valid_range;
     if(range) {
-      DOM.tempSlider.min = range.T_min_C; DOM.tempSlider.max = range.T_max_C;
+      DOM.tempSlider.min = range.T_min_C;
+      DOM.tempSlider.max = range.T_max_C;
       _tempC = Math.max(range.T_min_C, Math.min(_tempC, range.T_max_C));
       DOM.tempSlider.value = _tempC; DOM.tempLabel.textContent = `${_tempC}°C`;
     }
@@ -252,7 +258,23 @@ function bindEvents() {
   // Store & Engine Subscriptions
   pipelineStore.on('components:change', () => { UI.refreshCanvas(); tooltip.rebind(DOM.svgCanvas); if (engine.sysState === SysState.RUNNING) animator.reset(); });
   pipelineStore.on('selection:change', () => { UI.refreshCanvas(); UI.renderProps(); });
-  engine.onTick((snap) => { animator.update(pipelineStore.layout, snap); chart.draw({ results: snap.nodes.map(n => ({ P_in: n.P_in/1e5, P_out: n.P_out/1e5, v: n.v, dP_major: n.dP_major/1e5, dP_minor: n.dP_minor/1e5 })), components: pipelineStore.components, selectedIdx: pipelineStore.selectedId ? pipelineStore.components.findIndex(c => c.id === pipelineStore.selectedId) : null }); UI.updateHUD(snap); });
+  engine.onTick((snap) => {
+    animator.update(pipelineStore.layout, snap);
+    chart.draw({
+      results: snap.nodes.map(n => ({
+        P_in: n.P_in/1e5,
+        P_out: n.P_out/1e5,
+        v: n.v,
+        dP_major: n.dP_major/1e5,
+        dP_minor: n.dP_minor/1e5
+      })),
+      components: pipelineStore.components,
+      selectedIdx: pipelineStore.selectedId
+      ? pipelineStore.components.findIndex(c => c.id === pipelineStore.selectedId)
+      : null
+    });
+    UI.updateHUD(snap);
+  });
 
   renderer.onCompClick = (id) => pipelineStore.select(id);
 }
@@ -266,7 +288,11 @@ function setupInitialState() {
   DOM.tempLabel.textContent = `${_tempC}°C`;
 
   if (pipelineStore.components.length === 0) {
-    pipelineStore.insert(CatalogManager.makeComp({ type: 'pump', subtype: 'centrifugal', name: 'Main Supply Pump' }), 0);
+    pipelineStore.insert(CatalogManager.makeComp({
+      type: 'pump',
+      subtype: 'centrifugal',
+      name: 'Main Supply Pump'
+    }), 0);
   }
 }
 
@@ -356,7 +382,9 @@ const CatalogManager = {
 };
 
 (function init() {
-  if (localStorage.getItem('pf-theme') === 'light') document.documentElement.dataset.theme = 'light';
+  if (localStorage.getItem('pf-theme') === 'light'){
+    document.documentElement.dataset.theme = 'light';
+  }
   CatalogManager.render();
   bindEvents();
   setupInitialState();
