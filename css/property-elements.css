@@ -120,6 +120,27 @@
   cursor: pointer;
   accent-color: #3b82f6; /* Vana açıkken mavi/yeşil tonu */
 }
+/* Özellikler panelindeki yeni slider yapısı */
+.prop-slider-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1; /* Row içinde kalan tüm boşluğu kapla */
+}
+
+.prop-range {
+  flex: 1;
+  cursor: pointer;
+}
+
+.prop-slider-value {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  min-width: 32px;
+  text-align: right;
+  color: var(--text-dim);
+}
+
 
 .valve-status-tag {
   padding: 2px 8px;
@@ -129,3 +150,11 @@
 }
 .valve-status-tag.open { background: #065f46; color: #34d399; }
 .valve-status-tag.closed { background: #7f1d1d; color: #f87171; }
+
+
+.prop-hint {
+  font-size: 10px;
+  color: #4b5563;
+  margin-left: 4px;
+  font-style: italic;
+}

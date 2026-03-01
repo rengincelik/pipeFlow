@@ -147,52 +147,59 @@ const UI = {
 
   bindPropInputs(comp) {
     DOM.propBody.querySelectorAll('[data-prop]').forEach(el => {
-      const eventName = el.tagName === 'SELECT' ? 'onchange' : 'oninput';
+      const eventName = (el.tagName === 'SELECT') ? 'onchange' : 'oninput';
+
       el[eventName] = () => {
         const prop = el.dataset.prop;
         const raw = el.value;
+
+        // --- 1. SLIDER GÖRSEL GÜNCELLEME (Ortak Kısım) ---
+        // Eğer eleman bir slider ise yanındaki % yazısını her zaman güncelle
+        if (el.type === 'range') {
+          const label = el.nextElementSibling;
+          if (label) label.textContent = raw + '%';
+        }
+
+        // --- 2. ÖZEL MANTIKLAR ---
         if (prop === 'transition_pair') {
           const [d_in, d_out] = raw.split('|').map(Number);
           comp.override('d_in_mm', d_in, true);
           comp.override('d_out_mm', d_out, true);
           pipelineStore._propagateDiameter(pipelineStore.components.indexOf(comp));
           this.renderProps();
-        }else if (prop === 'opening_pct') {
+
+        } else if (prop === 'opening_pct') {
           const val = parseInt(raw);
-
-          // 1. Etiketi (yüzde yazısını) anlık güncelle
-          const label = el.nextElementSibling;
-          if (label) label.textContent = val + '%';
-
-          // 2. State etiketini güncelle
-          const statusTag = DOM.propBody.querySelector('.valve-status-tag');
+          // Vana özel: Status tag ve Engine güncelleme
+          const statusTag = DOM.propBody.querySelector('.valve-status-tag'); // Senin yeni class ismin
           if (statusTag) {
-            statusTag.textContent = val > 0 ? '⬤ OPEN' : '◯ CLOSED';
-            statusTag.className = `valve-status-tag ${val > 0 ? 'open' : 'closed'}`;
+            statusTag.textContent = val > 0 ? 'OPEN' : 'CLOSED';
+            statusTag.className = `valve-status-tag ${val > 0 ? 'on' : 'off'}`;
           }
-
-          // 3. Veriyi komponent üzerinde güncelle
           comp.opening_pct = val;
-          comp.open = val > 0; // %0 ise kapalı, değilse açık
+          comp.open = val > 0;
+          engine.setComponentProp(comp.id, 'opening', val / 100);
 
-          // 4. Engine'e gönder (0-1 aralığında)
-          engine.setValveOpening(comp.id, val / 100);
+        } else if (prop === 'efficiency_pct') {
+          const val = parseInt(raw);
+          // Pompa özel: efficiency değerini 0-1 arasına çevirip kaydet
+          comp.efficiency_pct = val;
+          engine.setComponentProp(comp.id, 'efficiency', val / 100);
 
-          // 5. Değişikliği yay
         } else {
+          // Genel inputlar (Diameter, Length, P_set vb.)
           const num = parseFloat(raw);
           comp.override(prop, isNaN(num) ? raw : num, true);
           if (['diameter_mm', 'd_out_mm'].includes(prop)){
             pipelineStore._propagateDiameter(pipelineStore.components.indexOf(comp));
           }
         }
+
         pipelineStore.emit('components:change');
-        // Ana dosyadaki bindPropInputs fonksiyonu içine:
-
-
       };
     });
   },
+
 
   updateHUD(snapshot) {
     const t = snapshot.t;

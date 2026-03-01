@@ -20,10 +20,11 @@ export const MATERIALS = [
 ];
 
 /**
- * Katalog tanımları.
- * Her item: { group, type, subtype, name, icon?, desc?, defaultOverrides? }
- * defaultOverrides: makeComp sırasında uygulanacak override değerleri
- */
+* Katalog tanımları.
+* Her item: { group, type, subtype, name, icon?, desc?, defaultOverrides? }
+* defaultOverrides: makeComp sırasında uygulanacak override değerleri
+*/
+
 export const CATALOG_DEF = [
   {
     group: 'Elbows',
@@ -38,13 +39,13 @@ export const CATALOG_DEF = [
     group: 'Pipes',
     items: [
       { type:'pipe', subtype:'pipe', icon:'━', desc:'Straight pipe',
-        defaultOverrides: { length_m: 5 } },
+        defaultOverrides: { length_m: 6 } },
 
       { type:'pipe', subtype:'reducer', icon:'▶', desc:'Diameter reduction',
-        defaultOverrides: { length_m: 9 } },
+        defaultOverrides: { length_m: 1 } },
 
       { type:'pipe', subtype:'expander', icon:'◀', desc:'Diameter expansion',
-        defaultOverrides: { length_m: 9 } },
+        defaultOverrides: { length_m: 1 } },
     ],
   },
   {

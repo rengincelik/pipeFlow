@@ -265,7 +265,7 @@ function calcValve(params, P_in, Q_m3s, fluid) {
 }
 
 
-// SIMULATION ENGINE 
+// SIMULATION ENGINE
 
 export class SimulationEngine {
   /**
@@ -344,10 +344,23 @@ export class SimulationEngine {
    * @param {number} componentId
    * @param {number} opening  0–1
    */
-  setValveOpening(componentId, opening) {
+/**
+   * Herhangi bir komponentin özelliğini runtime'da canlı güncelle.
+   * @param {number} componentId
+   * @param {string} prop - 'opening', 'efficiency', 'speed' vb.
+   * @param {any} value
+   */
+  setComponentProp(componentId, prop, value) {
     const comp = this._store.components.find(c => c.id === componentId);
-    if (comp && comp.type === 'valve') {
-      comp.opening = Math.max(0, Math.min(1, opening));
+    if (!comp) return;
+
+    // Değeri doğrudan bileşen üzerinde güncelle
+    // (Böylece bir sonraki tick'te getParams() güncel veriyi çeker)
+    comp[prop] = value;
+
+    // Eğer override mekanizmasını kullanıyorsan oraya da işle
+    if (typeof comp.override === 'function') {
+      comp.override(prop, value, true);
     }
   }
 

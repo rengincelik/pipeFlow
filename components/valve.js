@@ -3,6 +3,9 @@
 import { ComponentBase, registerComponentType } from './base.js';
 import { svgEl ,drawSpec} from '../renderer/svg-utils.js';
 
+import { Units } from '../data/unit-system.js';
+
+
 const ARM = 10;  // stemden merkeze
 const S   = 10;  // üçgen yatay
 const T   = 8;   // üçgen dikey
@@ -71,37 +74,33 @@ export class ValveComponent extends ComponentBase {
 
 
 
+renderPropsHTML() {
+  const vTypes = [
+    { value: 'gate',      label: 'Gate Valve'  },
+    { value: 'ball',      label: 'Ball Valve'  },
+    { value: 'butterfly', label: 'Butterfly'   },
+    { value: 'globe',     label: 'Globe Valve' },
+    { value: 'check',     label: 'Check Valve' },
+  ];
+
+  const pct  = this.opening_pct ?? (this.open ? 100 : 0);
+  const dVal = this.diameter_mm;
+
+  return [
+    this.row('Type',     this.select('subtype', vTypes, this.subtype)),
+    this.row('Diameter',
+      this.value(dVal) +
+      this.hint(dVal, v => Units.diameter(v)), 'mm'),
+    this.row('K value',  this.value(this.K)),
+    this.row('Opening',  this.slider('opening_pct', pct)),
+    this.row('State',    `<span class="valve-status-tag ${pct > 0 ? 'on' : 'off'}">
+      ${pct > 0 ? 'OPEN' : 'CLOSED'}</span>`),
 
 
+  ].join('');
+}
 
-  renderPropsHTML() {
-    const vTypes = [
-      { value: 'gate', label: 'Gate Valve' },
-      { value: 'ball', label: 'Ball Valve' },
-      { value: 'butterfly', label: 'Butterfly' },
-      { value: 'globe', label: 'Globe Valve' },
-      { value: 'check', label: 'Check Valve' }
-    ];
 
-    // opening_pct yoksa varsayılan 100 (tam açık)
-    const pct = this.opening_pct ?? (this.open ? 100 : 0);
-
-    return [
-      this.row('Type', this.select('subtype', vTypes, this.subtype, 'change-valve-type')),
-      this.row('Diameter', this.value(this.diameter_mm), 'mm'),
-      this.row('K value', this.value(this.K)),
-      // SLIDER BURAYA EKLENİYOR
-      `<div class="prop-row">
-        <label>Opening</label>
-        <div class="slider-container" style="display: flex; align-items: center; gap: 8px; flex: 1;">
-          <input type="range" data-prop="opening_pct" min="0" max="100" value="${pct}" style="flex: 1;">
-          <span style="min-width: 35px; font-family: monospace;">${pct}%</span>
-        </div>
-      </div>`,
-      // Eski State butonunu kaldırmak yerine yanına veya altına görsel bir indicator olarak bırakabilirsin
-      this.row('State', `<span class="valve-status-tag ${pct > 0 ? 'open' : 'closed'}">${pct > 0 ? '⬤ OPEN' : '◯ CLOSED'}</span>`)
-    ].join('');
-  }
 
   serialize() { return { ...super.serialize(), open: this.open, K: this.K }; }
 

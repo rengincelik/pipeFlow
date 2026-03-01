@@ -11,14 +11,12 @@ class SystemConfigClass extends EventEmitter {
       diameter_mm: 53.1,      // DN50
       material_id: 'steel_new',
       eps_mm:      0.046,
-      length_m:    5,
       Q_lpm:       30,
       P_in_bar:    2.0,
       T_in_C:      21,
-      T_out_C:     20,
       // ── Pompa ───────────────────────────────
-      Q_m3s: 0.005,  // 5 L/s default
-      pump_P_w:    500,        // motor gücü [W]
+      Q_m3s: 0.001,  // 5 L/s default
+      pump_P_w:    200,        // motor gücü [W]
       pump_eta:    0.70,       // verim [0-1]
       pump_type:   'centrifugal',
 

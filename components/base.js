@@ -1,12 +1,12 @@
 'use strict';
 
-// ═══════════════════════════════════════════════════════════
 // COMPONENT BASE — tüm boru hattı elemanlarının ana sınıfı
-// ═══════════════════════════════════════════════════════════
 
 import { EventEmitter }    from '../core/event-emitter.js';
 import { OverrideMixin }   from '../state/system-config.js';
 import { svgEl, setAttrs } from '../renderer/svg-utils.js';
+import { Units } from '../data/unit-system.js';
+
 
 let _idCounter = 0;
 
@@ -28,13 +28,17 @@ export class ComponentBase extends EventEmitter {
     this.name     = '';
     this.entryDir = 'right';
     this.exitDir  = 'right';
+    this.constraints = {};
 
     Object.assign(this, OverrideMixin);
     this._overrides = {};
     this.result     = null;
   }
   getParams() {
-    return { type: this.type, subtype: this.subtype };
+    return {
+      type: this.type,
+      subtype: this.subtype
+    };
   }
   // ── Çözümleme kısayolları ──────────────────────────────
   get diameter_mm() { return this.resolve('diameter_mm'); }
@@ -43,8 +47,7 @@ export class ComponentBase extends EventEmitter {
 
   _onOverrideChange(key) { this.emit('override:change', key); }
 
-
-  // override() metodunu güncelle:
+ 
   override(key, value, isUserSet = false) {
     this._overrides[key] = value;
     this._userOverrides = this._userOverrides ?? new Set();
@@ -58,14 +61,7 @@ export class ComponentBase extends EventEmitter {
   }
 
 
-  // ── Çıkış noktası hesabı ───────────────────────────────
-  /**
-   * Giriş noktası + yön + uzunluktan çıkış noktasını hesaplar.
-   * Elbow override eder (köşe geometrisi farklı).
-   * @param {number} ix  giriş X
-   * @param {number} iy  giriş Y
-   * @returns {{ ox, oy, exitDir }}
-   */
+
   computeExit(ix, iy) {
     const vec = DIR_VEC[this.entryDir];
     const len = this._lenPx ?? 54;   // alt sınıf set eder
@@ -76,19 +72,7 @@ export class ComponentBase extends EventEmitter {
     };
   }
 
-  // ── SVG arayüzü ────────────────────────────────────────
-  /**
-   * layout = { ix, iy, ox, oy, entryDir, exitDir, lenPx }
-   * ix/iy = giriş noktası (world coords)
-   * ox/oy = çıkış noktası (world coords)
-   * Tüm elemanlar yatay (right) baz alınarak çizilir.
-   * Renderer entryDir'e göre SVG transform uygular.
-   */
-  // ComponentBase.js içinde
-/**
-   * createSVG: Ana orkestra şefi.
-   * Grubu oluşturur, hitbox ekler ve içeriği ister.
-   */
+
   createSVG(layout, labelLayer) {
       const g = svgEl('g');
       g.classList.add('component', this.type, `id-${this.id}`);
@@ -194,9 +178,8 @@ export class ComponentBase extends EventEmitter {
   }
 
   getLabelContent(type) {
-
   }
-  // ComponentBase.js içinde
+
   updateSVG(g, layout, labelLayer) {
     // 1. Koordinatlar değişmiş olabilir, içeriği yeniden üretelim
     // (veya sadece transform ile grubu taşıyalım)
@@ -228,10 +211,6 @@ export class ComponentBase extends EventEmitter {
       hitbox.setAttribute('height', bbox.height + pad * 2);
     }, 0);
   }
-
-
-
-
 
   calcHydraulics(Q_m3s, fluid) {
     const D = this.diameter_mm / 1000;
@@ -277,8 +256,17 @@ export class ComponentBase extends EventEmitter {
   get outDiameter_mm() { return this.diameter_mm; }
 
 
+  hint(val, unitFn) {
+    if (Units.isMetric) return '';
+    return `<span class="prop-hint">${unitFn(val)}</span>`;
+  }
   row(label, content, unit = '') {
-    return `<div class="prop-row"><span class="prop-label">${label}</span>${content}${unit ? `<span class="prop-unit">${unit}</span>` : ''}</div>`;
+    return `<div class="prop-row">
+    <span class="prop-label">${label}</span>${content}${unit
+      ? `<span class="prop-unit">${unit}</span>`
+      : ''
+    }
+      </div>`;
   }
 
   select(prop, options, currentVal) {
@@ -287,16 +275,22 @@ export class ComponentBase extends EventEmitter {
     ).join('');
     return `<select class="prop-selection" data-prop="${prop}">${opts}</select>`;
   }
-
+  slider(prop, value, min = "0", max = "100") {
+    return `
+      <div class="prop-slider-group">
+        <input type="range" data-prop="${prop}" min="${min}" max="${max}" value="${value}" class="prop-range">
+        <span class="prop-slider-value">${value}%</span>
+      </div>`;
+  }
   input(prop, value, step = "1") {
     return `<input class="prop-input" type="number" value="${value}" step="${step}" data-prop="${prop}">`;
   }
-    // Sadece değer gösteren (readonly) alanlar için yeni bir metod
+
+
   value(val, unit = '') {
     return `<span class="prop-value">${val}</span>`;
   }
 
-  // "Dim" (soluk) görünen değerler için
   dimValue(val) {
     return `<span class="prop-value dim">${val}</span>`;
   }

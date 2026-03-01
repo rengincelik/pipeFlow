@@ -2,6 +2,7 @@
 
 import { ComponentBase, registerComponentType } from './base.js';
 
+import { Units } from '../data/unit-system.js';
 import { TRANSITION_PAIRS, EXPANDER_PAIRS } from '../data/catalogs.js';
 
 const FIT_W = 30;
@@ -70,19 +71,18 @@ export class TransitionComponent extends ComponentBase {
 
 
 
+
 renderPropsHTML() {
   const allPairs = this.isReducer ? TRANSITION_PAIRS : EXPANDER_PAIRS;
+  const pairs    = allPairs.filter(p => p.d_in === this.d_in_mm);
 
-  // Sadece girişi mevcut d_in_mm ile eşleşenleri göster
-  const pairs = allPairs.filter(p => p.d_in === this.d_in_mm);
-
-    // Eğer mevcut çıkış artık listede yoksa ilkini seç
   const hasMatch = pairs.some(p => p.d_out === this.d_out_mm);
   if (!hasMatch && pairs.length > 0) {
     this._overrides.d_out_mm = pairs[0].d_out;
   }
 
   const curVal = `${this.d_in_mm}|${this.d_out_mm}`;
+  const lenVal = this._overrides.length_m ?? 0.3;
 
   const opts = pairs.map(p =>
     `<option value="${p.d_in}|${p.d_out}" ${`${p.d_in}|${p.d_out}` === curVal ? 'selected' : ''}>
@@ -91,12 +91,19 @@ renderPropsHTML() {
   ).join('');
 
   return [
-    this.row('Fitting', `<select class="prop-selection" data-prop="transition_pair">
-      ${opts}
-    </select>`),
-    this.row('D in',  this.dimValue(`${this.d_in_mm} mm`)),
-    this.row('D out', this.dimValue(`${this.d_out_mm} mm`)),
-    this.row('Length', this.input('length_m', this._overrides.length_m ?? 0.3, '0.05'), 'm'),
+    this.row('Fitting', `<select class="prop-selection" data-prop="transition_pair">${opts}</select>`),
+
+    this.row('D in',
+      this.dimValue(`${this.d_in_mm} mm`) +
+      this.hint(this.d_in_mm, v => Units.diameter(v))),
+
+    this.row('D out',
+      this.dimValue(`${this.d_out_mm} mm`) +
+      this.hint(this.d_out_mm, v => Units.diameter(v))),
+
+    this.row('Length',
+      this.input('length_m', lenVal, '0.05') +
+      this.hint(lenVal, v => Units.length(v)), 'm'),
   ].join('');
 }
 

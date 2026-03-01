@@ -1,6 +1,8 @@
 'use strict';
 
-import { ComponentBase, registerComponentType, DIR_VEC } from './base.js'; 
+import { ComponentBase, registerComponentType, DIR_VEC } from './base.js';
+
+import { Units } from '../data/unit-system.js';
 
 const ARM = 27;
 
@@ -32,32 +34,31 @@ export class ElbowComponent extends ComponentBase {
   }
 
   // Elbow world koordinatlarla çalışır — shapeSpec layout'un tamamını alır
-shapeSpec(layout) {
-  const { ix, iy, ox, oy, cornerX, cornerY } = layout;
-  // Eğer ix/iy undefined geliyorsa burası patlar, kontrol ekle
-  if (ix === undefined) return { itemShape: [], anchors: [] };
+  shapeSpec(layout) {
+    const { ix, iy, ox, oy, cornerX, cornerY } = layout;
+    // Eğer ix/iy undefined geliyorsa burası patlar, kontrol ekle
+    if (ix === undefined) return { itemShape: [], anchors: [] };
 
-  const cx = cornerX ?? (ix === ox ? ix : ox);
-  const cy = cornerY ?? (iy === oy ? iy : oy);
+    const cx = cornerX ?? (ix === ox ? ix : ox);
+    const cy = cornerY ?? (iy === oy ? iy : oy);
 
-  return {
-    itemShape: [
-      {
-        tag: 'path',
-        cls: 'elbow-path',
-        d: `M ${ix} ${iy} Q ${cx} ${cy} ${ox} ${oy}`,
-        fill: 'none',
-        stroke: '#333', // Çizginin rengi
-        'stroke-width': '3' // Çizginin kalınlığı
-      }
-    ],
-    anchors: [
-      { type: 'label', x: ix, y: iy },
-    ],
-    orientation: 'static' // Dönmesin, koordinatları zaten doğru
-  };
-}
-
+    return {
+      itemShape: [
+        {
+          tag: 'path',
+          cls: 'elbow-path',
+          d: `M ${ix} ${iy} Q ${cx} ${cy} ${ox} ${oy}`,
+          fill: 'none',
+          stroke: '#333', // Çizginin rengi
+          'stroke-width': '3' // Çizginin kalınlığı
+        }
+      ],
+      anchors: [
+        { type: 'label', x: ix, y: iy },
+      ],
+      orientation: 'static' // Dönmesin, koordinatları zaten doğru
+    };
+  }
 
 
 
@@ -65,10 +66,14 @@ shapeSpec(layout) {
 
 
   renderPropsHTML() {
+    const dVal = this.diameter_mm;
+
     return [
-    this.row('Turn',     this.value(`${this.entryDir} → ${this.exitDir}`)),
-    this.row('Diameter', this.value(this.diameter_mm, 'mm')),
-    this.row('K value',  this.value(this.K))
+      this.row('Turn',     this.value(`${this.entryDir} → ${this.exitDir}`)),
+      this.row('Diameter',
+        this.value(dVal) +
+        this.hint(dVal, v => Units.diameter(v)), 'mm'),
+      this.row('K value',  this.value(this.K)),
     ].join('');
   }
 
