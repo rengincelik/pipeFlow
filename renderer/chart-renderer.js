@@ -1,9 +1,10 @@
 'use strict';
 
-// ═══════════════════════════════════════════════════════════
 // CHART RENDERER — Basınç & Hız profili + Major/Minor kayıp
 // Canvas 2D — engine snapshot formatını bekler
-// ═══════════════════════════════════════════════════════════
+
+import { Units } from '../data/unit-system.js';
+
 
 const PAD    = { top: 18, right: 16, bottom: 80, left: 44 };  // bottom artırıldı (bar + legend için)
 const C_P    = '#4a9eff';
@@ -15,6 +16,7 @@ const C_GRID = 'rgba(255,255,255,0.04)';
 const C_AX   = 'rgba(255,255,255,0.12)';
 const C_TXT  = '#424858';
 const FONT   = "9px 'IBM Plex Mono', monospace";
+
 
 // Bar şeridi yüksekliği (px) — grafik altında sabit alan
 const BAR_H       = 28;
@@ -56,6 +58,7 @@ export class ChartRenderer {
     const { results, components } = data;
     const ctx = this.ctx;
     const W = this._cw, H = this._ch;
+
     const hasData = results && results.length > 0;
 
 
@@ -148,7 +151,7 @@ export class ChartRenderer {
     ctx.textAlign = 'right';
     for (let i = 0; i <= 4; i++) {
       const val = pMin + (pMax - pMin) * (1 - i / 4);
-      ctx.fillText(val.toFixed(2), pl - 4, pt + (gh / 4) * i + 3);
+      ctx.fillText(Units.pressureVal(val).toFixed(2), pl - 4, pt + (gh / 4) * i + 3);
     }
 
     ctx.textAlign = 'center';
@@ -162,7 +165,7 @@ export class ChartRenderer {
     for (let i = 0; i <= 3; i++) {
       const val = vMax * (1 - i / 3);
       const y   = pt + (gh / 3) * i;
-      if (i > 0) ctx.fillText(val.toFixed(2), pl + gw + 4, y + 3);
+      if (i > 0) ctx.fillText(Units.pressureVal(val).toFixed(2), pl + gw + 4, y + 3);
     }
 
     // ── Sıfır çizgisi ──────────────────────────────────────
@@ -257,9 +260,12 @@ export class ChartRenderer {
     ctx.fillStyle = C_TXT;
     ctx.font      = FONT;
     ctx.textAlign = 'right';
-    ctx.fillText('bar', pl - 4, pt - 4);
+
+    ctx.fillText(Units.pressureLabel(), pl - 4, pt - 4);
+    ctx.fillText(Units.velocityLabel(),pl + gw + 4, pt - 4);
+
+
     ctx.textAlign = 'left';
-    ctx.fillText('m/s', pl + gw + 4, pt - 4);
 
     // ══════════════════════════════════════════════════════
     // MAJOR / MINOR KAYIP BAR KATMANI
@@ -324,7 +330,7 @@ export class ChartRenderer {
         ctx.font      = "8px 'IBM Plex Mono', monospace";
         ctx.textAlign = 'center';
         const mx = bx + barW / 2;
-        ctx.fillText(dPtot_bar.toFixed(3), mx, barY + BAR_H / 2 + 3);
+        ctx.fillText(Units.pressureVal(dPtot_bar).toFixed(3), mx, barY + BAR_H / 2 + 3);
       }
     });
 
@@ -346,8 +352,8 @@ export class ChartRenderer {
   // ── Legend ─────────────────────────────────────────────────────────────
   _drawLegend(ctx, W, H, pb) {
     const items = [
-      { color: C_P,   label: 'Pressure (bar)' },
-      { color: C_V,   label: 'Velocity (m/s)', dash: true },
+      { color: C_P,   label: 'Pressure' },
+      { color: C_V,   label: 'Velocity', dash: true },
       { color: C_MAJ, label: 'Major loss' },
       { color: C_MIN, label: 'Minor loss' },
     ];

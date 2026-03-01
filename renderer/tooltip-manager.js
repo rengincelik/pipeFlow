@@ -1,10 +1,10 @@
 'use strict';
 
-// ═══════════════════════════════════════════════════════════
 // TOOLTIP MANAGER
 // SVG eleman hover'ında anlık hydraulic veri gösterimi.
 // Engine ve renderer'a dokunmaz.
-// ═══════════════════════════════════════════════════════════
+
+import { Units } from '../data/unit-system.js';
 
 export class TooltipManager {
   /**
@@ -100,10 +100,12 @@ export class TooltipManager {
               </div>`;
     }
 
-    const Q_lpm   = ((snapshot.Q_m3s ?? 0) * 1000 * 60).toFixed(1);
-    const P_in    = (node.P_in  / 1e5).toFixed(3);
-    const P_out   = (node.P_out / 1e5).toFixed(3);
-    const v       = node.v?.toFixed(3) ?? '—';
+    const Q_lpm   = Units.flow(snapshot.Q_m3s * 1000 * 60);
+
+    const P_in  = Units.pressure(node.P_in  / 1e5);
+    const P_out = Units.pressure(node.P_out / 1e5);
+    const v     = Units.velocity(node.v);
+
     const Re      = node.Re ? Math.round(node.Re).toLocaleString() : '—';
     const dPmaj   = (node.dP_major / 1e5).toFixed(4);
     const dPmin   = (node.dP_minor / 1e5).toFixed(4);

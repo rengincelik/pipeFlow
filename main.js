@@ -11,6 +11,7 @@ import { createComponent }            from './components/base.js';
 import { CATALOG_DEF }                from './data/catalogs.js';
 import { fluidRegistry }              from './data/fluid-model.js';
 import { SimulationEngine, SysState } from './Simulation/SimulationEngine.js';
+import { Units } from './data/unit-system.js';
 
 import './components/pipe.js';
 import './components/transition.js';
@@ -31,6 +32,7 @@ const DOM = {
   catBody:      document.getElementById('cat-body'),
   propBody:     document.getElementById('prop-body'),
   themeBtn:     document.getElementById('theme-btn'),
+  btnUnits: document.getElementById('btn-units'),
   btnLabel:     document.getElementById('btn-label'),
   btnFit:       document.getElementById('btn-fit'),
   btnClear:     document.getElementById('btn-clear'),
@@ -221,6 +223,11 @@ function bindEvents() {
     document.documentElement.dataset.theme = isLight ? '' : 'light';
     localStorage.setItem('pf-theme', isLight ? '' : 'light');
   };
+  DOM.btnUnits.onclick = () => {
+    Units.toggle();
+    DOM.btnUnits.textContent = Units.isMetric ? 'SI' : 'IMP';
+  };
+
   DOM.btnFit.onclick = Actions.zoomToFit;
   DOM.btnClear.onclick = () => { pipelineStore.clear?.(); setupInitialState(); UI.refreshCanvas(); };
   DOM.hudStartBtn.onclick = Actions.toggleSimulation;
@@ -256,8 +263,21 @@ function bindEvents() {
   };
 
   // Store & Engine Subscriptions
-  pipelineStore.on('components:change', () => { UI.refreshCanvas(); tooltip.rebind(DOM.svgCanvas); if (engine.sysState === SysState.RUNNING) animator.reset(); });
-  pipelineStore.on('selection:change', () => { UI.refreshCanvas(); UI.renderProps(); });
+  pipelineStore.on('components:change', () => {
+    UI.refreshCanvas();
+    tooltip.rebind(DOM.svgCanvas);
+    if (engine.sysState === SysState.RUNNING) animator.reset();
+  });
+  pipelineStore.on('selection:change', () => {
+    UI.refreshCanvas();
+    UI.renderProps();
+  });
+  Units.onChange(() => {
+    UI.refreshCanvas();
+    UI.renderProps();
+    if (chart._lastData) chart.draw(chart._lastData);
+    DOM.tempLabel.textContent = Units.temp(_tempC);
+  });
   engine.onTick((snap) => {
     animator.update(pipelineStore.layout, snap);
     chart.draw({
