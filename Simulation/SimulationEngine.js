@@ -1,11 +1,9 @@
 'use strict';
 
-// ═══════════════════════════════════════════════════════════════════════════
 // SIMULATION ENGINE
 // Boru hattı dinamik simülasyon motoru.
 // PipelineStore'dan bağımsız çalışır — component'lara dokunmaz.
 // Her tick'te zinciri baştan sona koşturur, snapshot üretir.
-// ═══════════════════════════════════════════════════════════════════════════
 
 // ── Sabitler ───────────────────────────────────────────────────────────────
 const GRAVITY        = 9.81;          // m/s²
@@ -151,10 +149,8 @@ function rampFactor(t, rampDuration) {
 }
 
 
-// ═══════════════════════════════════════════════════════════════════════════
 // ELEMAN HESAP FONKSİYONLARI
 // Her fonksiyon { P_out, D_out_mm, dP_major, dP_minor, v, Re, nodeState } döner
-// ═══════════════════════════════════════════════════════════════════════════
 
 function calcPump(params, Q_m3s, rampF) {
   const H_actual = params.H_m * rampF;
@@ -269,9 +265,7 @@ function calcValve(params, P_in, Q_m3s, fluid) {
 }
 
 
-// ═══════════════════════════════════════════════════════════════════════════
-// SIMULATION ENGINE
-// ═══════════════════════════════════════════════════════════════════════════
+// SIMULATION ENGINE 
 
 export class SimulationEngine {
   /**

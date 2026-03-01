@@ -23,9 +23,18 @@
       <!-- Fluid seçimi -->
       <div id="fluid-type">
         <span class="label">Fluid</span>
-        <select class="selection" id="select-fluid">
-          <option value="water">Water (H₂O)</option>
-        </select>
+          <select id="select-fluid">
+            <option value="water">Water</option>
+            <option value="eg50">Ethylene Glycol 50%</option>
+          </select>
+
+          <div id="fluid-temp" style="display:flex; align-items:center; gap:6px;">
+            <input type="range" id="temp-slider" min="5" max="90" value="20" step="1"
+              style="width:80px;">
+            <span id="temp-label" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#6b7280;">
+              20°C
+            </span>
+          </div>
       </div>
 
 

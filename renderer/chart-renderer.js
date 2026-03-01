@@ -20,6 +20,7 @@ const FONT   = "9px 'IBM Plex Mono', monospace";
 const BAR_H       = 28;
 const BAR_PAD_TOP = 8;   // basınç grafiği ile bar arasındaki boşluk
 
+
 export class ChartRenderer {
   /** @param {HTMLCanvasElement} canvas */
   constructor(canvas) {
@@ -377,3 +378,4 @@ export class ChartRenderer {
 
   destroy() { this._ro.disconnect(); }
 }
+

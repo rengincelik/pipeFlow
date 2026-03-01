@@ -14,7 +14,7 @@ class SystemConfigClass extends EventEmitter {
       length_m:    5,
       Q_lpm:       30,
       P_in_bar:    2.0,
-      T_in_C:      20,
+      T_in_C:      21,
       T_out_C:     20,
       // ── Pompa ───────────────────────────────
       Q_m3s: 0.005,  // 5 L/s default
