@@ -39,10 +39,14 @@ export const CATALOG_DEF = [
     group: 'Pipes',
     items: [
       { type:'pipe', subtype:'pipe', icon:'━', desc:'Straight pipe', },
+    ]
+  },
+  {
+    group: 'Transition',
+    items:[
+      { type:'transition', subtype:'reducer', icon:'▶', desc:'Diameter reduction', },
 
-      { type:'pipe', subtype:'reducer', icon:'▶', desc:'Diameter reduction', },
-
-      { type:'pipe', subtype:'expander', icon:'◀', desc:'Diameter expansion', },
+      { type:'transition', subtype:'expander', icon:'◀', desc:'Diameter expansion', },
     ],
   },
   {

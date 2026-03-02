@@ -304,6 +304,14 @@ function bindEvents() {
   });
 
   renderer.onCompClick = (id) => pipelineStore.select(id);
+      // Her tick'te transition node'unu yakala
+    const orig = engine._onTick;
+    engine.onTick(snap => {
+      const t = snap.nodes.find(n => n.type === 'pipe' && (n.subtype === 'reducer' || n.subtype === 'expander'));
+      if (t) console.log('transition:', t);
+      orig?.(snap);
+    });
+    
 }
 
 // --- 5. INITIALIZATION (Açılış) ---

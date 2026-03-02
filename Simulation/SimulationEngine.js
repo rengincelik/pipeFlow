@@ -198,8 +198,8 @@ function calcElbow(params, P_in, Q_m3s, fluid) {
 }
 
 function calcTransition(params, P_in, Q_m3s, fluid) {
-  const D_in  = params.D_in_mm;
-  const D_out = params.D_out_mm;
+  const D_in  = params.d_in_mm;
+  const D_out = params.d_out_mm;
   const v_in  = velocity(Q_m3s, D_in);
   const v_out = velocity(Q_m3s, D_out);
 
@@ -503,6 +503,8 @@ export class SimulationEngine {
 
     // ── Callback'leri çağır ───────────────────────────────
     if (this._onTick)  this._onTick(snapshot);
+
+
 
 
 

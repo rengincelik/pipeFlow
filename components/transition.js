@@ -4,6 +4,7 @@ import { ComponentBase, registerComponentType } from './base.js';
 import { Units } from '../data/unit-system.js';
 import { TRANSITION_PAIRS, EXPANDER_PAIRS, DN_LIST } from '../data/catalogs.js';
 
+//bunlar piksel data
 const FIT_W = 30;
 const HALF  = 9;
 const TAPER = 4;
@@ -12,21 +13,13 @@ const TAPER = 4;
 const DEFAULT_D_IN_REDUCER  = 53.1;
 const DEFAULT_D_OUT_REDUCER = 26.9;
 
+const CONE_HALF_ANGLE_DEG = 10;
+
 export class TransitionComponent extends ComponentBase {
-
-  static get CONSTRAINTS() {
-    return {
-      length_m: { min: 0.05, max: 2, step: 0.05, unit: 'm' },
-    };
-  }
-
   constructor(subtype = 'reducer') {
-    super('pipe', subtype);
+    super('transition', subtype);
     this.isReducer = subtype === 'reducer';
     this.name      = this.isReducer ? 'Reducer' : 'Expander';
-    this.entryDir  = 'right';
-    this.exitDir   = 'right';
-    this._lenPx    = FIT_W;
 
     // Başlangıç çapları — propagasyon set etmeden önce fallback.
     // override() kullanılır (direkt _overrides yazma değil).
@@ -37,29 +30,37 @@ export class TransitionComponent extends ComponentBase {
       this.override('d_in_mm',  DEFAULT_D_OUT_REDUCER);
       this.override('d_out_mm', DEFAULT_D_IN_REDUCER);
     }
-    // length_m default SystemConfig'ten gelir (transition_length_m: 0.3)
-    // Buraya hardcode etmiyoruz.
   }
 
   getParams() {
     return {
       type:     'transition',
       subtype:  this.subtype,
-      D_in_mm:  this.d_in_mm,
-      D_out_mm: this.d_out_mm,
+      d_in_mm:  this.d_in_mm,
+      d_out_mm: this.d_out_mm,
     };
   }
 
-  get d_in_mm()        { return this._overrides.d_in_mm  ?? this.resolve('diameter_mm'); }
-  get d_out_mm()       { return this._overrides.d_out_mm ?? this.resolve('diameter_mm'); }
+  get d_in_mm()        { return this._overrides.d_in_mm; }
+  get d_out_mm()       { return this._overrides.d_out_mm; }
   get outDiameter_mm() { return this.d_out_mm; }
+  get length_m() {
+    const dIn  = this.d_in_mm  / 1000; // m
+    const dOut = this.d_out_mm / 1000; // m
+
+    if (dIn === dOut) return 0;
+
+    const theta = CONE_HALF_ANGLE_DEG * Math.PI / 180;
+
+    return Math.abs(dIn - dOut) / (2 * Math.tan(theta));
+  }
 
   shapeSpec(layout) {
     const { ix, iy } = layout;
     const mx   = ix + FIT_W / 2;
     const wIn  = this.isReducer ? HALF : HALF - TAPER;
     const wOut = this.isReducer ? HALF - TAPER : HALF;
-    const cls  = `pipe-body ${this.isReducer ? 'pipe-reducer' : 'pipe-expander'}`;
+    const cls  = `transition-body ${this.isReducer ? 'pipe-reducer' : 'pipe-expander'}`;
 
     return {
       itemShape: [
@@ -85,7 +86,7 @@ export class TransitionComponent extends ComponentBase {
     }
 
     const curVal = `${this.d_in_mm}|${this.d_out_mm}`;
-    const lenVal = this.resolve('length_m');
+    const lenVal = `${this.length_m}`;
 
     const opts = pairs.map(p =>
       `<option value="${p.d_in}|${p.d_out}" ${`${p.d_in}|${p.d_out}` === curVal ? 'selected' : ''}>
@@ -94,7 +95,7 @@ export class TransitionComponent extends ComponentBase {
     ).join('');
 
     return [
-      this.row('Fitting', 
+      this.row('Fitting',
         `<select class="prop-selection" data-prop="transition_pair">${opts}</select>`),
 
       this.row('D in',
@@ -107,7 +108,7 @@ export class TransitionComponent extends ComponentBase {
 
       // input — min/max/step CONSTRAINTS'ten otomatik gelir
       this.row('Length',
-        this.input('length_m', lenVal) +
+        this.dimValue(`${this.length_m.toFixed(3)} m`) +
         this.hint(lenVal, v => Units.length(v)), 'm'),
     ].join('');
   }
@@ -122,5 +123,5 @@ export class TransitionComponent extends ComponentBase {
   }
 }
 
-registerComponentType('pipe', 'reducer',  () => new TransitionComponent('reducer'));
-registerComponentType('pipe', 'expander', () => new TransitionComponent('expander'));
+registerComponentType('transition', 'reducer',  () => new TransitionComponent('reducer'));
+registerComponentType('transition', 'expander', () => new TransitionComponent('expander'));
