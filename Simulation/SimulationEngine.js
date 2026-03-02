@@ -6,13 +6,17 @@
 // Her tick'te zinciri baştan sona koşturur, snapshot üretir.
 
 // ── Sabitler ───────────────────────────────────────────────────────────────
-const GRAVITY        = 9.81;          // m/s²
-const TICK_MS        = 100;           // ms — UI güncelleme aralığı
-const PHYS_DT        = 0.1;           // s  — her tick'in fiziksel karşılığı
-const RAMP_DURATION  = 2.0;           // s  — pompanın nominal değere ulaşma süresi
-const MAX_ITER_CW    = 50;            // Colebrook-White max iterasyon
-const CW_TOL         = 1e-8;          // Colebrook-White yakınsama toleransı
-const DEADHEAD_WARN  = 5.0;           // s  — deadhead alarm süresi
+const GRAVITY        = 9.81;   // m/s²
+const TICK_MS        = 100;    // ms — UI güncelleme aralığı
+const PHYS_DT        = 0.1;    // s  — her tick'in fiziksel karşılığı
+const RAMP_DURATION  = 2.0;    // s  — pompanın nominal değere ulaşma süresi
+const MAX_ITER_CW    = 50;     // Colebrook-White max iterasyon
+const CW_TOL         = 1e-8;   // Colebrook-White yakınsama toleransı
+const DEADHEAD_WARN  = 5.0;    // s  — deadhead alarm süresi
+
+// Çalışma noktası bisection parametreleri
+const MAX_ITER_OP    = 50;     // max iterasyon
+const OP_TOL         = 1e-6;   // m³/s yakınsama toleransı
 
 // ── Sistem State ───────────────────────────────────────────────────────────
 export const SysState = Object.freeze({
@@ -38,27 +42,13 @@ export const NodeState = Object.freeze({
 });
 
 
-// YARDIMCI FONKSİYONLAR
-
-
-/**
- * Colebrook-White denklemi ile Darcy friction faktörü (f).
- * Laminer akış için f = 64/Re kullanılır.
- * @param {number} Re   Reynolds sayısı
- * @param {number} eps  Boru pürüzlülüğü (mm)
- * @param {number} D    Boru iç çapı (mm)
- * @returns {number} Darcy friction faktörü
- */
-
+// ── YARDIMCI FONKSİYONLAR ─────────────────────────────────────────────────
 
 function frictionFactor(Re, eps, D) {
   if (Re < 1e-9) return 0;
-  if (Re < 2300) return 64 / Re;   // Laminer
-
-  // Türbülanslı — Colebrook-White iteratif
+  if (Re < 2300) return 64 / Re;
   const r = (eps / D) / 3.7;
-  let f = 0.02;   // başlangıç tahmini
-
+  let f = 0.02;
   for (let i = 0; i < MAX_ITER_CW; i++) {
     const f_new = 1 / Math.pow(-2 * Math.log10(r + 2.51 / (Re * Math.sqrt(f))), 2);
     if (Math.abs(f_new - f) < CW_TOL) return f_new;
@@ -67,50 +57,36 @@ function frictionFactor(Re, eps, D) {
   return f;
 }
 
-/**
- * Akış alanı (m²)
- */
 function area(D_mm) {
   const D = D_mm / 1000;
   return (Math.PI * D * D) / 4;
 }
 
-/**
- * Hız (m/s)
- */
 function velocity(Q_m3s, D_mm) {
   const A = area(D_mm);
   return A > 0 ? Q_m3s / A : 0;
 }
 
-/**
- * Reynolds sayısı
- * @param {number} v     Hız (m/s)
- * @param {number} D_mm  Çap (mm)
- * @param {number} rho   Yoğunluk (kg/m³)
- * @param {number} mu    Dinamik viskozite (Pa·s)
- */
 function reynolds(v, D_mm, rho, mu) {
   return mu > 0 ? (rho * v * (D_mm / 1000)) / mu : 0;
 }
 
-/**
- * Valve için K değerini opening'e göre lookup + lineer interpolasyon.
- * K_table: [{ opening: 1.0, K: 0.2 }, { opening: 0.5, K: 3.0 }, ...]
- * opening: 0 (tam kapalı) – 1 (tam açık)
- *
- * Eğer K_table yoksa fallback değer kullanılır.
- */
-function valveK(subtype, opening, K_table) {
-  // Tam kapalı — çok yüksek direnç (deadhead tetikler)
-  if (opening <= 0) return 1e9;
+function minorLoss(K, v, rho) {
+  return K * 0.5 * rho * v * v;
+}
 
-  // K_table varsa interpolasyon yap
+function rampFactor(t, rampDuration) {
+  if (t >= rampDuration) return 1.0;
+  const x = t / rampDuration;
+  return x * x * (3 - 2 * x);
+}
+
+function valveK(subtype, opening, K_table) {
+  if (opening <= 0) return 1e9;
   if (K_table && K_table.length >= 2) {
     const sorted = [...K_table].sort((a, b) => a.opening - b.opening);
-    if (opening <= sorted[0].opening)               return sorted[0].K;
+    if (opening <= sorted[0].opening) return sorted[0].K;
     if (opening >= sorted[sorted.length - 1].opening) return sorted[sorted.length - 1].K;
-
     for (let i = 0; i < sorted.length - 1; i++) {
       const lo = sorted[i], hi = sorted[i + 1];
       if (opening >= lo.opening && opening <= hi.opening) {
@@ -119,60 +95,99 @@ function valveK(subtype, opening, K_table) {
       }
     }
   }
-
-  // K_table yoksa tip bazlı fallback (tam açık değerler)
   const fallback = { gate: 0.1, globe: 10, butterfly: 0.3, ball: 0.05 };
   const baseK = fallback[subtype] ?? 1.0;
-
-  // Açıklığa göre basit üstel artış (K_table olmayan durumlar için)
-  // opening=1 → baseK, opening=0.5 → baseK*10, opening=0.1 → baseK*1000
   return baseK * Math.pow(10, 2 * (1 - opening));
 }
 
+
+// ── H-Q POLİNOM ───────────────────────────────────────────────────────────
+
 /**
- * Minor kayıp basınç düşümü
- * dP = K * 0.5 * rho * v²
+ * 3 noktadan ikinci dereceden H-Q polinomu fit eder.
+ * Noktalar: (0, H_shutoff), (Q_nom, H_nom), (Q_max, 0)
+ *
+ * H(Q) = a0 + a1*Q + a2*Q²
+ *
+ * Matris çözümü (3x3 Vandermonde):
+ * [1  0       0        ] [a0]   [H_shutoff]
+ * [1  Q_nom   Q_nom²   ] [a1] = [H_nom    ]
+ * [1  Q_max   Q_max²   ] [a2]   [0        ]
  */
-function minorLoss(K, v, rho) {
-  return K * 0.5 * rho * v * v;
+export function fitHQCurve(H_shutoff, Q_nom, H_nom, Q_max) {
+  // Satır 0: Q=0,     H=H_shutoff  → a0 = H_shutoff
+  // Satır 1: Q=Q_nom, H=H_nom
+  // Satır 2: Q=Q_max, H=0
+
+  const a0 = H_shutoff;
+  // a0 + a1*Q_max + a2*Q_max² = 0
+  // a0 + a1*Q_nom + a2*Q_nom² = H_nom
+
+  // İki denklem, iki bilinmeyen (a1, a2):
+  // a1*Q_nom + a2*Q_nom² = H_nom - a0   ... (i)
+  // a1*Q_max + a2*Q_max² = -a0           ... (ii)
+
+  const rhs1 = H_nom - a0;
+  const rhs2 = -a0;
+
+  // Cramer:
+  const det = Q_nom * Q_max * Q_max - Q_max * Q_nom * Q_nom;
+  if (Math.abs(det) < 1e-12) {
+    // Dejenere — sabit head fallback
+    return { a0: H_shutoff, a1: 0, a2: 0 };
+  }
+
+  const a1 = (rhs1 * Q_max * Q_max - rhs2 * Q_nom * Q_nom) / det;
+  const a2 = (Q_nom * rhs2 - Q_max * rhs1) / det;
+
+  return { a0, a1, a2 };
 }
 
 /**
- * Pompa ramp faktörü (0→1 arası)
- * t: geçen süre (s), rampDuration: nominal değere ulaşma süresi (s)
+ * H-Q polinomunu Q'da değerlendir.
+ * Negatif head döndürme — fiziksel anlamsız.
  */
-function rampFactor(t, rampDuration) {
-  if (t >= rampDuration) return 1.0;
-  // Smooth step — ani değil, organik
-  const x = t / rampDuration;
-  return x * x * (3 - 2 * x);
+export function evalHQ(coeffs, Q) {
+  const H = coeffs.a0 + coeffs.a1 * Q + coeffs.a2 * Q * Q;
+  return Math.max(0, H);
 }
 
 
-// ELEMAN HESAP FONKSİYONLARI
-// Her fonksiyon { P_out, D_out_mm, dP_major, dP_minor, v, Re, nodeState } döner
+// ── ELEMAN HESAP FONKSİYONLARI ────────────────────────────────────────────
 
+/**
+ * Pompa: H-Q eğrisinden head üretir.
+ * Q dışarıdan verilir (çalışma noktası iterasyonundan).
+ */
 function calcPump(params, Q_m3s, rampF) {
-  const H_actual = params.H_m * rampF;
+  const H_actual = evalHQ(params.hq_coeffs, Q_m3s) * rampF;
   const P_out    = params.fluid.rho * GRAVITY * H_actual;
+  const v        = velocity(Q_m3s, params.diameter_mm);
+
+  // Şaft gücü: P = rho * g * H * Q / eta
+  const eta      = Math.max(0.01, params.efficiency);
+  const P_shaft  = (params.fluid.rho * GRAVITY * H_actual * Q_m3s) / eta;
+
   return {
     P_out,
     D_out_mm:  params.diameter_mm,
     dP_major:  0,
     dP_minor:  0,
-    v:         velocity(Q_m3s, params.diameter_mm),
+    v,
     Re:        0,
+    H_actual,
+    P_shaft,
     nodeState: NodeState.FLOWING,
   };
 }
 
 function calcPipe(params, P_in, Q_m3s, fluid) {
-  const D    = params.diameter_mm;
-  const v    = velocity(Q_m3s, D);
-  const Re   = reynolds(v, D, fluid.rho, fluid.mu);
-  const f    = frictionFactor(Re, params.eps_mm, D);
-  const L    = params.length_m;
-  const h    = params.height_m;
+  const D  = params.diameter_mm;
+  const v  = velocity(Q_m3s, D);
+  const Re = reynolds(v, D, fluid.rho, fluid.mu);
+  const f  = frictionFactor(Re, params.eps_mm, D);
+  const L  = params.length_m;
+  const h  = params.height_m ?? 0;
 
   const dP_major   = f * (L / (D / 1000)) * 0.5 * fluid.rho * v * v;
   const dP_gravity = fluid.rho * GRAVITY * h;
@@ -182,17 +197,16 @@ function calcPipe(params, P_in, Q_m3s, fluid) {
 }
 
 function calcElbow(params, P_in, Q_m3s, fluid) {
-  const D   = params.diameter_mm;
-  const v   = velocity(Q_m3s, D);
-  const Re  = reynolds(v, D, fluid.rho, fluid.mu);
-  const dP  = minorLoss(params.K, v, fluid.rho);
+  const D  = params.diameter_mm;
+  const v  = velocity(Q_m3s, D);
+  const Re = reynolds(v, D, fluid.rho, fluid.mu);
+  const dP = minorLoss(params.K, v, fluid.rho);
   return {
     P_out:     Math.max(0, P_in - dP),
     D_out_mm:  D,
     dP_major:  0,
     dP_minor:  dP,
-    v,
-    Re,
+    v, Re,
     nodeState: NodeState.FLOWING,
   };
 }
@@ -203,33 +217,23 @@ function calcTransition(params, P_in, Q_m3s, fluid) {
   const v_in  = velocity(Q_m3s, D_in);
   const v_out = velocity(Q_m3s, D_out);
 
-  // Borda-Carnot (expander kayıp) veya contraction loss (reducer)
   let dP_minor;
   if (params.subtype === 'expander') {
-    // Borda-Carnot: dP = 0.5 * rho * (v_in - v_out)²
     dP_minor = 0.5 * fluid.rho * Math.pow(v_in - v_out, 2);
   } else {
-    // Reducer: dP = K_c * 0.5 * rho * v_out²
-    // K_c ≈ 0.5 * (1 - (D_out/D_in)²) — basit yaklaşım
     const ratio = (D_out / D_in) ** 2;
     const K_c   = 0.5 * (1 - ratio);
     dP_minor    = minorLoss(K_c, v_out, fluid.rho);
   }
 
-  // Bernoulli: basınç değişimi (hız farkından)
   const dP_bernoulli = 0.5 * fluid.rho * (v_in * v_in - v_out * v_out);
-  const P_out = Math.max(0, P_in + dP_bernoulli - dP_minor);
-
-  const Re = reynolds(v_in, D_in, fluid.rho, fluid.mu);
+  const P_out        = Math.max(0, P_in + dP_bernoulli - dP_minor);
+  const Re           = reynolds(v_in, D_in, fluid.rho, fluid.mu);
 
   return {
-    P_out,
-    D_out_mm:  D_out,
-    dP_major:  0,
-    dP_minor,
-    v:         v_out,
-    v_in,
-    Re,
+    P_out, D_out_mm: D_out,
+    dP_major: 0, dP_minor,
+    v: v_out, v_in, Re,
     nodeState: NodeState.FLOWING,
   };
 }
@@ -240,66 +244,211 @@ function calcValve(params, P_in, Q_m3s, fluid) {
   const Re     = reynolds(v, D, fluid.rho, fluid.mu);
   const K      = valveK(params.subtype, params.opening, params.K_table);
   const dP     = minorLoss(K, v, fluid.rho);
-  const P_out  = Math.max(0, P_in - dP);
   const blocked = params.opening <= 0;
 
   return {
-    P_out:     blocked ? P_in : P_out,   // kapalıysa basınç geçmez
+    P_out:     blocked ? P_in : Math.max(0, P_in - dP),
     D_out_mm:  D,
     dP_major:  0,
     dP_minor:  dP,
     v:         blocked ? 0 : v,
-    Re,
-    K,
+    Re, K,
     opening:   params.opening,
     nodeState: blocked ? NodeState.BLOCKED : NodeState.FLOWING,
   };
 }
 
 
-// SIMULATION ENGINE
+// ── ÇALIŞMA NOKTASI HESABI ────────────────────────────────────────────────
 
-export class SimulationEngine {
-  /**
-   * @param {object} pipelineStore  — PipelineStore instance
-   * @param {object} fluid          — { rho, mu } — yoğunluk ve dinamik viskozite
-   */
-  constructor(pipelineStore, fluid) {
-    this._store      = pipelineStore;
-    this._fluid      = fluid;           // { rho: kg/m³, mu: Pa·s }
+/**
+ * Verilen Q için zinciri koştur, pompa head'ini ve sistem head'ini döndür.
+ * Çalışma noktası: H_pump(Q) = H_system(Q)
+ *
+ * H_system(Q) = (P_pump_out - P_atm) / (rho*g) + elevation
+ * Biz gauge basınç kullandığımız için:
+ *   H_system(Q) = toplam basınç kaybı / (rho*g)
+ *
+ * @returns {{ H_pump, H_system, nodes, isBlocked }}
+ */
+function evaluateSystem(components, pumpParams, Q_m3s, rampF, fluid) {
+  const nodes = [];
+  let P_current = 0;
+  let D_current = pumpParams.diameter_mm;
+  let isBlocked = false;
 
-    // ── State ──────────────────────────────────────────────
-    this._sysState   = SysState.IDLE;
-    this._pumpState  = PumpState.STOPPED;
+  for (let i = 0; i < components.length; i++) {
+    const comp   = components[i];
+    const params = { ...comp.getParams(), fluid };
+    let result;
 
-    // ── Zaman ─────────────────────────────────────────────
-    this._t          = 0;               // fiziksel süre (s)
-    this._intervalId = null;
+    if (isBlocked) {
+      result = {
+        P_out: P_current, D_out_mm: D_current,
+        dP_major: 0, dP_minor: 0, v: 0, Re: 0,
+        nodeState: NodeState.DRY,
+      };
+    } else {
+      switch (comp.type) {
+        case 'pump':
+          result = calcPump(params, Q_m3s, rampF);
+          break;
+        case 'pipe':
+          result = calcPipe(params, P_current, Q_m3s, fluid);
+          break;
+        case 'elbow':
+          result = calcElbow(params, P_current, Q_m3s, fluid);
+          break;
+        case 'transition':
+          result = calcTransition(params, P_current, Q_m3s, fluid);
+          break;
+        case 'valve':
+          result = calcValve(params, P_current, Q_m3s, fluid);
+          if (result.nodeState === NodeState.BLOCKED) {
+            isBlocked = true;
+          }
+          break;
+        default:
+          result = {
+            P_out: P_current, D_out_mm: D_current,
+            dP_major: 0, dP_minor: 0, v: 0, Re: 0,
+            nodeState: NodeState.FLOWING,
+          };
+      }
+    }
 
-    // ── Deadhead takibi ───────────────────────────────────
-    this._deadheadT  = 0;               // deadhead'de geçen süre (s)
+    nodes.push({
+      id:        comp.id,
+      type:      comp.type,
+      subtype:   comp.subtype,
+      name:      comp.name,
+      P_in:      P_current,
+      P_out:     result.P_out,
+      dP_major:  result.dP_major  ?? 0,
+      dP_minor:  result.dP_minor  ?? 0,
+      dP_total:  (result.dP_major ?? 0) + (result.dP_minor ?? 0),
+      v:         result.v,
+      Re:        result.Re,
+      f:         result.f,
+      K:         result.K,
+      opening:   result.opening,
+      H_actual:  result.H_actual,
+      P_shaft:   result.P_shaft,
+      nodeState: result.nodeState,
+    });
 
-    // ── Hacim sayacı ──────────────────────────────────────
-    this._totalVolume_m3 = 0;
-
-    // ── Snapshots (grafik için) ────────────────────────────
-    this._snapshots  = [];              // tüm geçmiş
-
-    // ── Alarm listesi ─────────────────────────────────────
-    this._alarms     = [];
-
-    // ── Dışarıya event callback'leri ──────────────────────
-    this._onTick     = null;            // fn(snapshot)
-    this._onAlarm    = null;            // fn(alarms)
-    this._onStateChange = null;         // fn(sysState, pumpState)
+    P_current = result.P_out;
+    D_current = result.D_out_mm;
   }
 
-  // ── Public API ──────────────────────────────────────────────────────────
+  // Pompa head'i: H_pump(Q) * rampF
+  const H_pump = evalHQ(pumpParams.hq_coeffs, Q_m3s) * rampF;
 
-  /** Simülasyonu başlat */
+  // Sistem head'i: zincir sonundaki net basınç kaybı / (rho*g)
+  // Boru çıkışı atmosfere açık → P_out = 0 hedefleniyor.
+  // H_system = toplam enerji tüketimi = H_pump - P_son / (rho*g)
+  // Denge noktasında P_son → 0 (hat atmosfere açıksa)
+  const P_final  = P_current;                           // son node çıkış basıncı
+  const H_system = H_pump - P_final / (fluid.rho * GRAVITY);
+
+  return { H_pump, H_system, P_final, nodes, isBlocked };
+}
+
+/**
+ * Bisection ile çalışma noktasını bul.
+ * F(Q) = H_pump(Q) - H_system(Q) = 0
+ *
+ * H_pump artan Q ile azalır.
+ * H_system artan Q ile artar (sürtünme kayıpları ∝ Q²).
+ * → F(Q) monoton azalan → bisection güvenli.
+ *
+ * @returns {{ Q_op, converged, iterations }}
+ */
+function findOperatingPoint(components, pumpParams, rampF, fluid, Q_prev) {
+  // Arama aralığı: [0, Q_max * 1.1]
+  const Q_max = pumpParams.hq_coeffs
+    ? Math.sqrt(-pumpParams.hq_coeffs.a0 / (pumpParams.hq_coeffs.a2 || -1e-6))
+    : pumpParams.Q_nom * 2;
+
+  let Q_lo = 1e-6;
+  let Q_hi = Math.max(Q_max * 1.1, Q_prev * 2, 0.01);
+
+  // F(Q) = P_final_after_chain / (rho*g) — sıfırda dengede
+  // Pompadan çıkan basınç zincirde tüketilir, son nokta atmosfer.
+  // Daha net: F(Q) = H_pump(Q)*rampF - H_loss(Q)
+  // H_loss(Q): zincirdeki tüm kayıplar toplamı (hız, sürtünme, minör)
+  //
+  // Pratik hesap: zinciri Q ile koş, P_final döner.
+  // Denge: P_final = 0 (açık deşarj).
+  // F(Q) = P_final(Q) → bunu sıfırla.
+
+  const F = (Q) => {
+    const { P_final } = evaluateSystem(components, pumpParams, Q, rampF, fluid);
+    return P_final;
+  };
+
+  const F_lo = F(Q_lo);
+  const F_hi = F(Q_hi);
+
+  // Aynı işaretliyse (hat tamamen kapalı vb.) yakınsama yok
+  if (F_lo * F_hi > 0) {
+    return { Q_op: Q_prev, converged: false, iterations: 0 };
+  }
+
+  let Q_mid;
+  let iter = 0;
+
+  for (iter = 0; iter < MAX_ITER_OP; iter++) {
+    Q_mid = (Q_lo + Q_hi) / 2;
+    const F_mid = F(Q_mid);
+
+    if (Math.abs(Q_hi - Q_lo) < OP_TOL) break;
+
+    if (F_lo * F_mid <= 0) {
+      Q_hi = Q_mid;
+    } else {
+      Q_lo = Q_mid;
+    }
+  }
+
+  return {
+    Q_op:      Q_mid,
+    converged: Math.abs(Q_hi - Q_lo) < OP_TOL * 10,
+    iterations: iter,
+  };
+}
+
+
+// ── SIMULATION ENGINE ──────────────────────────────────────────────────────
+
+export class SimulationEngine {
+  constructor(pipelineStore, fluid) {
+    this._store   = pipelineStore;
+    this._fluid   = fluid;
+
+    this._sysState  = SysState.IDLE;
+    this._pumpState = PumpState.STOPPED;
+
+    this._t          = 0;
+    this._intervalId = null;
+    this._deadheadT  = 0;
+
+    this._totalVolume_m3 = 0;
+    this._snapshots      = [];
+    this._alarms         = [];
+
+    // Çalışma noktası — önceki Q başlatıcı tahmin olarak kullanılır
+    this._Q_operating = 0.001;   // m³/s başlangıç tahmini
+
+    this._onTick        = null;
+    this._onAlarm       = null;
+    this._onStateChange = null;
+  }
+
+  // ── Public API ────────────────────────────────────────────────────────
+
   start() {
     if (this._sysState === SysState.RUNNING) return;
-
     this._t              = 0;
     this._deadheadT      = 0;
     this._totalVolume_m3 = 0;
@@ -307,11 +456,9 @@ export class SimulationEngine {
     this._alarms         = [];
     this._pumpState      = PumpState.RAMPING;
     this._setSysState(SysState.RUNNING);
-
     this._intervalId = setInterval(() => this._tick(), TICK_MS);
   }
 
-  /** Simülasyonu durdur */
   stop() {
     if (this._intervalId) {
       clearInterval(this._intervalId);
@@ -321,7 +468,6 @@ export class SimulationEngine {
     this._setSysState(SysState.IDLE);
   }
 
-  /** Simülasyonu resetle */
   reset() {
     this.stop();
     this._t              = 0;
@@ -329,60 +475,32 @@ export class SimulationEngine {
     this._totalVolume_m3 = 0;
     this._snapshots      = [];
     this._alarms         = [];
+    this._Q_operating    = 0.001;
   }
 
-  /**
-   * Valve opening'i runtime'da güncelle.
-   * @param {number} componentId
-   * @param {number} opening  0–1
-   */
-/**
-   * Herhangi bir komponentin özelliğini runtime'da canlı güncelle.
-   * @param {number} componentId
-   * @param {string} prop - 'opening', 'efficiency', 'speed' vb.
-   * @param {any} value
-   */
   setComponentProp(componentId, prop, value) {
     const comp = this._store.components.find(c => c.id === componentId);
     if (!comp) return;
-
-    // Değeri doğrudan bileşen üzerinde güncelle
-    // (Böylece bir sonraki tick'te getParams() güncel veriyi çeker)
-    comp[prop] = value;
-
-    // Eğer override mekanizmasını kullanıyorsan oraya da işle
     if (typeof comp.override === 'function') {
       comp.override(prop, value, true);
     }
   }
 
-  /**
-   * Fluid'i güncelle (sıcaklık değişimi vb.)
-   * @param {{ rho, mu }} fluid
-   */
-  setFluid(fluid) {
-    this._fluid = fluid;
-  }
-
-  // ── Event bağlama ───────────────────────────────────────────────────────
+  setFluid(fluid) { this._fluid = fluid; }
 
   onTick(fn)        { this._onTick        = fn; return this; }
   onAlarm(fn)       { this._onAlarm       = fn; return this; }
   onStateChange(fn) { this._onStateChange = fn; return this; }
 
-  // ── Getter'lar ──────────────────────────────────────────────────────────
-
-  get sysState()        { return this._sysState; }
-  get pumpState()       { return this._pumpState; }
-  get elapsedTime()     { return this._t; }
-  get totalVolume_m3()  { return this._totalVolume_m3; }
-  get snapshots()       { return this._snapshots; }
-  get lastSnapshot()    { return this._snapshots[this._snapshots.length - 1] ?? null; }
+  get sysState()       { return this._sysState; }
+  get pumpState()      { return this._pumpState; }
+  get elapsedTime()    { return this._t; }
+  get totalVolume_m3() { return this._totalVolume_m3; }
+  get snapshots()      { return this._snapshots; }
+  get lastSnapshot()   { return this._snapshots[this._snapshots.length - 1] ?? null; }
 
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // TICK — Ana hesap döngüsü
-  // ═══════════════════════════════════════════════════════════════════════
+  // ── TICK ──────────────────────────────────────────────────────────────
 
   _tick() {
     this._t += PHYS_DT;
@@ -390,8 +508,8 @@ export class SimulationEngine {
     const components = this._store.components;
     if (!components.length) return;
 
-    // Pompa parametreleri (her zaman [0]. indeks)
-    const pumpParams = components[0].getParams();
+    const pumpComp   = components[0];
+    const pumpParams = { ...pumpComp.getParams(), fluid: this._fluid };
     const rampF      = rampFactor(this._t, RAMP_DURATION);
 
     // Pompa state güncelle
@@ -400,135 +518,78 @@ export class SimulationEngine {
       this._notifyStateChange();
     }
 
-    const Q_m3s  = pumpParams.Q_m3s * rampF;
-    const fluid  = this._fluid;
+    // ── Çalışma noktası bul ─────────────────────────────
+    const { Q_op, converged, iterations } = findOperatingPoint(
+      components, pumpParams, rampF, this._fluid, this._Q_operating
+    );
 
-    // ── Zincir hesabı ─────────────────────────────────────
-    const nodes = [];
-    let P_current   = 0;       // pompadan önce giriş basıncı (atmosfer = 0 gauge)
-    let D_current   = pumpParams.diameter_mm;
-    let isBlocked   = false;
-    let Q_effective = Q_m3s;
+    let Q_effective;
+    let convergenceFailed = false;
 
-    for (let i = 0; i < components.length; i++) {
-      const comp   = components[i];
-      const params = { ...comp.getParams(), fluid };
-      let result;
-
-      if (isBlocked) {
-        // Blok sonrası elemanlar dry
-        result = {
-          P_out:     P_current,
-          D_out_mm:  D_current,
-          dP_major:  0,
-          dP_minor:  0,
-          v:         0,
-          Re:        0,
-          nodeState: NodeState.DRY,
-        };
-      } else {
-        switch (comp.type) {
-          case 'pump':
-            result = calcPump(params, Q_effective, rampF);
-            break;
-          case 'pipe':
-            result = calcPipe(params, P_current, Q_effective, fluid);
-            break;
-          case 'elbow':
-            result = calcElbow(params, P_current, Q_effective, fluid);
-            break;
-          case 'transition':
-            result = calcTransition(params, P_current, Q_effective, fluid);
-            break;
-          case 'valve':
-            result = calcValve(params, P_current, Q_effective, fluid);
-            if (result.nodeState === NodeState.BLOCKED) {
-              isBlocked   = true;
-              Q_effective = 0;
-            }
-            break;
-          default:
-            result = {
-              P_out: P_current, D_out_mm: D_current,
-              dP_major: 0, dP_minor: 0, v: 0, Re: 0,
-              nodeState: NodeState.FLOWING,
-            };
-        }
-      }
-
-      nodes.push({
-        id:        comp.id,
-        type:      comp.type,
-        subtype:   comp.subtype,
-        name:      comp.name,
-        P_in:      P_current,
-        P_out:     result.P_out,
-        dP_major:  result.dP_major,
-        dP_minor:  result.dP_minor,
-        dP_total:  (result.dP_major ?? 0) + (result.dP_minor ?? 0),
-        v:         result.v,
-        Re:        result.Re,
-        f:         result.f,
-        K:         result.K,
-        opening:   result.opening,
-        nodeState: result.nodeState,
-      });
-
-      P_current  = result.P_out;
-      D_current  = result.D_out_mm;
+    if (converged) {
+      Q_effective          = Q_op;
+      this._Q_operating    = Q_op;   // sonraki tick için hatırla
+    } else {
+      // Yakınsama başarısız — son geçerli değeri koru
+      Q_effective       = this._Q_operating;
+      convergenceFailed = true;
     }
 
-    // ── Hacim güncelle ────────────────────────────────────
+    // ── Nihai zincir hesabı (görüntüleme için node detayları) ──
+    const { nodes, isBlocked } = evaluateSystem(
+      components, pumpParams, Q_effective, rampF, this._fluid
+    );
+
+    // ── Hacim güncelle ──────────────────────────────────
     this._totalVolume_m3 += Q_effective * PHYS_DT;
 
-    // ── Deadhead kontrolü ─────────────────────────────────
-    const alarms = this._checkAlarms(nodes, isBlocked, Q_effective);
+    // ── Alarmlar ────────────────────────────────────────
+    const alarms = this._checkAlarms(nodes, isBlocked, Q_effective, convergenceFailed);
 
-    // ── Snapshot üret ─────────────────────────────────────
+    // ── Snapshot ────────────────────────────────────────
     const snapshot = {
-      t:             this._t,
-      pumpState:     this._pumpState,
-      sysState:      this._sysState,
-      Q_m3s:         Q_effective,
-      rampFactor:    rampF,
+      t:              this._t,
+      pumpState:      this._pumpState,
+      sysState:       this._sysState,
+      Q_m3s:          Q_effective,
+      rampFactor:     rampF,
       nodes,
       totalVolume_m3: this._totalVolume_m3,
       alarms,
+      _debug: { converged, iterations },
     };
 
     this._snapshots.push(snapshot);
-
-    // Grafik için son N snapshot yeter — bellek yönetimi
     if (this._snapshots.length > 600) this._snapshots.shift();
 
-    // ── Callback'leri çağır ───────────────────────────────
-    if (this._onTick)  this._onTick(snapshot);
-
-
-
-
-
+    if (this._onTick) this._onTick(snapshot);
   }
 
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // ALARM SİSTEMİ
-  // ═══════════════════════════════════════════════════════════════════════
+  // ── ALARM SİSTEMİ ─────────────────────────────────────────────────────
 
-  _checkAlarms(nodes, isBlocked, Q_effective) {
+  _checkAlarms(nodes, isBlocked, Q_effective, convergenceFailed) {
     const alarms = [];
 
-    // 1. Deadhead — pompa çalışıyor, debi sıfır
-    if (this._pumpState !== PumpState.STOPPED && Q_effective <= 0) {
-      this._deadheadT += PHYS_DT;
+    // 1. Yakınsama başarısız
+    if (convergenceFailed) {
+      alarms.push({
+        code:    'CONVERGENCE_FAILURE',
+        level:   'warning',
+        message: 'Çalışma noktası hesaplanamadı — pipeline konfigürasyonunu kontrol et',
+        t:       this._t,
+      });
+    }
 
+    // 2. Deadhead
+    if (this._pumpState !== PumpState.STOPPED && Q_effective <= 1e-6) {
+      this._deadheadT += PHYS_DT;
       alarms.push({
         code:    'DEADHEAD',
         level:   this._deadheadT > DEADHEAD_WARN ? 'critical' : 'warning',
         message: `Pompa deadhead durumunda (${this._deadheadT.toFixed(1)}s)`,
         t:       this._t,
       });
-
       if (this._deadheadT > DEADHEAD_WARN) {
         this._pumpState = PumpState.OVERLOAD;
         this._setSysState(SysState.ALARM);
@@ -537,7 +598,7 @@ export class SimulationEngine {
       this._deadheadT = 0;
     }
 
-    // 2. Negatif basınç (kavitasyon riski)
+    // 3. Negatif basınç
     nodes.forEach(n => {
       if (n.P_out < 0) {
         alarms.push({
@@ -550,7 +611,7 @@ export class SimulationEngine {
       }
     });
 
-    // 3. Yüksek hız uyarısı (endüstri standardı: > 3 m/s)
+    // 4. Yüksek hız
     nodes.forEach(n => {
       if (n.type === 'pipe' && n.v > 3.0) {
         alarms.push({
@@ -565,12 +626,11 @@ export class SimulationEngine {
 
     this._alarms = alarms;
     if (alarms.length && this._onAlarm) this._onAlarm(alarms);
-
     return alarms;
   }
 
 
-  // ── Yardımcılar ─────────────────────────────────────────────────────────
+  // ── Yardımcılar ───────────────────────────────────────────────────────
 
   _setSysState(state) {
     if (this._sysState === state) return;

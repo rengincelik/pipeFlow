@@ -18,8 +18,11 @@ class SystemConfigClass extends EventEmitter {
       length_m:    5,
 
       // ── Pompa ───────────────────────────────
-      Q_m3s:       0.001,      // 1 L/s
-      head_m:      20,
+      // H-Q eğrisi 3 nokta: (0, H_shutoff), (Q_nom, H_nom), (Q_max, 0)
+      H_shutoff_m: 25,     // shutoff head (m) — sıfır debide
+      head_m:      20,     // nominal head (m)
+      Q_nom_lps:   1.0,    // nominal debi (L/s)
+      Q_max_lps:   2.0,    // max debi (L/s) — sıfır head
       efficiency:  0.70,
       pump_type:   'centrifugal',
 
@@ -30,6 +33,7 @@ class SystemConfigClass extends EventEmitter {
       K:           0.9,
 
       // ── Transition ──────────────────────────
+
     };
     this._values = { ...this._defaults };
   }
