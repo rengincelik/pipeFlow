@@ -53,6 +53,7 @@ export const CATALOG_DEF = [
     group: 'Valves',
     items: [
       { type:'valve', subtype:'gate', icon:'⦿', desc:'Gate / K=0.20' },
+      { type:'valve', subtype:'prv', icon:'⊕', desc:'Pressure Reducing Valve' },
     ],
   },
   {

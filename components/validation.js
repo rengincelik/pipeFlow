@@ -194,14 +194,17 @@ export function validateParams(params) {
     case 'valve': {
       safe.diameter_mm = sanitizeField('diameter_mm', params.diameter_mm,
         FALLBACKS.diameter_mm, warnings, compLabel);
-      safe.opening     = sanitizeField('opening',     params.opening,
-        FALLBACKS.opening,     warnings, compLabel);
+
+      // PRV'nin opening kavramı yok — sadece normal vanalar için kontrol et
+      if (params.subtype !== 'prv') {
+        safe.opening = sanitizeField('opening', params.opening,
+          FALLBACKS.opening, warnings, compLabel);
+      }
 
       if (params.subtype === 'prv') {
         safe.P_set_Pa = sanitizeField('P_set_Pa', params.P_set_Pa,
           FALLBACKS.P_set_Pa, warnings, compLabel);
       }
-      // K_table opsiyonel — null bırakılabilir
       break;
     }
 

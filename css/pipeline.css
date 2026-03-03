@@ -116,3 +116,30 @@
 .valve-toggle.closed { background: var(--red-lo);             border-color: rgba(231,76,60,0.25);  color: var(--red); }
 .valve-toggle.closed:hover { background: rgba(231,76,60,0.16); }
 
+
+
+  .prv-stem {
+    stroke: var(--clr-comp, #4a9eff);
+    stroke-width: 1.5;
+  }
+
+  .prv-status-circle {
+    fill: var(--clr-muted, #666);
+    stroke: var(--clr-comp, #4a9eff);
+    stroke-width: 1.5;
+    transition: fill 0.15s ease;
+  }
+
+  .prv-port-line {
+    stroke: var(--clr-comp, #4a9eff);
+    stroke-width: 2;
+    stroke-linecap: round;
+    opacity: 0.7;
+  }
+
+  /* PRV aktifken port çizgileri de kırmızıya döner */
+  .prv-active .prv-port-line {
+    stroke: var(--clr-alarm, #e74c3c);
+    opacity: 1;
+  }
+

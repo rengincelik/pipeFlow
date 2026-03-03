@@ -12,14 +12,17 @@ import { CATALOG_DEF }                from './data/catalogs.js';
 import { fluidRegistry }              from './data/fluid-model.js';
 import { SimulationEngine, SysState } from './Simulation/SimulationEngine.js';
 import { Units }                      from './data/unit-system.js';
+import { deserializeComponent } from './components/base.js'; 
 
 import './components/pipe.js';
 import './components/transition.js';
 import './components/elbow.js';
 import './components/valve.js';
 import './components/pump.js';
+import './components/prv.js'
 
 // --- 1. GLOBAL STATE & INSTANCES ---
+
 const DOM = {
   canvasScroll: document.getElementById('canvas-scroll'),
   colLeft:      document.getElementById('col-left'),
@@ -44,7 +47,14 @@ const DOM = {
   hudLabel:     document.getElementById('hud-btn-label'),
   hudTime:      document.getElementById('hud-time'),
   hudVol:       document.getElementById('hud-vol'),
+  btnNew:   document.getElementById('btn-new'),
+  btnSave:  document.getElementById('btn-save'),
+  btnLoad:  document.getElementById('btn-load'),
+
 };
+
+
+const STORAGE_KEY = 'pf-pipeline-v2';
 
 const renderer = new SVGRenderer(DOM.svgCanvas);
 const chart    = new ChartRenderer(DOM.chartCanvas);
@@ -107,6 +117,7 @@ const Actions = {
     UI.renderProps();
   },
 
+
   zoomToFit() {
     const bbox = DOM.svgCanvas.getBBox();
     if (!bbox.width || !bbox.height) return;
@@ -114,6 +125,82 @@ const Actions = {
     DOM.svgCanvas.setAttribute('viewBox',
       `${bbox.x - pad} ${bbox.y - pad} ${bbox.width + pad * 2} ${bbox.height + pad * 2}`);
   },
+
+  saveProject(silent = false) {
+    try {
+      const data = pipelineStore.serialize();
+      localStorage.setItem(STORAGE_KEY , JSON.stringify(data));
+      if (!silent) UI.showBlockToast('✓ Saved');
+    } catch (e) {
+      UI.showBlockToast('Save failed: ' + e.message);
+    }
+  },
+
+  loadProject() {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      UI.showBlockToast('No saved project found');
+      return;
+    }
+
+    try {
+      const data = JSON.parse(raw);
+
+      // Simülasyon çalışıyorsa durdur
+      if (engine.sysState !== SysState.IDLE) {
+        engine.stop();
+        animator.stop();
+        UI.updateControlPanel(false);
+      }
+
+      pipelineStore.deserialize(data, (type, subtype) =>
+        createComponent(type, subtype)
+      );
+
+      // Fluid & temp ayarlarını UI'a yansıt
+      _fluidId = SystemConfig.get('fluid_id') ?? 'water';
+      _tempC   = SystemConfig.get('T_in_C')   ?? 20;
+      DOM.selectFluid.value     = _fluidId;
+      DOM.tempSlider.value      = _tempC;
+      DOM.tempLabel.textContent = `${_tempC}°C`;
+      Actions.updateFluid();
+
+      UI.refreshCanvas();
+      UI.renderProps();
+      tooltip.rebind(DOM.svgCanvas);
+      UI.showBlockToast('✓ Loaded');
+
+    } catch (e) {
+      UI.showBlockToast('Load failed: ' + e.message);
+      console.error('[Load] Parse/deserialize hatası:', e);
+    }
+  },
+
+  newProject() {
+    if (engine.sysState !== SysState.IDLE) {
+      engine.stop();
+      animator.stop();
+      UI.updateControlPanel(false);
+    }
+
+    // Mevcut pipeline'ı temizle ve initial state'e dön
+    pipelineStore.clear();
+    SystemConfig.reset();
+
+    _fluidId = SystemConfig.get('fluid_id') ?? 'water';
+    _tempC   = SystemConfig.get('T_in_C')   ?? 20;
+    DOM.selectFluid.value     = _fluidId;
+    DOM.tempSlider.value      = _tempC;
+    DOM.tempLabel.textContent = `${_tempC}°C`;
+
+    setupInitialState();
+    Actions.updateFluid();
+
+    UI.refreshCanvas();
+    UI.renderProps();
+    tooltip.rebind(DOM.svgCanvas);
+  },
+
 };
 
 // --- 3. UI RENDERERS ---
@@ -212,6 +299,48 @@ const UI = {
         ? `${Math.round(pumpNode.P_shaft)} W`
         : '—';
     });
+    const prvNode = snapshot.nodes.find(n => n.subtype === 'prv');
+    DOM.propBody.querySelectorAll('[data-live="prv_status"]').forEach(el => {
+      if (!prvNode) return;
+      el.textContent  = prvNode.prvState === 'active' ? '⚡ ACTIVE' : '✓ INACTIVE';
+      el.style.color  = prvNode.prvState === 'active' ? 'var(--alarm-color, #e74c3c)' : '';
+    });
+
+
+    snapshot.nodes
+      .filter(n => n.subtype === 'prv')
+      .forEach(n => {
+        const isActive = n.prvState === 'active';
+        const ratio    = (isFinite(n.P_in) && n.P_set_Pa > 0)
+          ? Math.min(1, n.P_in / n.P_set_Pa)
+          : 0;
+
+        // Daire rengi: yeşil → sarı → kırmızı
+        let fill;
+        if (!isFinite(n.P_in)) {
+          fill = 'var(--clr-muted, #666)';        // simülasyon yok
+        } else if (ratio < 0.8) {
+          fill = 'var(--clr-ok, #2ecc71)';         // normal
+        } else if (ratio < 1.0) {
+          fill = 'var(--clr-warn, #f39c12)';        // yaklaşıyor
+        } else {
+          fill = 'var(--clr-alarm, #e74c3c)';       // aşıldı
+        }
+
+        const circleEl = DOM.svgCanvas.querySelector(`[data-prv-circle="${n.id}"]`);
+        if (circleEl) circleEl.setAttribute('fill', fill);
+
+        // Prop panel
+        DOM.propBody.querySelectorAll('[data-live="prv_status"]').forEach(el => {
+          el.textContent = isActive ? '⚡ ACTIVE' : '✓ INACTIVE';
+          el.style.color = isActive ? 'var(--clr-alarm, #e74c3c)' : '';
+        });
+
+        DOM.propBody.querySelectorAll('[data-live="prv_p_in"]').forEach(el => {
+          el.textContent = isFinite(n.P_in) ? Units.pressure(n.P_in / 1e5) : '—';
+        });
+      });
+
   },
 
   updateControlPanel(isRunning) {
@@ -253,6 +382,10 @@ function bindEvents() {
     setupInitialState();
     UI.refreshCanvas();
   };
+  DOM.btnNew.onclick  = Actions.newProject;
+  DOM.btnSave.onclick = Actions.saveProject;
+  DOM.btnLoad.onclick = Actions.loadProject;
+
   DOM.hudStartBtn.onclick = Actions.toggleSimulation;
 
   // Fluid & Temp
@@ -302,6 +435,10 @@ function bindEvents() {
     UI.refreshCanvas();
     tooltip.rebind(DOM.svgCanvas);
     if (engine.sysState === SysState.RUNNING) animator.reset();
+    // Otomatik kayıt — simülasyon çalışmıyorken
+    if (engine.sysState === SysState.IDLE) {
+      Actions.saveProject();   // sessizce kaydeder, toast göstermez
+    }
   });
 
   pipelineStore.on('selection:change', () => {
@@ -355,7 +492,6 @@ function setupInitialState() {
     }), 0);
   }
 }
-
 // --- INTERACTIONS ---
 const Interactions = {
   dropIdx: null,
@@ -443,7 +579,14 @@ const CatalogManager = {
   }
   CatalogManager.render();
   bindEvents();
-  setupInitialState();
-  Actions.updateFluid();
+
+  // Kayıt varsa yükle, yoksa fresh başlat
+  if (localStorage.getItem('pf-pipeline-v2')) {
+    Actions.loadProject();
+  } else {
+    setupInitialState();
+    Actions.updateFluid();
+  }
+
   tooltip.rebind(DOM.svgCanvas);
 })();

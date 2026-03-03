@@ -33,6 +33,7 @@ export const PumpState = Object.freeze({
   OVERLOAD: 'overload',
 });
 
+
 // ── Eleman State ───────────────────────────────────────────────────────────
 export const NodeState = Object.freeze({
   DRY:     'dry',
@@ -40,7 +41,6 @@ export const NodeState = Object.freeze({
   FLOWING: 'flowing',
   BLOCKED: 'blocked',
 });
-
 
 // ── YARDIMCI FONKSİYONLAR ─────────────────────────────────────────────────
 
@@ -95,7 +95,7 @@ function valveK(subtype, opening, K_table) {
       }
     }
   }
-  const fallback = { gate: 0.1, globe: 10, butterfly: 0.3, ball: 0.05 };
+  const fallback = { gate: 0.2, globe: 10, butterfly: 0.3, ball: 0.05 };
   const baseK = fallback[subtype] ?? 1.0;
   return baseK * Math.pow(10, 2 * (1 - opening));
 }
@@ -258,6 +258,36 @@ function calcValve(params, P_in, Q_m3s, fluid) {
     nodeState: blocked ? NodeState.BLOCKED : NodeState.FLOWING,
   };
 }
+function calcPRV(params, P_in, Q_m3s, fluid) {
+  const D     = params.diameter_mm;
+  const v     = velocity(Q_m3s, D);
+  const Re    = reynolds(v, D, fluid.rho, fluid.mu);
+  const P_set = params.P_set_Pa;
+
+  let P_out;
+  let prvState;   // 'active' | 'inactive'
+
+  if (P_in > P_set) {
+    // PRV devrede — çıkışı P_set'e sabitle
+    P_out    = P_set;
+    prvState = 'active';
+  } else {
+    // PRV etkisiz — geçirgen
+    P_out    = P_in;
+    prvState = 'inactive';
+  }
+
+  return {
+    P_out,
+    D_out_mm:  D,
+    dP_major:  0,
+    dP_minor:  Math.max(0, P_in - P_out),   // düşürülen basınç kayıp olarak raporlanır
+    v,
+    Re,
+    prvState,
+    nodeState: NodeState.FLOWING,
+  };
+}
 
 
 // ── ÇALIŞMA NOKTASI HESABI ────────────────────────────────────────────────
@@ -304,9 +334,13 @@ function evaluateSystem(components, pumpParams, Q_m3s, rampF, fluid) {
           result = calcTransition(params, P_current, Q_m3s, fluid);
           break;
         case 'valve':
-          result = calcValve(params, P_current, Q_m3s, fluid);
-          if (result.nodeState === NodeState.BLOCKED) {
-            isBlocked = true;
+          if (params.subtype === 'prv') {
+            result = calcPRV(params, P_current, Q_m3s, fluid);
+          } else {
+            result = calcValve(params, P_current, Q_m3s, fluid);
+            if (result.nodeState === NodeState.BLOCKED) {
+              isBlocked = true;
+            }
           }
           break;
         default:
@@ -335,7 +369,9 @@ function evaluateSystem(components, pumpParams, Q_m3s, rampF, fluid) {
       opening:   result.opening,
       H_actual:  result.H_actual,
       P_shaft:   result.P_shaft,
+      prvState:  result.prvState,
       nodeState: result.nodeState,
+      P_set_Pa: comp.type === 'valve' && comp.subtype === 'prv' ? params.P_set_Pa : undefined,
     });
 
     P_current = result.P_out;
@@ -663,6 +699,20 @@ export class SimulationEngine {
         });
       }
     });
+
+    // 5. PRV aktif — basınç sınırı aşıldı
+    nodes.forEach(n => {
+      if (n.subtype === 'prv' && n.prvState === 'active') {
+        alarms.push({
+          code:    'PRV_ACTIVE',
+          level:   'info',
+          message: `${n.name || 'PRV'} devrede — giriş basıncı set değerini aşıyor`,
+          nodeId:  n.id,
+          t:       this._t,
+        });
+      }
+    });
+
 
     this._alarms = alarms;
     if (alarms.length && this._onAlarm) this._onAlarm(alarms);
