@@ -12,7 +12,7 @@ import { CATALOG_DEF }                from './data/catalogs.js';
 import { fluidRegistry }              from './data/fluid-model.js';
 import { SimulationEngine, SysState } from './Simulation/SimulationEngine.js';
 import { Units }                      from './data/unit-system.js';
-import { deserializeComponent } from './components/base.js'; 
+import { deserializeComponent } from './components/base.js';
 
 import './components/pipe.js';
 import './components/transition.js';
@@ -347,6 +347,8 @@ const UI = {
     DOM.hudIcon.textContent  = isRunning ? '⏹' : '▶';
     DOM.hudLabel.textContent = isRunning ? 'STOP' : 'START';
     DOM.hudStartBtn.classList.toggle('running', isRunning);
+    if (!isRunning) DOM.hudStartBtn.classList.remove('alarm', 'shake');
+    
   },
 
   showBlockToast(msg) {
@@ -472,6 +474,23 @@ function bindEvents() {
     UI.updateHUD(snap);
   });
 
+  engine.onAlarm((alarms) => {
+    // Sadece warning ve critical seviyeleri göster, info'yu atla
+    const significant = alarms.filter(a => a.level !== 'info');
+    if (!significant.length) return;
+
+    // HUD butonu kırmızıya döner
+    DOM.hudStartBtn.classList.add('alarm');
+
+    // Shake animasyonu — CSS'te tanımlı olacak
+    DOM.hudStartBtn.classList.remove('shake');
+    void DOM.hudStartBtn.offsetWidth; // reflow — animasyonu sıfırla
+    DOM.hudStartBtn.classList.add('shake');
+
+    // En kritik alarmı toast'ta göster
+    const top = significant.find(a => a.level === 'critical') ?? significant[0];
+    UI.showBlockToast(`⚠ ${top.message}`);
+  });
   renderer.onCompClick = (id) => pipelineStore.select(id);
 }
 
