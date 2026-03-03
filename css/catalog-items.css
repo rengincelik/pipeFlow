@@ -26,28 +26,148 @@
 .cat-chip-label::after {
   margin-left: -0.5em;
 }
-.cat-chips {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-evenly;
-  padding: 10px;
 
-}
-.cat-chip {
-  font-size: var(--text-base);
-  padding: 5px;
-  border: 1px solid var(--blue);
-  border-radius: var(--r-sm);
-  cursor: grab;
-  color: var(--text);
-  user-select: none;
-  line-height: 1;
-  box-shadow: 0 0 8px var(--blue); /* dış glow */
-}
-.cat-chip:hover  {
-  border-color: var(--accent);
-  color: var(--accent);
-}
+
+
+
 .cat-chip:active {
   cursor: grabbing;
 }
+/* ── Cat Chip Güncellemesi ─────────────────────────── */
+
+
+.cat-chip-desc {
+  display: none; /* chip içindeki açıklama gizli — sadece title tooltip */
+}
+
+
+
+
+
+
+
+
+ /* ── Catalog chip'leri ───────────────────────────────── */
+/* ── Chip grup layout ────────────────────────────────── */
+.cat-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 6px;
+}
+.cat-chip-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Chip satırı ─────────────────────────────────────── */
+.cat-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.12s, border-color 0.12s;
+  user-select: none;
+}
+
+.cat-chip-icon {
+  font-size: 13px;
+  min-width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.cat-chip-name {
+  font-size: 11px;
+  color: var(--text-mid);
+  flex: 1;
+}
+
+.cat-chip-arrow {
+  font-size: 9px;
+  color: var(--text-mid);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.cat-chip-arrow.rotated {
+  transform: rotate(-180deg);
+}
+
+.cat-chip:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.cat-chip:hover .cat-chip-name,
+.cat-chip:hover .cat-chip-arrow {
+  color: var(--accent);
+}
+
+.cat-chip.focused {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.cat-chip.focused .cat-chip-name,
+.cat-chip.focused .cat-chip-arrow {
+  color: var(--accent);
+}
+
+/* ── Expand alanı ────────────────────────────────────── */
+.cat-chip-expand {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease;
+}
+
+ 
+.cat-expand-body {
+  padding: 8px 8px 4px 8px;
+  border-left: 2px solid var(--accent);
+  margin: 2px 0 4px 8px;
+}
+
+/* Expand içindeki prop-row'lar — mevcut prop panel CSS'i kullanılır */
+.cat-expand-body .prop-row {
+  padding: 2px 0;
+  font-size: 11px;
+}
+
+.cat-expand-empty {
+  font-size: 11px;
+  color: var(--text-mid);
+  padding: 4px 0;
+  font-style: italic;
+}
+
+.cat-expand-add {
+  width: calc(100% - 16px);
+  margin: 0 8px 8px 8px;
+  padding: 6px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.cat-expand-add:hover { opacity: 0.82; }
+
+
+/* chip grup içi layout düzeltmesi — chip'ler artık liste gibi */
+.cat-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 4px;
+}
+
+/* ── Pre-config Popup ────────────────────────────────── */
+/* panel-catalog'a position: relative gerekli */
+
+

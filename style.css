@@ -258,7 +258,7 @@ html[data-theme="light"] .theme-toggle .slider {
   flex: 1 1 50%;
   overflow: hidden;
   margin: 10px;
-  align-items: center;
+  align-items: stretch;
 
 }
 #panel-props   {

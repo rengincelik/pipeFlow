@@ -348,7 +348,7 @@ const UI = {
     DOM.hudLabel.textContent = isRunning ? 'STOP' : 'START';
     DOM.hudStartBtn.classList.toggle('running', isRunning);
     if (!isRunning) DOM.hudStartBtn.classList.remove('alarm', 'shake');
-    
+
   },
 
   showBlockToast(msg) {
@@ -491,7 +491,169 @@ function bindEvents() {
     const top = significant.find(a => a.level === 'critical') ?? significant[0];
     UI.showBlockToast(`⚠ ${top.message}`);
   });
+
+  document.addEventListener('keydown', (e) => {
+    const active  = document.activeElement;
+    const inExpand = active?.closest('.cat-chip-expand');
+
+    // ── EXPAND MODE — accordion içinde bir input/select odaklanmış ──
+    if (inExpand) {
+      const focusables = Array.from(
+        inExpand.querySelectorAll('input:not([disabled]), select:not([disabled])')
+      );
+      const currentIdx = focusables.indexOf(active);
+
+      switch (e.key) {
+
+        case 'ArrowDown':
+        case 'Tab': {
+          if (e.key === 'Tab' && e.shiftKey) break; // Shift+Tab — browser default
+          e.preventDefault();
+          const next = focusables[currentIdx + 1];
+          if (next) next.focus();
+          break;
+        }
+
+        case 'ArrowUp': {
+          e.preventDefault();
+          const prev = focusables[currentIdx - 1];
+          if (prev) prev.focus();
+          break;
+        }
+
+        case 'ArrowRight':
+        case 'ArrowLeft': {
+          if (!active) break;
+
+          if (active.tagName === 'SELECT') {
+            // Select — önceki/sonraki option
+            e.preventDefault();
+            const opts = Array.from(active.options);
+            const idx  = active.selectedIndex;
+            if (e.key === 'ArrowRight' && idx < opts.length - 1) active.selectedIndex = idx + 1;
+            if (e.key === 'ArrowLeft'  && idx > 0)               active.selectedIndex = idx - 1;
+            active.dispatchEvent(new Event('change', { bubbles: true }));
+
+          } else if (active.type === 'number' || active.type === 'range') {
+            // Number/range — CONSTRAINTS'ten step oku
+            e.preventDefault();
+            const prop = active.dataset.prop;
+            const gi   = CatalogManager._focusedGi;
+            const ii   = CatalogManager._focusedIi;
+            const template = CatalogManager._getTemplate(gi, ii);
+
+            // Geçici comp üzerinden constraint oku
+            let step = parseFloat(active.step) || 1;
+            if (prop && template) {
+              try {
+                const comp       = createComponent(template.type, template.subtype);
+                const constraint = comp.getConstraint(prop);
+                if (constraint?.step) step = constraint.step;
+              } catch (_) {}
+            }
+
+            const min  = active.min !== '' ? parseFloat(active.min) : -Infinity;
+            const max  = active.max !== '' ? parseFloat(active.max) :  Infinity;
+            const cur  = parseFloat(active.value) || 0;
+            const dir  = e.key === 'ArrowRight' ? 1 : -1;
+            const next = Math.min(max, Math.max(min, +(cur + dir * step).toFixed(10)));
+
+            active.value = next;
+            active.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+          break;
+        }
+
+        case 'Enter': {
+          e.preventDefault();
+          // Add butonunu tetikle
+          const addBtn = inExpand.querySelector('.cat-expand-add');
+          addBtn?.click();
+          break;
+        }
+
+        case 'Escape': {
+          e.preventDefault();
+          const [gi, ii] = CatalogManager._expandedKey?.split(':').map(Number) ?? [];
+          if (gi != null) {
+            CatalogManager._closeExpand(gi, ii);
+            CatalogManager._expandedKey = null;
+          }
+          break;
+        }
+      }
+      return; // expand mode — diğer case'lere düşme
+    }
+
+    // ── CATALOG MODE — normal input'larda (prop panel vs) klavyeyi pas geç ──
+    if (['INPUT', 'SELECT', 'TEXTAREA'].includes(active?.tagName)) return;
+
+    // ── CATALOG MODE ──────────────────────────────────────────────────────────
+    switch (e.key) {
+
+      case 'ArrowUp':
+        e.preventDefault();
+        CatalogManager.navigateUp();
+        break;
+
+      case 'ArrowDown':
+        e.preventDefault();
+        CatalogManager.navigateDown();
+        break;
+
+      case 'Enter':
+        e.preventDefault();
+        CatalogManager._toggleExpand(CatalogManager._focusedGi, CatalogManager._focusedIi);
+        break;
+
+      case ' ':
+        e.preventDefault();
+        CatalogManager.addDirect();
+        break;
+
+      case 'ArrowLeft': {
+        e.preventDefault();
+        const comps  = pipelineStore.components;
+        if (!comps.length) break;
+        const curIdx = comps.findIndex(c => c.id === pipelineStore.selectedId);
+        const newIdx = curIdx <= 0 ? comps.length - 1 : curIdx - 1;
+        pipelineStore.select(comps[newIdx].id);
+        break;
+      }
+
+      case 'ArrowRight': {
+        e.preventDefault();
+        const comps  = pipelineStore.components;
+        if (!comps.length) break;
+        const curIdx = comps.findIndex(c => c.id === pipelineStore.selectedId);
+        const newIdx = (curIdx === -1 || curIdx === comps.length - 1) ? 0 : curIdx + 1;
+        pipelineStore.select(comps[newIdx].id);
+        break;
+      }
+
+      case 'Delete':
+      case 'Backspace':
+        if (pipelineStore.selectedComp?.type !== 'pump') {
+          Actions.deleteComponent();
+        }
+        break;
+
+      case 'Escape':
+        if (CatalogManager._expandedKey) {
+          const [gi, ii] = CatalogManager._expandedKey.split(':').map(Number);
+          CatalogManager._closeExpand(gi, ii);
+          CatalogManager._expandedKey = null;
+        } else {
+          pipelineStore.select(null);
+        }
+        break;
+    }
+  });
+
+
   renderer.onCompClick = (id) => pipelineStore.select(id);
+
+
 }
 
 // --- 5. INITIALIZATION ---
@@ -542,51 +704,257 @@ const Interactions = {
 
 // --- CATALOG MANAGER ---
 const CatalogManager = {
+  _focusedGi:   0,
+  _focusedIi:   0,
+  _expandedKey: null,   // "gi:ii" — şu an açık chip
+  _lastConfig:  {},     // "type:subtype" → override map
+
+  _flatItems() {
+    return CATALOG_DEF.flatMap((grp, gi) =>
+      grp.items
+        .filter(it => it.type !== 'pump')
+        .map((it, ii) => ({ gi, ii, item: it }))
+    );
+  },
+
+  _focusedFlatIdx() {
+    const flat = this._flatItems();
+    return flat.findIndex(f => f.gi === this._focusedGi && f.ii === this._focusedIi);
+  },
+
   render() {
     DOM.catBody.innerHTML = CATALOG_DEF.map((grp, gi) => {
       const validItems = grp.items.filter(it => it.type !== 'pump');
       if (!validItems.length) return '';
-
       return `
         <div class="cat-chip-group">
           <div class="cat-chip-label">${grp.group}</div>
           <div class="cat-chips">
             ${validItems.map((it, ii) => `
-              <div class="cat-chip" draggable="true" data-gi="${gi}" data-ii="${ii}">
-                ${it.icon}
+              <div class="cat-chip-wrap" data-gi="${gi}" data-ii="${ii}">
+                <div class="cat-chip" draggable="true" data-gi="${gi}" data-ii="${ii}">
+                  <span class="cat-chip-icon">${it.icon}</span>
+                  <span class="cat-chip-name">${it.desc ?? it.subtype}</span>
+                  <span class="cat-chip-arrow">▾</span>
+                </div>
+                <div class="cat-chip-expand" id="expand-${gi}-${ii}"></div>
               </div>`).join('')}
           </div>
         </div>`;
     }).join('');
 
-    this.bindCatalogEvents();
+    this._updateFocusHighlight();
+    this._bindCatalogEvents();
   },
 
-  bindCatalogEvents() {
+  _bindCatalogEvents() {
     DOM.catBody.querySelectorAll('.cat-chip').forEach(el => {
+      const gi = parseInt(el.dataset.gi);
+      const ii = parseInt(el.dataset.ii);
+
       el.ondragstart = (e) => {
-        const gi       = parseInt(el.dataset.gi);
-        const ii       = parseInt(el.dataset.ii);
-        const template = CATALOG_DEF[gi].items[ii];
+        const template = this._getTemplate(gi, ii);
         e.dataTransfer.setData('text/plain', JSON.stringify(template));
+      };
+
+      el.onclick = () => {
+        this._focusedGi = gi;
+        this._focusedIi = ii;
+        this._updateFocusHighlight();
+        this._toggleExpand(gi, ii);
+      };
+
+      el.onmouseenter = () => {
+        this._focusedGi = gi;
+        this._focusedIi = ii;
+        this._updateFocusHighlight();
       };
     });
   },
 
-  makeComp(template) {
-    const comp  = createComponent(template.type, template.subtype);
-    comp.name   = template.name ?? comp.name;
+  _getTemplate(gi, ii) {
+    return CATALOG_DEF[gi].items.filter(it => it.type !== 'pump')[ii];
+  },
 
+  _getFocusedTemplate() {
+    return this._getTemplate(this._focusedGi, this._focusedIi);
+  },
+
+  _updateFocusHighlight() {
+    DOM.catBody.querySelectorAll('.cat-chip').forEach(el => {
+      const gi = parseInt(el.dataset.gi);
+      const ii = parseInt(el.dataset.ii);
+      el.classList.toggle('focused', gi === this._focusedGi && ii === this._focusedIi);
+    });
+  },
+
+  // ── Accordion ─────────────────────────────────────────
+  _toggleExpand(gi, ii) {
+    const key = `${gi}:${ii}`;
+
+    // Aynı chip — kapat
+    if (this._expandedKey === key) {
+      this._closeExpand(gi, ii);
+      this._expandedKey = null;
+      return;
+    }
+
+    // Başka chip açıksa kapat
+    if (this._expandedKey) {
+      const [oldGi, oldIi] = this._expandedKey.split(':').map(Number);
+      this._closeExpand(oldGi, oldIi);
+    }
+
+    this._expandedKey = key;
+    this._openExpand(gi, ii);
+  },
+
+  _openExpand(gi, ii) {
+    const template = this._getTemplate(gi, ii);
+    const expandEl = document.getElementById(`expand-${gi}-${ii}`);
+    if (!expandEl) return;
+
+    // Geçici comp — prop render için
+    const comp = this.makeComp(template);
+    const key  = `${template.type}:${template.subtype}`;
+    const saved = this._lastConfig[key];
+    if (saved) Object.entries(saved).forEach(([k, v]) => comp.override(k, v, true));
+
+    // Sadece data-prop'lu satırları al
+    const tmp = document.createElement('div');
+    tmp.innerHTML = comp.renderPropsHTML();
+    tmp.querySelectorAll('.prop-row').forEach(row => {
+      if (!row.querySelector('[data-prop]')) row.remove();
+    });
+    const filteredHTML = tmp.innerHTML;
+
+    expandEl.innerHTML = `
+      <div class="cat-expand-body">
+        ${filteredHTML || '<div class="cat-expand-empty">No configurable parameters</div>'}
+      </div>
+      <button class="cat-expand-add" data-gi="${gi}" data-ii="${ii}">＋ Add</button>`;
+
+    // Yüksekliği ölç ve animate et
+    expandEl.style.maxHeight = expandEl.scrollHeight + 200 + 'px';
+    expandEl.classList.add('open');
+    // Accordion açılınca ilk input'a focus git
+    requestAnimationFrame(() => {
+      const first = expandEl.querySelector('input, select');
+      if (first) first.focus();
+    });
+
+    // Arrow döndür
+    const chip = DOM.catBody.querySelector(`.cat-chip[data-gi="${gi}"][data-ii="${ii}"]`);
+    chip?.querySelector('.cat-chip-arrow')?.classList.add('rotated');
+
+    // Input bind
+    this._bindExpandInputs(comp, expandEl);
+
+    // Add butonu
+    expandEl.querySelector('.cat-expand-add').onclick = () => {
+      // Add anında çap sürekliliğini tazele
+      const last = pipelineStore.components.at(-1);
+      if (last && !comp.hasUserOverride('diameter_mm')) {
+        comp.override('diameter_mm', last.outDiameter_mm);
+      }
+
+      this._lastConfig[key] = { ...comp._overrides };
+      pipelineStore.insert(comp, pipelineStore.components.length);
+      this._closeExpand(gi, ii);
+      this._expandedKey = null;
+    };
+  },
+
+  _closeExpand(gi, ii) {
+    const expandEl = document.getElementById(`expand-${gi}-${ii}`);
+    if (!expandEl) return;
+    expandEl.style.maxHeight = '0';
+    expandEl.classList.remove('open');
+    // Focus katalog chip'ine iade et
+    const chip = DOM.catBody.querySelector(`.cat-chip[data-gi="${gi}"][data-ii="${ii}"]`);
+    chip?.focus();
+
+    chip = DOM.catBody.querySelector(`.cat-chip[data-gi="${gi}"][data-ii="${ii}"]`);
+    chip?.querySelector('.cat-chip-arrow')?.classList.remove('rotated');
+  },
+
+  _bindExpandInputs(comp, container) {
+    container.querySelectorAll('[data-prop]').forEach(el => {
+      const eventName = el.tagName === 'SELECT' ? 'onchange' : 'oninput';
+      el[eventName] = () => {
+        const prop = el.dataset.prop;
+        const raw  = el.value;
+
+        if (el.type === 'range') {
+          const lbl = el.nextElementSibling;
+          if (lbl) lbl.textContent = raw + '%';
+        }
+
+        if (prop === 'transition_pair') {
+          const [d_in, d_out] = raw.split('|').map(Number);
+          comp.override('d_in_mm',  d_in,  true);
+          comp.override('d_out_mm', d_out, true);
+        } else if (prop === 'efficiency') {
+          comp.override('efficiency', parseInt(raw) / 100, true);
+        } else if (prop === 'opening_pct') {
+          comp.opening_pct = parseInt(raw);
+          comp.open = parseInt(raw) > 0;
+          comp.override('opening_pct', parseInt(raw), true);
+        } else {
+          const num = parseFloat(raw);
+          comp.override(prop, isNaN(num) ? raw : num, true);
+        }
+      };
+    });
+  },
+
+  // ── Klavye navigasyonu ─────────────────────────────────
+  navigateUp() {
+    const flat = this._flatItems();
+    if (!flat.length) return;
+    let idx = this._focusedFlatIdx();
+    idx = (idx - 1 + flat.length) % flat.length;
+    this._focusedGi = flat[idx].gi;
+    this._focusedIi = flat[idx].ii;
+    this._updateFocusHighlight();
+    DOM.catBody.querySelector('.cat-chip.focused')
+      ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  },
+
+  navigateDown() {
+    const flat = this._flatItems();
+    if (!flat.length) return;
+    let idx = this._focusedFlatIdx();
+    idx = (idx + 1) % flat.length;
+    this._focusedGi = flat[idx].gi;
+    this._focusedIi = flat[idx].ii;
+    this._updateFocusHighlight();
+    DOM.catBody.querySelector('.cat-chip.focused')
+      ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  },
+
+  // Space — popup açmadan son config ile direkt ekle
+  addDirect() {
+    const template = this._getFocusedTemplate();
+    if (!template) return;
+    const comp = this.makeComp(template);
+    const key  = `${template.type}:${template.subtype}`;
+    const saved = this._lastConfig[key];
+    if (saved) Object.entries(saved).forEach(([k, v]) => comp.override(k, v, true));
+    pipelineStore.insert(comp, pipelineStore.components.length);
+    UI.showBlockToast(`✓ ${template.desc ?? template.subtype} added`);
+  },
+
+  makeComp(template) {
+    const comp = createComponent(template.type, template.subtype);
+    comp.name  = template.name ?? comp.name;
     if (template.defaultOverrides) {
       Object.entries(template.defaultOverrides).forEach(([k, v]) => comp.override(k, v));
     }
-
-    // Çap sürekliliği
     const last = pipelineStore.components.at(-1);
-    if (last && comp.type !== 'pipe' && !comp.hasOverride('diameter_mm')) {
+    if (last && !comp.hasOverride('diameter_mm')) {
       comp.override('diameter_mm', last.outDiameter_mm);
     }
-
     return comp;
   },
 };
