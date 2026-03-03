@@ -8,20 +8,20 @@ import { ChartRenderer }              from './renderer/chart-renderer.js';
 import { FlowAnimator }               from './renderer/flow-animator.js';
 import { TooltipManager }             from './renderer/tooltip-manager.js';
 import { createComponent }            from './components/base.js';
-import { CATALOG_DEF }                from './data/catalogs.js';
 import { fluidRegistry }              from './data/fluid-model.js';
 import { SimulationEngine, SysState } from './Simulation/SimulationEngine.js';
 import { Units }                      from './data/unit-system.js';
-import { deserializeComponent } from './components/base.js';
+import { deserializeComponent }       from './components/base.js';
+import { createCatalogManager }       from './catalog-manager.js';
 
 import './components/pipe.js';
 import './components/transition.js';
 import './components/elbow.js';
 import './components/valve.js';
 import './components/pump.js';
-import './components/prv.js'
+import './components/prv.js';
 
-// --- 1. GLOBAL STATE & INSTANCES ---
+// --- 1. DOM + INSTANCES ---
 
 const DOM = {
   canvasScroll: document.getElementById('canvas-scroll'),
@@ -47,12 +47,10 @@ const DOM = {
   hudLabel:     document.getElementById('hud-btn-label'),
   hudTime:      document.getElementById('hud-time'),
   hudVol:       document.getElementById('hud-vol'),
-  btnNew:   document.getElementById('btn-new'),
-  btnSave:  document.getElementById('btn-save'),
-  btnLoad:  document.getElementById('btn-load'),
-
+  btnNew:       document.getElementById('btn-new'),
+  btnSave:      document.getElementById('btn-save'),
+  btnLoad:      document.getElementById('btn-load'),
 };
-
 
 const STORAGE_KEY = 'pf-pipeline-v2';
 
@@ -64,7 +62,7 @@ const tooltip  = new TooltipManager(DOM.svgCanvas, engine, pipelineStore);
 
 let _fluidId, _tempC;
 
-// --- 2. CORE ACTIONS ---
+// --- 2. ACTIONS ---
 const Actions = {
   updateFluid() {
     const model = fluidRegistry.get(_fluidId);
@@ -98,11 +96,10 @@ const Actions = {
     const startColW   = DOM.colLeft.offsetWidth;
     const startChartH = DOM.panelChart.offsetHeight;
     const startPropH  = DOM.panelProps.offsetHeight;
-
     const onMove = (me) => {
-      if      (kind === 'vertical') DOM.colLeft.style.width      = Math.min(380, Math.max(160, startColW   + (me.clientX - startX))) + 'px';
-      else if (kind === 'left')     DOM.panelProps.style.height  = Math.min(500, Math.max(80,  startPropH  - (me.clientY - startY))) + 'px';
-      else if (kind === 'right')    DOM.panelChart.style.height  = Math.min(500, Math.max(80,  startChartH - (me.clientY - startY))) + 'px';
+      if      (kind === 'vertical') DOM.colLeft.style.width     = Math.min(380, Math.max(160, startColW   + (me.clientX - startX))) + 'px';
+      else if (kind === 'left')     DOM.panelProps.style.height = Math.min(500, Math.max(80,  startPropH  - (me.clientY - startY))) + 'px';
+      else if (kind === 'right')    DOM.panelChart.style.height = Math.min(500, Math.max(80,  startChartH - (me.clientY - startY))) + 'px';
     };
     const onUp = () => {
       document.removeEventListener('mousemove', onMove);
@@ -117,7 +114,6 @@ const Actions = {
     UI.renderProps();
   },
 
-
   zoomToFit() {
     const bbox = DOM.svgCanvas.getBBox();
     if (!bbox.width || !bbox.height) return;
@@ -128,82 +124,56 @@ const Actions = {
 
   saveProject(silent = false) {
     try {
-      const data = pipelineStore.serialize();
-      localStorage.setItem(STORAGE_KEY , JSON.stringify(data));
-      if (!silent) UI.showBlockToast('✓ Saved');
-    } catch (e) {
-      UI.showBlockToast('Save failed: ' + e.message);
-    }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(pipelineStore.serialize()));
+      if (!silent) UI.showBlockToast('Saved');
+    } catch (e) { UI.showBlockToast('Save failed: ' + e.message); }
   },
 
   loadProject() {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      UI.showBlockToast('No saved project found');
-      return;
-    }
-
+    if (!raw) { UI.showBlockToast('No saved project found'); return; }
     try {
       const data = JSON.parse(raw);
-
-      // Simülasyon çalışıyorsa durdur
       if (engine.sysState !== SysState.IDLE) {
-        engine.stop();
-        animator.stop();
-        UI.updateControlPanel(false);
+        engine.stop(); animator.stop(); UI.updateControlPanel(false);
       }
-
-      pipelineStore.deserialize(data, (type, subtype) =>
-        createComponent(type, subtype)
-      );
-
-      // Fluid & temp ayarlarını UI'a yansıt
+      pipelineStore.deserialize(data, (type, subtype) => createComponent(type, subtype));
       _fluidId = SystemConfig.get('fluid_id') ?? 'water';
       _tempC   = SystemConfig.get('T_in_C')   ?? 20;
       DOM.selectFluid.value     = _fluidId;
       DOM.tempSlider.value      = _tempC;
-      DOM.tempLabel.textContent = `${_tempC}°C`;
+      DOM.tempLabel.textContent = `${_tempC}C`;
       Actions.updateFluid();
-
       UI.refreshCanvas();
       UI.renderProps();
       tooltip.rebind(DOM.svgCanvas);
-      UI.showBlockToast('✓ Loaded');
-
+      UI.showBlockToast('Loaded');
     } catch (e) {
       UI.showBlockToast('Load failed: ' + e.message);
-      console.error('[Load] Parse/deserialize hatası:', e);
+      console.error('[Load]', e);
     }
   },
 
   newProject() {
     if (engine.sysState !== SysState.IDLE) {
-      engine.stop();
-      animator.stop();
-      UI.updateControlPanel(false);
+      engine.stop(); animator.stop(); UI.updateControlPanel(false);
     }
-
-    // Mevcut pipeline'ı temizle ve initial state'e dön
     pipelineStore.clear();
     SystemConfig.reset();
-
     _fluidId = SystemConfig.get('fluid_id') ?? 'water';
     _tempC   = SystemConfig.get('T_in_C')   ?? 20;
     DOM.selectFluid.value     = _fluidId;
     DOM.tempSlider.value      = _tempC;
-    DOM.tempLabel.textContent = `${_tempC}°C`;
-
+    DOM.tempLabel.textContent = `${_tempC}C`;
     setupInitialState();
     Actions.updateFluid();
-
     UI.refreshCanvas();
     UI.renderProps();
     tooltip.rebind(DOM.svgCanvas);
   },
-
 };
 
-// --- 3. UI RENDERERS ---
+// --- 3. UI ---
 const UI = {
   refreshCanvas() {
     renderer.render(pipelineStore.layout, {
@@ -222,59 +192,41 @@ const UI = {
     DOM.propBody.innerHTML = `
       <div class="prop-section"><div class="section-title">Component: ${comp.name}</div></div>
       <div class="prop-section"><div class="section-title">Parameters</div>${comp.renderPropsHTML()}</div>
-      ${isPump ? '' : '<button class="btn-delete" id="del-btn">✕ Remove</button>'}`;
-
+      ${isPump ? '' : '<button class="btn-delete" id="del-btn">Remove</button>'}`;
     if (!isPump) DOM.propBody.querySelector('#del-btn').onclick = Actions.deleteComponent;
     this.bindPropInputs(comp);
   },
 
   bindPropInputs(comp) {
     DOM.propBody.querySelectorAll('[data-prop]').forEach(el => {
-      const eventName = (el.tagName === 'SELECT') ? 'onchange' : 'oninput';
-
+      const eventName = el.tagName === 'SELECT' ? 'onchange' : 'oninput';
       el[eventName] = () => {
         const prop = el.dataset.prop;
         const raw  = el.value;
-
-        // Slider görsel güncelleme
         if (el.type === 'range') {
           const label = el.nextElementSibling;
           if (label) label.textContent = raw + '%';
         }
-
-        // Özel mantıklar
         if (prop === 'transition_pair') {
           const [d_in, d_out] = raw.split('|').map(Number);
           comp.override('d_in_mm',  d_in,  true);
           comp.override('d_out_mm', d_out, true);
           pipelineStore._propagateDiameter(pipelineStore.components.indexOf(comp));
           this.renderProps();
-
         } else if (prop === 'opening_pct') {
           const val = parseInt(raw);
-          const statusTag = DOM.propBody.querySelector('.valve-status-tag');
-          if (statusTag) {
-            statusTag.textContent = val > 0 ? 'OPEN' : 'CLOSED';
-            statusTag.className   = `valve-status-tag ${val > 0 ? 'on' : 'off'}`;
-          }
-          comp.opening_pct = val;
-          comp.open        = val > 0;
+          const tag = DOM.propBody.querySelector('.valve-status-tag');
+          if (tag) { tag.textContent = val > 0 ? 'OPEN' : 'CLOSED'; tag.className = `valve-status-tag ${val > 0 ? 'on' : 'off'}`; }
+          comp.opening_pct = val; comp.open = val > 0;
           engine.setComponentProp(comp.id, 'opening', val / 100);
-
         } else if (prop === 'efficiency') {
-          // Slider 0-100 arası, engine 0-1 bekliyor
-          const val = parseInt(raw);
-          comp.override('efficiency', val / 100, true);
-
+          comp.override('efficiency', parseInt(raw) / 100, true);
         } else {
-          // Genel inputlar
           const num = parseFloat(raw);
           comp.override(prop, isNaN(num) ? raw : num, true);
-          if (['diameter_mm', 'd_out_mm'].includes(prop)) {
+          if (['diameter_mm', 'd_out_mm'].includes(prop))
             pipelineStore._propagateDiameter(pipelineStore.components.indexOf(comp));
-          }
         }
-
         pipelineStore.emit('components:change');
       };
     });
@@ -286,185 +238,134 @@ const UI = {
       `${String(Math.floor(t / 3600)).padStart(2, '0')}:` +
       `${String(Math.floor((t % 3600) / 60)).padStart(2, '0')}:` +
       `${String(Math.floor(t % 60)).padStart(2, '0')}`;
-
     const vol = snapshot.totalVolume_m3 * 1000;
-    DOM.hudVol.textContent = vol < 1000
-      ? `${vol.toFixed(1)} L`
-      : `${(vol / 1000).toFixed(2)} m³`;
+    DOM.hudVol.textContent = vol < 1000 ? `${vol.toFixed(1)} L` : `${(vol / 1000).toFixed(2)} m3`;
 
-    // Anlık pompa gücü — prop paneli açıksa güncelle
     const pumpNode = snapshot.nodes.find(n => n.type === 'pump');
     DOM.propBody.querySelectorAll('[data-live="P_shaft"]').forEach(el => {
-      el.textContent = isFinite(pumpNode?.P_shaft)
-        ? `${Math.round(pumpNode.P_shaft)} W`
-        : '—';
-    });
-    const prvNode = snapshot.nodes.find(n => n.subtype === 'prv');
-    DOM.propBody.querySelectorAll('[data-live="prv_status"]').forEach(el => {
-      if (!prvNode) return;
-      el.textContent  = prvNode.prvState === 'active' ? '⚡ ACTIVE' : '✓ INACTIVE';
-      el.style.color  = prvNode.prvState === 'active' ? 'var(--alarm-color, #e74c3c)' : '';
+      el.textContent = isFinite(pumpNode?.P_shaft) ? `${Math.round(pumpNode.P_shaft)} W` : '-';
     });
 
-
-    snapshot.nodes
-      .filter(n => n.subtype === 'prv')
-      .forEach(n => {
-        const isActive = n.prvState === 'active';
-        const ratio    = (isFinite(n.P_in) && n.P_set_Pa > 0)
-          ? Math.min(1, n.P_in / n.P_set_Pa)
-          : 0;
-
-        // Daire rengi: yeşil → sarı → kırmızı
-        let fill;
-        if (!isFinite(n.P_in)) {
-          fill = 'var(--clr-muted, #666)';        // simülasyon yok
-        } else if (ratio < 0.8) {
-          fill = 'var(--clr-ok, #2ecc71)';         // normal
-        } else if (ratio < 1.0) {
-          fill = 'var(--clr-warn, #f39c12)';        // yaklaşıyor
-        } else {
-          fill = 'var(--clr-alarm, #e74c3c)';       // aşıldı
-        }
-
-        const circleEl = DOM.svgCanvas.querySelector(`[data-prv-circle="${n.id}"]`);
-        if (circleEl) circleEl.setAttribute('fill', fill);
-
-        // Prop panel
-        DOM.propBody.querySelectorAll('[data-live="prv_status"]').forEach(el => {
-          el.textContent = isActive ? '⚡ ACTIVE' : '✓ INACTIVE';
-          el.style.color = isActive ? 'var(--clr-alarm, #e74c3c)' : '';
-        });
-
-        DOM.propBody.querySelectorAll('[data-live="prv_p_in"]').forEach(el => {
-          el.textContent = isFinite(n.P_in) ? Units.pressure(n.P_in / 1e5) : '—';
-        });
+    snapshot.nodes.filter(n => n.subtype === 'prv').forEach(n => {
+      const isActive = n.prvState === 'active';
+      const ratio    = (isFinite(n.P_in) && n.P_set_Pa > 0) ? Math.min(1, n.P_in / n.P_set_Pa) : 0;
+      const fill = !isFinite(n.P_in) ? 'var(--clr-muted,#666)'
+        : ratio < 0.8 ? 'var(--clr-ok,#2ecc71)'
+        : ratio < 1.0 ? 'var(--clr-warn,#f39c12)'
+        : 'var(--clr-alarm,#e74c3c)';
+      DOM.svgCanvas.querySelector(`[data-prv-circle="${n.id}"]`)?.setAttribute('fill', fill);
+      DOM.propBody.querySelectorAll('[data-live="prv_status"]').forEach(el => {
+        el.textContent = isActive ? 'ACTIVE' : 'INACTIVE';
+        el.style.color = isActive ? 'var(--clr-alarm,#e74c3c)' : '';
       });
-
+      DOM.propBody.querySelectorAll('[data-live="prv_p_in"]').forEach(el => {
+        el.textContent = isFinite(n.P_in) ? Units.pressure(n.P_in / 1e5) : '-';
+      });
+    });
   },
 
   updateControlPanel(isRunning) {
-    DOM.hudIcon.textContent  = isRunning ? '⏹' : '▶';
+    DOM.hudIcon.textContent  = isRunning ? 'stop' : 'play';
     DOM.hudLabel.textContent = isRunning ? 'STOP' : 'START';
     DOM.hudStartBtn.classList.toggle('running', isRunning);
     if (!isRunning) DOM.hudStartBtn.classList.remove('alarm', 'shake');
-
   },
 
   showBlockToast(msg) {
     let t = document.getElementById('block-toast') || document.createElement('div');
-    if (!t.id) {
-      t.id        = 'block-toast';
-      t.className = 'toast-alert';
-      document.body.appendChild(t);
-    }
-    t.textContent    = msg;
-    t.style.opacity  = '1';
+    if (!t.id) { t.id = 'block-toast'; t.className = 'toast-alert'; document.body.appendChild(t); }
+    t.textContent = msg; t.style.opacity = '1';
     setTimeout(() => t.style.opacity = '0', 3000);
   },
 };
 
 // --- 4. EVENT BINDINGS ---
 function bindEvents() {
-  // Toolbar
+  bindToolbar();
+  bindFluidControls();
+  bindResizeHandlers();
+  bindDragDrop();
+  bindStoreSubscriptions();
+  bindEngineCallbacks();
+  bindKeyboard();
+  renderer.onCompClick = (id) => pipelineStore.select(id);
+}
+
+function bindToolbar() {
   DOM.themeBtn.onclick = () => {
     const isLight = document.documentElement.dataset.theme === 'light';
     document.documentElement.dataset.theme = isLight ? '' : 'light';
     localStorage.setItem('pf-theme', isLight ? '' : 'light');
   };
-
-  DOM.btnUnits.onclick = () => {
-    Units.toggle();
-    DOM.btnUnits.textContent = Units.isMetric ? 'SI' : 'IMP';
-  };
-
-  DOM.btnFit.onclick   = Actions.zoomToFit;
-  DOM.btnClear.onclick = () => {
-    pipelineStore.clear?.();
-    setupInitialState();
-    UI.refreshCanvas();
-  };
-  DOM.btnNew.onclick  = Actions.newProject;
-  DOM.btnSave.onclick = Actions.saveProject;
-  DOM.btnLoad.onclick = Actions.loadProject;
-
+  DOM.btnUnits.onclick    = () => { Units.toggle(); DOM.btnUnits.textContent = Units.isMetric ? 'SI' : 'IMP'; };
+  DOM.btnFit.onclick      = Actions.zoomToFit;
+  DOM.btnClear.onclick    = () => { pipelineStore.clear?.(); setupInitialState(); UI.refreshCanvas(); };
+  DOM.btnNew.onclick      = Actions.newProject;
+  DOM.btnSave.onclick     = Actions.saveProject;
+  DOM.btnLoad.onclick     = Actions.loadProject;
   DOM.hudStartBtn.onclick = Actions.toggleSimulation;
+}
 
-  // Fluid & Temp
+function bindFluidControls() {
   DOM.selectFluid.onchange = (e) => {
     _fluidId = e.target.value;
     const range = fluidRegistry.get(_fluidId)?.meta.valid_range;
     if (range) {
-      DOM.tempSlider.min   = range.T_min_C;
-      DOM.tempSlider.max   = range.T_max_C;
-      _tempC               = Math.max(range.T_min_C, Math.min(_tempC, range.T_max_C));
-      DOM.tempSlider.value = _tempC;
-      DOM.tempLabel.textContent = `${_tempC}°C`;
+      DOM.tempSlider.min = range.T_min_C; DOM.tempSlider.max = range.T_max_C;
+      _tempC = Math.max(range.T_min_C, Math.min(_tempC, range.T_max_C));
+      DOM.tempSlider.value = _tempC; DOM.tempLabel.textContent = `${_tempC}C`;
     }
     Actions.updateFluid();
   };
-
   DOM.tempSlider.oninput = (e) => {
     _tempC = parseInt(e.target.value);
-    DOM.tempLabel.textContent = `${_tempC}°C`;
+    DOM.tempLabel.textContent = `${_tempC}C`;
     Actions.updateFluid();
   };
+}
 
-  // Resize handlers
+function bindResizeHandlers() {
   document.querySelectorAll('.resize-handler').forEach(h =>
     h.onmousedown = (e) => Actions.handleComponentResize(e, h)
   );
+}
 
-  // Drag & Drop
+function bindDragDrop() {
   DOM.canvasScroll.ondragover = (e) => {
     e.preventDefault();
-    const svgPt         = Interactions.clientToSVG(e.clientX, e.clientY);
+    const svgPt = Interactions.clientToSVG(e.clientX, e.clientY);
     Interactions.dropIdx = Interactions.calcDropIdx(svgPt.x, svgPt.y);
-    renderer.render(pipelineStore.layout, {
-      selectedId: pipelineStore.selectedId,
-      dropIdx:    Interactions.dropIdx,
-    });
+    renderer.render(pipelineStore.layout, { selectedId: pipelineStore.selectedId, dropIdx: Interactions.dropIdx });
   };
-
   DOM.canvasScroll.ondrop = (e) => {
     e.preventDefault();
     const template = JSON.parse(e.dataTransfer.getData('text/plain'));
     pipelineStore.insert(CatalogManager.makeComp(template), Interactions.dropIdx);
   };
+}
 
-  // Store subscriptions
+function bindStoreSubscriptions() {
   pipelineStore.on('components:change', () => {
     UI.refreshCanvas();
     tooltip.rebind(DOM.svgCanvas);
     if (engine.sysState === SysState.RUNNING) animator.reset();
-    // Otomatik kayıt — simülasyon çalışmıyorken
-    if (engine.sysState === SysState.IDLE) {
-      Actions.saveProject();   // sessizce kaydeder, toast göstermez
-    }
+    if (engine.sysState === SysState.IDLE)    Actions.saveProject(true);
   });
-
-  pipelineStore.on('selection:change', () => {
-    UI.refreshCanvas();
-    UI.renderProps();
-  });
-
+  pipelineStore.on('selection:change', () => { UI.refreshCanvas(); UI.renderProps(); });
   Units.onChange(() => {
-    UI.refreshCanvas();
-    UI.renderProps();
+    UI.refreshCanvas(); UI.renderProps();
     if (chart._lastData) chart.draw(chart._lastData);
     DOM.tempLabel.textContent = Units.temp(_tempC);
   });
+}
 
-  // Engine tick
+function bindEngineCallbacks() {
   engine.onTick((snap) => {
     animator.update(pipelineStore.layout, snap);
     chart.draw({
       results: snap.nodes.map(n => ({
-        P_in:     n.P_in     / 1e5,
-        P_out:    n.P_out    / 1e5,
-        v:        n.v,
-        dP_major: n.dP_major / 1e5,
-        dP_minor: n.dP_minor / 1e5,
+        P_in: n.P_in / 1e5, P_out: n.P_out / 1e5, v: n.v,
+        dP_major: n.dP_major / 1e5, dP_minor: n.dP_minor / 1e5,
       })),
       components:  pipelineStore.components,
       selectedIdx: pipelineStore.selectedId
@@ -475,505 +376,154 @@ function bindEvents() {
   });
 
   engine.onAlarm((alarms) => {
-    // Sadece warning ve critical seviyeleri göster, info'yu atla
     const significant = alarms.filter(a => a.level !== 'info');
     if (!significant.length) return;
-
-    // HUD butonu kırmızıya döner
     DOM.hudStartBtn.classList.add('alarm');
-
-    // Shake animasyonu — CSS'te tanımlı olacak
     DOM.hudStartBtn.classList.remove('shake');
-    void DOM.hudStartBtn.offsetWidth; // reflow — animasyonu sıfırla
+    void DOM.hudStartBtn.offsetWidth;
     DOM.hudStartBtn.classList.add('shake');
-
-    // En kritik alarmı toast'ta göster
     const top = significant.find(a => a.level === 'critical') ?? significant[0];
-    UI.showBlockToast(`⚠ ${top.message}`);
+    UI.showBlockToast(`${top.message}`);
   });
-
-  document.addEventListener('keydown', (e) => {
-    const active  = document.activeElement;
-    const inExpand = active?.closest('.cat-chip-expand');
-
-    // ── EXPAND MODE — accordion içinde bir input/select odaklanmış ──
-    if (inExpand) {
-      const focusables = Array.from(
-        inExpand.querySelectorAll('input:not([disabled]), select:not([disabled])')
-      );
-      const currentIdx = focusables.indexOf(active);
-
-      switch (e.key) {
-
-        case 'ArrowDown':
-        case 'Tab': {
-          if (e.key === 'Tab' && e.shiftKey) break; // Shift+Tab — browser default
-          e.preventDefault();
-          const next = focusables[currentIdx + 1];
-          if (next) next.focus();
-          break;
-        }
-
-        case 'ArrowUp': {
-          e.preventDefault();
-          const prev = focusables[currentIdx - 1];
-          if (prev) prev.focus();
-          break;
-        }
-
-        case 'ArrowRight':
-        case 'ArrowLeft': {
-          if (!active) break;
-
-          if (active.tagName === 'SELECT') {
-            // Select — önceki/sonraki option
-            e.preventDefault();
-            const opts = Array.from(active.options);
-            const idx  = active.selectedIndex;
-            if (e.key === 'ArrowRight' && idx < opts.length - 1) active.selectedIndex = idx + 1;
-            if (e.key === 'ArrowLeft'  && idx > 0)               active.selectedIndex = idx - 1;
-            active.dispatchEvent(new Event('change', { bubbles: true }));
-
-          } else if (active.type === 'number' || active.type === 'range') {
-            // Number/range — CONSTRAINTS'ten step oku
-            e.preventDefault();
-            const prop = active.dataset.prop;
-            const gi   = CatalogManager._focusedGi;
-            const ii   = CatalogManager._focusedIi;
-            const template = CatalogManager._getTemplate(gi, ii);
-
-            // Geçici comp üzerinden constraint oku
-            let step = parseFloat(active.step) || 1;
-            if (prop && template) {
-              try {
-                const comp       = createComponent(template.type, template.subtype);
-                const constraint = comp.getConstraint(prop);
-                if (constraint?.step) step = constraint.step;
-              } catch (_) {}
-            }
-
-            const min  = active.min !== '' ? parseFloat(active.min) : -Infinity;
-            const max  = active.max !== '' ? parseFloat(active.max) :  Infinity;
-            const cur  = parseFloat(active.value) || 0;
-            const dir  = e.key === 'ArrowRight' ? 1 : -1;
-            const next = Math.min(max, Math.max(min, +(cur + dir * step).toFixed(10)));
-
-            active.value = next;
-            active.dispatchEvent(new Event('input', { bubbles: true }));
-          }
-          break;
-        }
-
-        case 'Enter': {
-          e.preventDefault();
-          // Add butonunu tetikle
-          const addBtn = inExpand.querySelector('.cat-expand-add');
-          addBtn?.click();
-          break;
-        }
-
-        case 'Escape': {
-          e.preventDefault();
-          const [gi, ii] = CatalogManager._expandedKey?.split(':').map(Number) ?? [];
-          if (gi != null) {
-            CatalogManager._closeExpand(gi, ii);
-            CatalogManager._expandedKey = null;
-          }
-          break;
-        }
-      }
-      return; // expand mode — diğer case'lere düşme
-    }
-
-    // ── CATALOG MODE — normal input'larda (prop panel vs) klavyeyi pas geç ──
-    if (['INPUT', 'SELECT', 'TEXTAREA'].includes(active?.tagName)) return;
-
-    // ── CATALOG MODE ──────────────────────────────────────────────────────────
-    switch (e.key) {
-
-      case 'ArrowUp':
-        e.preventDefault();
-        CatalogManager.navigateUp();
-        break;
-
-      case 'ArrowDown':
-        e.preventDefault();
-        CatalogManager.navigateDown();
-        break;
-
-      case 'Enter':
-        e.preventDefault();
-        CatalogManager._toggleExpand(CatalogManager._focusedGi, CatalogManager._focusedIi);
-        break;
-
-      case ' ':
-        e.preventDefault();
-        CatalogManager.addDirect();
-        break;
-
-      case 'ArrowLeft': {
-        e.preventDefault();
-        const comps  = pipelineStore.components;
-        if (!comps.length) break;
-        const curIdx = comps.findIndex(c => c.id === pipelineStore.selectedId);
-        const newIdx = curIdx <= 0 ? comps.length - 1 : curIdx - 1;
-        pipelineStore.select(comps[newIdx].id);
-        break;
-      }
-
-      case 'ArrowRight': {
-        e.preventDefault();
-        const comps  = pipelineStore.components;
-        if (!comps.length) break;
-        const curIdx = comps.findIndex(c => c.id === pipelineStore.selectedId);
-        const newIdx = (curIdx === -1 || curIdx === comps.length - 1) ? 0 : curIdx + 1;
-        pipelineStore.select(comps[newIdx].id);
-        break;
-      }
-
-      case 'Delete':
-      case 'Backspace':
-        if (pipelineStore.selectedComp?.type !== 'pump') {
-          Actions.deleteComponent();
-        }
-        break;
-
-      case 'Escape':
-        if (CatalogManager._expandedKey) {
-          const [gi, ii] = CatalogManager._expandedKey.split(':').map(Number);
-          CatalogManager._closeExpand(gi, ii);
-          CatalogManager._expandedKey = null;
-        } else {
-          pipelineStore.select(null);
-        }
-        break;
-    }
-  });
-
-
-  renderer.onCompClick = (id) => pipelineStore.select(id);
-
-
 }
 
-// --- 5. INITIALIZATION ---
+function bindKeyboard() {
+  document.addEventListener('keydown', (e) => {
+    const active   = document.activeElement;
+    const inExpand = active?.closest('.cat-chip-expand');
+
+    if (inExpand) { _handleExpandKey(e, inExpand); return; }
+    if (['INPUT', 'SELECT', 'TEXTAREA'].includes(active?.tagName)) return;
+    _handleCatalogKey(e);
+  });
+}
+
+function _handleExpandKey(e, inExpand) {
+  const focusables = Array.from(inExpand.querySelectorAll('input:not([disabled]), select:not([disabled])'));
+  const idx        = focusables.indexOf(document.activeElement);
+
+  switch (e.key) {
+    case 'Tab':
+      if (e.shiftKey) break;
+      e.preventDefault(); focusables[idx + 1]?.focus(); break;
+    case 'ArrowDown':
+      e.preventDefault(); focusables[idx + 1]?.focus(); break;
+    case 'ArrowUp':
+      e.preventDefault(); focusables[idx - 1]?.focus(); break;
+    case 'ArrowRight':
+      e.preventDefault(); _stepInput(document.activeElement, 1); break;
+    case 'ArrowLeft':
+      e.preventDefault(); _stepInput(document.activeElement, -1); break;
+    case 'Enter':
+      e.preventDefault(); inExpand.querySelector('.cat-expand-add')?.click(); break;
+    case 'Escape':
+      e.preventDefault(); CatalogManager.closeExpanded(); break;
+  }
+}
+
+function _handleCatalogKey(e) {
+  switch (e.key) {
+    case 'ArrowUp':    e.preventDefault(); CatalogManager.navigateUp();          break;
+    case 'ArrowDown':  e.preventDefault(); CatalogManager.navigateDown();        break;
+    case 'Enter':      e.preventDefault(); CatalogManager.toggleExpandFocused(); break;
+    case ' ':          e.preventDefault(); CatalogManager.addDirect();           break;
+    case 'ArrowLeft': {
+      e.preventDefault();
+      const comps = pipelineStore.components; if (!comps.length) break;
+      const cur   = comps.findIndex(c => c.id === pipelineStore.selectedId);
+      pipelineStore.select(comps[cur <= 0 ? comps.length - 1 : cur - 1].id);
+      break;
+    }
+    case 'ArrowRight': {
+      e.preventDefault();
+      const comps = pipelineStore.components; if (!comps.length) break;
+      const cur   = comps.findIndex(c => c.id === pipelineStore.selectedId);
+      pipelineStore.select(comps[(cur === -1 || cur === comps.length - 1) ? 0 : cur + 1].id);
+      break;
+    }
+    case 'Delete':
+    case 'Backspace':
+      if (pipelineStore.selectedComp?.type !== 'pump') Actions.deleteComponent();
+      break;
+    case 'Escape':
+      if (!CatalogManager.closeExpanded()) pipelineStore.select(null);
+      break;
+  }
+}
+
+function _stepInput(el, dir) {
+  if (!el) return;
+  if (el.tagName === 'SELECT') {
+    const idx = el.selectedIndex;
+    if (dir > 0 && idx < el.options.length - 1) el.selectedIndex = idx + 1;
+    if (dir < 0 && idx > 0)                     el.selectedIndex = idx - 1;
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    return;
+  }
+  if (el.type === 'number' || el.type === 'range') {
+    const prop = el.dataset.prop;
+    const gi   = CatalogManager._focusedGi;
+    const ii   = CatalogManager._focusedIi;
+    let step   = parseFloat(el.step) || 1;
+    if (prop) {
+      try {
+        const t = CatalogManager._getTemplate(gi, ii);
+        const constraint = createComponent(t.type, t.subtype).getConstraint(prop);
+        if (constraint?.step) step = constraint.step;
+      } catch (_) {}
+    }
+    const min  = el.min !== '' ? parseFloat(el.min) : -Infinity;
+    const max  = el.max !== '' ? parseFloat(el.max) :  Infinity;
+    el.value   = Math.min(max, Math.max(min, +(parseFloat(el.value || 0) + dir * step).toFixed(10)));
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+}
+
+// --- 5. INIT ---
 function setupInitialState() {
   _fluidId = SystemConfig.get('fluid_id') ?? 'water';
   _tempC   = SystemConfig.get('T_in_C')   ?? 20;
-
-  DOM.selectFluid.value     = _fluidId;
-  DOM.tempSlider.value      = _tempC;
-  DOM.tempLabel.textContent = `${_tempC}°C`;
-
+  DOM.selectFluid.value = _fluidId; DOM.tempSlider.value = _tempC;
+  DOM.tempLabel.textContent = `${_tempC}C`;
   if (pipelineStore.components.length === 0) {
     pipelineStore.insert(CatalogManager.makeComp({
-      type:    'pump',
-      subtype: 'centrifugal',
-      name:    'Main Supply Pump',
+      type: 'pump', subtype: 'centrifugal', name: 'Main Supply Pump',
     }), 0);
   }
 }
-// --- INTERACTIONS ---
+
 const Interactions = {
   dropIdx: null,
-
   clientToSVG(clientX, clientY) {
-    const pt  = DOM.svgCanvas.createSVGPoint();
-    pt.x      = clientX;
-    pt.y      = clientY;
-    const ctm = DOM.svgCanvas.getScreenCTM();
-    return pt.matrixTransform(ctm.inverse());
+    const pt = DOM.svgCanvas.createSVGPoint();
+    pt.x = clientX; pt.y = clientY;
+    return pt.matrixTransform(DOM.svgCanvas.getScreenCTM().inverse());
   },
-
   calcDropIdx(x, y) {
     const layouts = pipelineStore.layout;
     if (!layouts.length) return 0;
-
     const points = [
       ...layouts.map((l, i) => ({ idx: i, x: l.ix, y: l.iy })),
       { idx: layouts.length, x: layouts.at(-1).ox, y: layouts.at(-1).oy },
     ];
-
-    const closest = points.reduce((prev, curr) =>
+    return Math.max(1, points.reduce((prev, curr) =>
       Math.hypot(x - curr.x, y - curr.y) < Math.hypot(x - prev.x, y - prev.y) ? curr : prev
-    );
-
-    return Math.max(1, closest.idx);
+    ).idx);
   },
 };
 
-// --- CATALOG MANAGER ---
-const CatalogManager = {
-  _focusedGi:   0,
-  _focusedIi:   0,
-  _expandedKey: null,   // "gi:ii" — şu an açık chip
-  _lastConfig:  {},     // "type:subtype" → override map
+const CatalogManager = createCatalogManager({
+  catBody:   DOM.catBody,
+  showToast: (msg) => UI.showBlockToast(msg),
+});
 
-  _flatItems() {
-    return CATALOG_DEF.flatMap((grp, gi) =>
-      grp.items
-        .filter(it => it.type !== 'pump')
-        .map((it, ii) => ({ gi, ii, item: it }))
-    );
-  },
-
-  _focusedFlatIdx() {
-    const flat = this._flatItems();
-    return flat.findIndex(f => f.gi === this._focusedGi && f.ii === this._focusedIi);
-  },
-
-  render() {
-    DOM.catBody.innerHTML = CATALOG_DEF.map((grp, gi) => {
-      const validItems = grp.items.filter(it => it.type !== 'pump');
-      if (!validItems.length) return '';
-      return `
-        <div class="cat-chip-group">
-          <div class="cat-chip-label">${grp.group}</div>
-          <div class="cat-chips">
-            ${validItems.map((it, ii) => `
-              <div class="cat-chip-wrap" data-gi="${gi}" data-ii="${ii}">
-                <div class="cat-chip" draggable="true" data-gi="${gi}" data-ii="${ii}">
-                  <span class="cat-chip-icon">${it.icon}</span>
-                  <span class="cat-chip-name">${it.desc ?? it.subtype}</span>
-                  <span class="cat-chip-arrow">▾</span>
-                </div>
-                <div class="cat-chip-expand" id="expand-${gi}-${ii}"></div>
-              </div>`).join('')}
-          </div>
-        </div>`;
-    }).join('');
-
-    this._updateFocusHighlight();
-    this._bindCatalogEvents();
-  },
-
-  _bindCatalogEvents() {
-    DOM.catBody.querySelectorAll('.cat-chip').forEach(el => {
-      const gi = parseInt(el.dataset.gi);
-      const ii = parseInt(el.dataset.ii);
-
-      el.ondragstart = (e) => {
-        const template = this._getTemplate(gi, ii);
-        e.dataTransfer.setData('text/plain', JSON.stringify(template));
-      };
-
-      el.onclick = () => {
-        this._focusedGi = gi;
-        this._focusedIi = ii;
-        this._updateFocusHighlight();
-        this._toggleExpand(gi, ii);
-      };
-
-      el.onmouseenter = () => {
-        this._focusedGi = gi;
-        this._focusedIi = ii;
-        this._updateFocusHighlight();
-      };
-    });
-  },
-
-  _getTemplate(gi, ii) {
-    return CATALOG_DEF[gi].items.filter(it => it.type !== 'pump')[ii];
-  },
-
-  _getFocusedTemplate() {
-    return this._getTemplate(this._focusedGi, this._focusedIi);
-  },
-
-  _updateFocusHighlight() {
-    DOM.catBody.querySelectorAll('.cat-chip').forEach(el => {
-      const gi = parseInt(el.dataset.gi);
-      const ii = parseInt(el.dataset.ii);
-      el.classList.toggle('focused', gi === this._focusedGi && ii === this._focusedIi);
-    });
-  },
-
-  // ── Accordion ─────────────────────────────────────────
-  _toggleExpand(gi, ii) {
-    const key = `${gi}:${ii}`;
-
-    // Aynı chip — kapat
-    if (this._expandedKey === key) {
-      this._closeExpand(gi, ii);
-      this._expandedKey = null;
-      return;
-    }
-
-    // Başka chip açıksa kapat
-    if (this._expandedKey) {
-      const [oldGi, oldIi] = this._expandedKey.split(':').map(Number);
-      this._closeExpand(oldGi, oldIi);
-    }
-
-    this._expandedKey = key;
-    this._openExpand(gi, ii);
-  },
-
-  _openExpand(gi, ii) {
-    const template = this._getTemplate(gi, ii);
-    const expandEl = document.getElementById(`expand-${gi}-${ii}`);
-    if (!expandEl) return;
-
-    // Geçici comp — prop render için
-    const comp = this.makeComp(template);
-    const key  = `${template.type}:${template.subtype}`;
-    const saved = this._lastConfig[key];
-    if (saved) Object.entries(saved).forEach(([k, v]) => comp.override(k, v, true));
-
-    // Sadece data-prop'lu satırları al
-    const tmp = document.createElement('div');
-    tmp.innerHTML = comp.renderPropsHTML();
-    tmp.querySelectorAll('.prop-row').forEach(row => {
-      if (!row.querySelector('[data-prop]')) row.remove();
-    });
-    const filteredHTML = tmp.innerHTML;
-
-    expandEl.innerHTML = `
-      <div class="cat-expand-body">
-        ${filteredHTML || '<div class="cat-expand-empty">No configurable parameters</div>'}
-      </div>
-      <button class="cat-expand-add" data-gi="${gi}" data-ii="${ii}">＋ Add</button>`;
-
-    // Yüksekliği ölç ve animate et
-    expandEl.style.maxHeight = expandEl.scrollHeight + 200 + 'px';
-    expandEl.classList.add('open');
-    // Accordion açılınca ilk input'a focus git
-    requestAnimationFrame(() => {
-      const first = expandEl.querySelector('input, select');
-      if (first) first.focus();
-    });
-
-    // Arrow döndür
-    const chip = DOM.catBody.querySelector(`.cat-chip[data-gi="${gi}"][data-ii="${ii}"]`);
-    chip?.querySelector('.cat-chip-arrow')?.classList.add('rotated');
-
-    // Input bind
-    this._bindExpandInputs(comp, expandEl);
-
-    // Add butonu
-    expandEl.querySelector('.cat-expand-add').onclick = () => {
-      // Add anında çap sürekliliğini tazele
-      const last = pipelineStore.components.at(-1);
-      if (last && !comp.hasUserOverride('diameter_mm')) {
-        comp.override('diameter_mm', last.outDiameter_mm);
-      }
-
-      this._lastConfig[key] = { ...comp._overrides };
-      pipelineStore.insert(comp, pipelineStore.components.length);
-      this._closeExpand(gi, ii);
-      this._expandedKey = null;
-    };
-  },
-
-  _closeExpand(gi, ii) {
-    const expandEl = document.getElementById(`expand-${gi}-${ii}`);
-    if (!expandEl) return;
-    expandEl.style.maxHeight = '0';
-    expandEl.classList.remove('open');
-    // Focus katalog chip'ine iade et
-    const chip = DOM.catBody.querySelector(`.cat-chip[data-gi="${gi}"][data-ii="${ii}"]`);
-    chip?.focus();
-
-    chip = DOM.catBody.querySelector(`.cat-chip[data-gi="${gi}"][data-ii="${ii}"]`);
-    chip?.querySelector('.cat-chip-arrow')?.classList.remove('rotated');
-  },
-
-  _bindExpandInputs(comp, container) {
-    container.querySelectorAll('[data-prop]').forEach(el => {
-      const eventName = el.tagName === 'SELECT' ? 'onchange' : 'oninput';
-      el[eventName] = () => {
-        const prop = el.dataset.prop;
-        const raw  = el.value;
-
-        if (el.type === 'range') {
-          const lbl = el.nextElementSibling;
-          if (lbl) lbl.textContent = raw + '%';
-        }
-
-        if (prop === 'transition_pair') {
-          const [d_in, d_out] = raw.split('|').map(Number);
-          comp.override('d_in_mm',  d_in,  true);
-          comp.override('d_out_mm', d_out, true);
-        } else if (prop === 'efficiency') {
-          comp.override('efficiency', parseInt(raw) / 100, true);
-        } else if (prop === 'opening_pct') {
-          comp.opening_pct = parseInt(raw);
-          comp.open = parseInt(raw) > 0;
-          comp.override('opening_pct', parseInt(raw), true);
-        } else {
-          const num = parseFloat(raw);
-          comp.override(prop, isNaN(num) ? raw : num, true);
-        }
-      };
-    });
-  },
-
-  // ── Klavye navigasyonu ─────────────────────────────────
-  navigateUp() {
-    const flat = this._flatItems();
-    if (!flat.length) return;
-    let idx = this._focusedFlatIdx();
-    idx = (idx - 1 + flat.length) % flat.length;
-    this._focusedGi = flat[idx].gi;
-    this._focusedIi = flat[idx].ii;
-    this._updateFocusHighlight();
-    DOM.catBody.querySelector('.cat-chip.focused')
-      ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  },
-
-  navigateDown() {
-    const flat = this._flatItems();
-    if (!flat.length) return;
-    let idx = this._focusedFlatIdx();
-    idx = (idx + 1) % flat.length;
-    this._focusedGi = flat[idx].gi;
-    this._focusedIi = flat[idx].ii;
-    this._updateFocusHighlight();
-    DOM.catBody.querySelector('.cat-chip.focused')
-      ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  },
-
-  // Space — popup açmadan son config ile direkt ekle
-  addDirect() {
-    const template = this._getFocusedTemplate();
-    if (!template) return;
-    const comp = this.makeComp(template);
-    const key  = `${template.type}:${template.subtype}`;
-    const saved = this._lastConfig[key];
-    if (saved) Object.entries(saved).forEach(([k, v]) => comp.override(k, v, true));
-    pipelineStore.insert(comp, pipelineStore.components.length);
-    UI.showBlockToast(`✓ ${template.desc ?? template.subtype} added`);
-  },
-
-  makeComp(template) {
-    const comp = createComponent(template.type, template.subtype);
-    comp.name  = template.name ?? comp.name;
-    if (template.defaultOverrides) {
-      Object.entries(template.defaultOverrides).forEach(([k, v]) => comp.override(k, v));
-    }
-    const last = pipelineStore.components.at(-1);
-    if (last && !comp.hasOverride('diameter_mm')) {
-      comp.override('diameter_mm', last.outDiameter_mm);
-    }
-    return comp;
-  },
-};
-
-// --- BOOT ---
 (function init() {
-  if (localStorage.getItem('pf-theme') === 'light') {
+  if (localStorage.getItem('pf-theme') === 'light')
     document.documentElement.dataset.theme = 'light';
-  }
   CatalogManager.render();
   bindEvents();
-
-  // Kayıt varsa yükle, yoksa fresh başlat
-  if (localStorage.getItem('pf-pipeline-v2')) {
-    Actions.loadProject();
-  } else {
-    setupInitialState();
-    Actions.updateFluid();
-  }
-
+  if (localStorage.getItem(STORAGE_KEY)) Actions.loadProject();
+  else { setupInitialState(); Actions.updateFluid(); }
   tooltip.rebind(DOM.svgCanvas);
 })();
+
