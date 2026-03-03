@@ -3,6 +3,7 @@
 import { ComponentBase, registerComponentType } from './base.js';
 import { fitHQCurve }                           from '../Simulation/SimulationEngine.js';
 import { Units }                                from '../data/unit-system.js';
+import { validateParams } from '../components/validation.js';
 
 export class PumpComponent extends ComponentBase {
 

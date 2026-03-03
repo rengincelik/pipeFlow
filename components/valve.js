@@ -3,7 +3,7 @@
 import { ComponentBase, registerComponentType } from './base.js';
 import { svgEl, drawSpec } from '../renderer/svg-utils.js';
 import { Units } from '../data/unit-system.js';
-
+import { validateParams } from '../components/validation.js';
 const ARM = 10;
 const S   = 10;
 const T   = 8;

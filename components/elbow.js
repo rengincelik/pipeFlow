@@ -2,6 +2,7 @@
 
 import { ComponentBase, registerComponentType, DIR_VEC } from './base.js';
 import { Units } from '../data/unit-system.js';
+import { validateParams } from '../components/validation.js';
 
 const ARM = 27;
 

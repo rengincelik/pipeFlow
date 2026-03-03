@@ -4,8 +4,9 @@ import { ComponentBase, registerComponentType } from './base.js';
 import { Units } from '../data/unit-system.js';
 import { TRANSITION_PAIRS, EXPANDER_PAIRS, DN_LIST } from '../data/catalogs.js';
 
+import { validateParams } from '../components/validation.js';
 //bunlar piksel data
-const FIT_W = 30;
+const FIT_W = 20;
 const HALF  = 9;
 const TAPER = 4;
 
@@ -16,10 +17,13 @@ const DEFAULT_D_OUT_REDUCER = 26.9;
 const CONE_HALF_ANGLE_DEG = 10;
 
 export class TransitionComponent extends ComponentBase {
+
   constructor(subtype = 'reducer') {
     super('transition', subtype);
     this.isReducer = subtype === 'reducer';
     this.name      = this.isReducer ? 'Reducer' : 'Expander';
+
+    this._lenPx = FIT_W;
 
     // Başlangıç çapları — propagasyon set etmeden önce fallback.
     // override() kullanılır (direkt _overrides yazma değil).

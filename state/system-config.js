@@ -49,9 +49,6 @@ class SystemConfigClass extends EventEmitter {
 
   reset() { this._values = { ...this._defaults }; this.emit('reset'); }
 }
-
-export const SystemConfig = new SystemConfigClass();
-
 // ── OVERRIDE MİXIN ──────────────────────────────────────────
 export const OverrideMixin = {
   _overrides: null,
@@ -117,3 +114,4 @@ export const OverrideMixin = {
     return this._overrides ? { ...this._overrides } : {};
   },
 };
+export const SystemConfig = new SystemConfigClass();

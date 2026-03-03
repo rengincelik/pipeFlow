@@ -3,6 +3,7 @@
 import { ComponentBase, registerComponentType } from './base.js';
 import { DN_LIST, MATERIALS } from '../data/catalogs.js';
 import { Units } from '../data/unit-system.js';
+import { validateParams } from '../components/validation.js';
 
 const MIN_PX = 100;
 const MAX_PX = 500;
@@ -11,7 +12,7 @@ export class PipeComponent extends ComponentBase {
 
   static get CONSTRAINTS() {
     return {
-      length_m: { min: 0.5, max: 200, step: 0.5, unit: 'm' },
+      length_m: { min: 0.5, max: 100, step: 0.5, unit: 'm' },
     };
   }
 

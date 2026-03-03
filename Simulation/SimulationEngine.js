@@ -159,6 +159,7 @@ export function evalHQ(coeffs, Q) {
  * Pompa: H-Q eğrisinden head üretir.
  * Q dışarıdan verilir (çalışma noktası iterasyonundan).
  */
+
 function calcPump(params, Q_m3s, rampF) {
   const H_actual = evalHQ(params.hq_coeffs, Q_m3s) * rampF;
   const P_out    = params.fluid.rho * GRAVITY * H_actual;
@@ -279,7 +280,7 @@ function evaluateSystem(components, pumpParams, Q_m3s, rampF, fluid) {
 
   for (let i = 0; i < components.length; i++) {
     const comp   = components[i];
-    const params = { ...comp.getParams(), fluid };
+    const params = { ...comp.getSafeParams(), fluid };
     let result;
 
     if (isBlocked) {
@@ -508,9 +509,28 @@ export class SimulationEngine {
     const components = this._store.components;
     if (!components.length) return;
 
+    // ── Fluid guard ──────────────────────────────────────────────────────
+    // setFluid() çağrılmadan veya geçersiz değerle tick geldiyse atla.
+    if (!this._fluid
+        || !isFinite(this._fluid.rho) || this._fluid.rho <= 0
+        || !isFinite(this._fluid.mu)  || this._fluid.mu  <= 0) {
+      console.warn('[Engine] Geçersiz fluid — tick atlandı:', this._fluid);
+      return;
+    }
+
     const pumpComp   = components[0];
-    const pumpParams = { ...pumpComp.getParams(), fluid: this._fluid };
-    const rampF      = rampFactor(this._t, RAMP_DURATION);
+    const pumpParams = { ...pumpComp.getSafeParams(), fluid: this._fluid };
+
+    // ── pumpParams kritik alan guard ──────────────────────────────────────
+    // hq_coeffs geçersizse (NaN, pozitif a2, eksik) engine çarpacak.
+    // getSafeParams() zaten düzeltir ama a2 >= 0 hâlâ sızabilir (dejenere durum).
+    const c = pumpParams.hq_coeffs;
+    if (!c || !isFinite(c.a0) || !isFinite(c.a1) || !isFinite(c.a2) || c.a2 >= 0) {
+      console.warn('[Engine] Pompa H-Q katsayıları geçersiz — tick atlandı:', c);
+      return;
+    }
+
+    const rampF = rampFactor(this._t, RAMP_DURATION);
 
     // Pompa state güncelle
     if (this._pumpState === PumpState.RAMPING && rampF >= 1.0) {
@@ -518,7 +538,16 @@ export class SimulationEngine {
       this._notifyStateChange();
     }
 
-    // ── Çalışma noktası bul ─────────────────────────────
+    // ── Validation uyarılarını önceden topla ─────────────────────────────
+    // evaluateSystem() içinde getSafeParams() ikinci kez çağrılır —
+    // performans için burada toplananlar sadece alarm üretiminde kullanılır.
+    const validationWarnings = [];
+    components.forEach(comp => {
+      const p = comp.getSafeParams();
+      if (p.__invalid) validationWarnings.push(...p.__warnings);
+    });
+
+    // ── Çalışma noktası bul ──────────────────────────────────────────────
     const { Q_op, converged, iterations } = findOperatingPoint(
       components, pumpParams, rampF, this._fluid, this._Q_operating
     );
@@ -527,26 +556,27 @@ export class SimulationEngine {
     let convergenceFailed = false;
 
     if (converged) {
-      Q_effective          = Q_op;
-      this._Q_operating    = Q_op;   // sonraki tick için hatırla
+      Q_effective       = Q_op;
+      this._Q_operating = Q_op;
     } else {
-      // Yakınsama başarısız — son geçerli değeri koru
       Q_effective       = this._Q_operating;
       convergenceFailed = true;
     }
 
-    // ── Nihai zincir hesabı (görüntüleme için node detayları) ──
+    // ── Nihai zincir hesabı ──────────────────────────────────────────────
     const { nodes, isBlocked } = evaluateSystem(
       components, pumpParams, Q_effective, rampF, this._fluid
     );
 
-    // ── Hacim güncelle ──────────────────────────────────
+    // ── Hacim güncelle ───────────────────────────────────────────────────
     this._totalVolume_m3 += Q_effective * PHYS_DT;
 
-    // ── Alarmlar ────────────────────────────────────────
-    const alarms = this._checkAlarms(nodes, isBlocked, Q_effective, convergenceFailed);
+    // ── Alarmlar ─────────────────────────────────────────────────────────
+    const alarms = this._checkAlarms(
+      nodes, isBlocked, Q_effective, convergenceFailed, validationWarnings
+    );
 
-    // ── Snapshot ────────────────────────────────────────
+    // ── Snapshot ─────────────────────────────────────────────────────────
     const snapshot = {
       t:              this._t,
       pumpState:      this._pumpState,
@@ -568,8 +598,18 @@ export class SimulationEngine {
 
   // ── ALARM SİSTEMİ ─────────────────────────────────────────────────────
 
-  _checkAlarms(nodes, isBlocked, Q_effective, convergenceFailed) {
+  _checkAlarms(nodes, isBlocked, Q_effective, convergenceFailed, validationWarnings = []) {
     const alarms = [];
+
+    // 0. Validation uyarıları
+    validationWarnings.forEach(w => {
+      alarms.push({
+        code:    'VALIDATION_WARNING',
+        level:   'warning',
+        message: w,
+        t:       this._t,
+      });
+    });
 
     // 1. Yakınsama başarısız
     if (convergenceFailed) {
@@ -644,3 +684,4 @@ export class SimulationEngine {
     }
   }
 }
+

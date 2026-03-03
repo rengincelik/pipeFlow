@@ -6,6 +6,7 @@ import { EventEmitter }    from '../core/event-emitter.js';
 import { OverrideMixin }   from '../state/system-config.js';
 import { svgEl, setAttrs } from '../renderer/svg-utils.js';
 import { Units }           from '../data/unit-system.js';
+import { validateParams } from '../components/validation.js';
 
 let _idCounter = 0;
 
@@ -60,6 +61,20 @@ export class ComponentBase extends EventEmitter {
   getParams() {
     return { type: this.type, subtype: this.subtype };
   }
+getSafeParams() {
+  const raw  = this.getParams();
+  const safe = validateParams(raw);
+
+  if (safe.__invalid && safe.__warnings.length > 0) {
+    // Production'da bu satırı kaldır veya log seviyesini düşür
+    console.warn(
+      `[Validation] ${this.type}/${this.subtype} (id:${this.id}):`,
+      safe.__warnings
+    );
+  }
+
+  return safe;
+}
 
   computeExit(ix, iy) {
     const vec = DIR_VEC[this.entryDir];
@@ -183,7 +198,7 @@ export class ComponentBase extends EventEmitter {
   }
 
   calcHydraulics(Q_m3s, fluid) {
- 
+
   }
 
   renderPropsHTML() { return ''; }
