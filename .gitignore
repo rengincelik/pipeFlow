@@ -1,0 +1,26 @@
+# IDE ve Editör Ayarları
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Bağımlılıklar (Eğer npm/yarn kullanıyorsan)
+node_modules/
+dist/
+build/
+
+# Loglar ve Geçici Dosyalar
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+thumbs.db
+
+# Projeye Özel İstemediğin Dosyalar
+CLAUDE.md
+
+# Ortam Değişkenleri (Hassas bilgiler içerir, asla commitlenmemeli)
+.env
+.env.local
+
+

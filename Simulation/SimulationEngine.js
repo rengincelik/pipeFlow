@@ -25,6 +25,7 @@ export const SysState = Object.freeze({
   ALARM:   'alarm',
 });
 
+
 // ── Pompa State ────────────────────────────────────────────────────────────
 export const PumpState = Object.freeze({
   STOPPED:  'stopped',
