@@ -1,19 +1,19 @@
 'use strict';
 
-// --- IMPORTS ---
+// ─── IMPORTS ─────────────────────────────────────────────────────────────────
 import { SystemConfig }               from './state/system-config.js';
 import { pipelineStore }              from './state/pipeline-store.js';
 import { SVGRenderer }                from './renderer/svg-renderer.js';
 import { ChartRenderer }              from './renderer/chart-renderer.js';
 import { FlowAnimator }               from './renderer/flow-animator.js';
 import { TooltipManager }             from './renderer/tooltip-manager.js';
-import { createComponent }            from './components/base.js';
-import { fluidRegistry }              from './data/fluid-model.js';
 import { SimulationEngine, SysState } from './Simulation/SimulationEngine.js';
 import { Units }                      from './data/unit-system.js';
-import { deserializeComponent }       from './components/base.js';
+import { fluidRegistry }              from './data/fluid-model.js';
+import { createComponent }            from './components/base.js';
 import { createCatalogManager }       from './catalog-manager.js';
 
+// Component kayıtları (yan etkili import — sıra önemli değil)
 import './components/pipe.js';
 import './components/transition.js';
 import './components/elbow.js';
@@ -21,48 +21,79 @@ import './components/valve.js';
 import './components/pump.js';
 import './components/prv.js';
 
-// --- 1. DOM + INSTANCES ---
-
+// ─── DOM ──────────────────────────────────────────────────────────────────────
 const DOM = {
-  canvasScroll: document.getElementById('canvas-scroll'),
-  colLeft:      document.getElementById('col-left'),
-  panelCatalog: document.getElementById('panel-catalog'),
-  panelProps:   document.getElementById('panel-props'),
-  panelChart:   document.getElementById('panel-chart'),
-  svgCanvas:    document.getElementById('svg-canvas'),
-  flowCanvas:   document.getElementById('flow-canvas'),
-  chartCanvas:  document.getElementById('chart-canvas'),
-  catBody:      document.getElementById('cat-body'),
-  propBody:     document.getElementById('prop-body'),
-  themeBtn:     document.getElementById('theme-btn'),
-  btnUnits:     document.getElementById('btn-units'),
-  btnLabel:     document.getElementById('btn-label'),
-  btnFit:       document.getElementById('btn-fit'),
-  btnClear:     document.getElementById('btn-clear'),
-  selectFluid:  document.getElementById('select-fluid'),
-  tempSlider:   document.getElementById('temp-slider'),
-  tempLabel:    document.getElementById('temp-label'),
-  hudStartBtn:  document.getElementById('hud-start-btn'),
-  hudIcon:      document.getElementById('hud-btn-icon'),
-  hudLabel:     document.getElementById('hud-btn-label'),
-  hudTime:      document.getElementById('hud-time'),
-  hudVol:       document.getElementById('hud-vol'),
-  btnNew:       document.getElementById('btn-new'),
-  btnSave:      document.getElementById('btn-save'),
-  btnLoad:      document.getElementById('btn-load'),
+  // Layout
+  canvasScroll:     document.getElementById('canvas-scroll'),
+  colLeft:          document.getElementById('col-left'),
+  panelCatalog:     document.getElementById('panel-catalog'),
+  panelProps:       document.getElementById('panel-props'),
+  panelChart:       document.getElementById('panel-chart'),
+  sidebarToggle:    document.getElementById('sidebar-toggle'),
+
+  // Canvas
+  svgCanvas:        document.getElementById('svg-canvas'),
+  flowCanvas:       document.getElementById('flow-canvas'),
+  chartCanvas:      document.getElementById('chart-canvas'),
+
+  // Panel bodies
+  catBody:          document.getElementById('cat-body'),
+  propBody:         document.getElementById('prop-body'),
+
+  // Topbar — fluid
+  selectFluid:      document.getElementById('select-fluid'),
+  tempSlider:       document.getElementById('temp-slider'),
+  tempLabel:        document.getElementById('temp-label'),
+
+  // Topbar — butonlar
+  themeBtn:         document.getElementById('theme-btn'),
+  btnUnits:         document.getElementById('btn-units'),
+  btnNew:           document.getElementById('btn-new'),       // dropdown item
+  btnNewTab:        document.getElementById('btn-new-tab'),   // dropdown item
+  btnSave:          document.getElementById('btn-save'),      // dropdown item
+  btnLoad:          document.getElementById('btn-load'),      // dropdown item
+  btnExportJson:    document.getElementById('btn-export-json'),
+
+  // Dropdown triggers
+  ddNew:            document.getElementById('dd-new'),
+  ddNewTrigger:     document.getElementById('dd-new-trigger'),
+  ddExport:         document.getElementById('dd-export'),
+  ddExportTrigger:  document.getElementById('dd-export-trigger'),
+
+  // Tab bar
+  tabBar:           document.getElementById('tab-bar'),
+  btnTabAdd:        document.getElementById('btn-tab-add'),
+
+  // Canvas toolbar
+  btnLabel:         document.getElementById('btn-label'),
+  btnFit:           document.getElementById('btn-fit'),
+  btnClear:         document.getElementById('btn-clear'),
+
+  // HUD
+  hudStartBtn:      document.getElementById('hud-start-btn'),
+  hudIcon:          document.getElementById('hud-btn-icon'),
+  hudLabel:         document.getElementById('hud-btn-label'),
+  hudTime:          document.getElementById('hud-time'),
+  hudVol:           document.getElementById('hud-vol'),
+
+  // Bottombar
+  statusDot:        document.getElementById('status-dot'),
+  statusText:       document.getElementById('status-text'),
+  statusComponents: document.getElementById('status-components'),
+  statusConfig:     document.getElementById('status-config'),
 };
 
 const STORAGE_KEY = 'pf-pipeline-v2';
+let _fluidId, _tempC;
 
+// ─── INSTANCES ────────────────────────────────────────────────────────────────
 const renderer = new SVGRenderer(DOM.svgCanvas);
 const chart    = new ChartRenderer(DOM.chartCanvas);
 const engine   = new SimulationEngine(pipelineStore, { rho: 1000, mu: 0.001 });
 const animator = new FlowAnimator(DOM.svgCanvas, DOM.flowCanvas);
 const tooltip  = new TooltipManager(DOM.svgCanvas, engine, pipelineStore);
 
-let _fluidId, _tempC;
-
-// --- 2. ACTIONS ---
+// ─── ACTIONS ──────────────────────────────────────────────────────────────────
 const Actions = {
   updateFluid() {
     const model = fluidRegistry.get(_fluidId);
@@ -71,6 +102,7 @@ const Actions = {
     engine.setFluid({ rho: props.rho, mu: props.mu_mPas / 1000 });
     SystemConfig.set('T_in_C',   _tempC);
     SystemConfig.set('fluid_id', _fluidId);
+    UI.updateStatusBar();
   },
 
   toggleSimulation() {
@@ -103,10 +135,10 @@ const Actions = {
     };
     const onUp = () => {
       document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
+      document.removeEventListener('mouseup',  onUp);
     };
     document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
+    document.addEventListener('mouseup',   onUp);
   },
 
   deleteComponent() {
@@ -119,7 +151,7 @@ const Actions = {
     if (!bbox.width || !bbox.height) return;
     const pad = 40;
     DOM.svgCanvas.setAttribute('viewBox',
-      `${bbox.x - pad} ${bbox.y - pad} ${bbox.width + pad * 2} ${bbox.height + pad * 2}`);
+        `${bbox.x - pad} ${bbox.y - pad} ${bbox.width + pad * 2} ${bbox.height + pad * 2}`);
   },
 
   saveProject(silent = false) {
@@ -142,7 +174,7 @@ const Actions = {
       _tempC   = SystemConfig.get('T_in_C')   ?? 20;
       DOM.selectFluid.value     = _fluidId;
       DOM.tempSlider.value      = _tempC;
-      DOM.tempLabel.textContent = `${_tempC}C`;
+      DOM.tempLabel.textContent = `${_tempC}°C`;
       Actions.updateFluid();
       UI.refreshCanvas();
       UI.renderProps();
@@ -164,16 +196,35 @@ const Actions = {
     _tempC   = SystemConfig.get('T_in_C')   ?? 20;
     DOM.selectFluid.value     = _fluidId;
     DOM.tempSlider.value      = _tempC;
-    DOM.tempLabel.textContent = `${_tempC}C`;
+    DOM.tempLabel.textContent = `${_tempC}°C`;
     setupInitialState();
     Actions.updateFluid();
     UI.refreshCanvas();
     UI.renderProps();
     tooltip.rebind(DOM.svgCanvas);
   },
+
+  exportJSON() {
+    try {
+      const data = JSON.stringify(pipelineStore.serialize(), null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `pipeflow-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) { UI.showBlockToast('Export failed: ' + e.message); }
+  },
+
+  toggleSidebar() {
+    const collapsed = DOM.colLeft.classList.toggle('collapsed');
+    DOM.sidebarToggle.textContent = collapsed ? '›' : '‹';
+    DOM.sidebarToggle.title = collapsed ? 'Show sidebar' : 'Hide sidebar';
+  },
 };
 
-// --- 3. UI ---
+// ─── UI ───────────────────────────────────────────────────────────────────────
 const UI = {
   refreshCanvas() {
     renderer.render(pipelineStore.layout, {
@@ -185,12 +236,16 @@ const UI = {
   renderProps() {
     const comp = pipelineStore.selectedComp;
     if (!comp) {
-      DOM.propBody.innerHTML = '<div id="prop-empty">SELECT A COMPONENT</div>';
+      DOM.propBody.innerHTML = `
+        <div id="prop-empty">
+          <div class="prop-empty-icon">◈</div>
+          <div class="prop-empty-text">SELECT A COMPONENT</div>
+        </div>`;
       return;
     }
     const isPump = comp.type === 'pump';
     DOM.propBody.innerHTML = `
-      <div class="prop-section"><div class="section-title">Component: ${comp.name}</div></div>
+      <div class="prop-section"><div class="section-title">${comp.name}</div></div>
       <div class="prop-section"><div class="section-title">Parameters</div>${comp.renderPropsHTML()}</div>
       ${isPump ? '' : '<button class="btn-delete" id="del-btn">Remove</button>'}`;
     if (!isPump) DOM.propBody.querySelector('#del-btn').onclick = Actions.deleteComponent;
@@ -216,8 +271,12 @@ const UI = {
         } else if (prop === 'opening_pct') {
           const val = parseInt(raw);
           const tag = DOM.propBody.querySelector('.valve-status-tag');
-          if (tag) { tag.textContent = val > 0 ? 'OPEN' : 'CLOSED'; tag.className = `valve-status-tag ${val > 0 ? 'on' : 'off'}`; }
-          comp.opening_pct = val; comp.open = val > 0;
+          if (tag) {
+            tag.textContent  = val > 0 ? 'OPEN' : 'CLOSED';
+            tag.className    = `valve-status-tag ${val > 0 ? 'on' : 'off'}`;
+          }
+          comp.opening_pct = val;
+          comp.open        = val > 0;
           engine.setComponentProp(comp.id, 'opening', val / 100);
         } else if (prop === 'efficiency') {
           comp.override('efficiency', parseInt(raw) / 100, true);
@@ -235,53 +294,76 @@ const UI = {
   updateHUD(snapshot) {
     const t = snapshot.t;
     DOM.hudTime.textContent =
-      `${String(Math.floor(t / 3600)).padStart(2, '0')}:` +
-      `${String(Math.floor((t % 3600) / 60)).padStart(2, '0')}:` +
-      `${String(Math.floor(t % 60)).padStart(2, '0')}`;
+        `${String(Math.floor(t / 3600)).padStart(2, '0')}:` +
+        `${String(Math.floor((t % 3600) / 60)).padStart(2, '0')}:` +
+        `${String(Math.floor(t % 60)).padStart(2, '0')}`;
     const vol = snapshot.totalVolume_m3 * 1000;
-    DOM.hudVol.textContent = vol < 1000 ? `${vol.toFixed(1)} L` : `${(vol / 1000).toFixed(2)} m3`;
+    DOM.hudVol.textContent = vol < 1000 ? `${vol.toFixed(1)} L` : `${(vol / 1000).toFixed(2)} m³`;
 
     const pumpNode = snapshot.nodes.find(n => n.type === 'pump');
     DOM.propBody.querySelectorAll('[data-live="P_shaft"]').forEach(el => {
-      el.textContent = isFinite(pumpNode?.P_shaft) ? `${Math.round(pumpNode.P_shaft)} W` : '-';
+      el.textContent = isFinite(pumpNode?.P_shaft) ? `${Math.round(pumpNode.P_shaft)} W` : '—';
     });
 
     snapshot.nodes.filter(n => n.subtype === 'prv').forEach(n => {
       const isActive = n.prvState === 'active';
       const ratio    = (isFinite(n.P_in) && n.P_set_Pa > 0) ? Math.min(1, n.P_in / n.P_set_Pa) : 0;
-      const fill = !isFinite(n.P_in) ? 'var(--clr-muted,#666)'
-        : ratio < 0.8 ? 'var(--clr-ok,#2ecc71)'
-        : ratio < 1.0 ? 'var(--clr-warn,#f39c12)'
-        : 'var(--clr-alarm,#e74c3c)';
+      const fill = !isFinite(n.P_in) ? 'var(--text-dim)'
+          : ratio < 0.8 ? 'var(--green)'
+              : ratio < 1.0 ? 'var(--accent)'
+                  : 'var(--red)';
       DOM.svgCanvas.querySelector(`[data-prv-circle="${n.id}"]`)?.setAttribute('fill', fill);
       DOM.propBody.querySelectorAll('[data-live="prv_status"]').forEach(el => {
         el.textContent = isActive ? 'ACTIVE' : 'INACTIVE';
-        el.style.color = isActive ? 'var(--clr-alarm,#e74c3c)' : '';
+        el.style.color = isActive ? 'var(--red)' : '';
       });
       DOM.propBody.querySelectorAll('[data-live="prv_p_in"]').forEach(el => {
-        el.textContent = isFinite(n.P_in) ? Units.pressure(n.P_in / 1e5) : '-';
+        el.textContent = isFinite(n.P_in) ? Units.pressure(n.P_in / 1e5) : '—';
       });
     });
   },
 
   updateControlPanel(isRunning) {
-    DOM.hudIcon.textContent  = isRunning ? 'stop' : 'play';
+    DOM.hudIcon.textContent  = isRunning ? '■' : '▶';
     DOM.hudLabel.textContent = isRunning ? 'STOP' : 'START';
     DOM.hudStartBtn.classList.toggle('running', isRunning);
-    if (!isRunning) DOM.hudStartBtn.classList.remove('alarm', 'shake');
+    if (!isRunning) {
+      DOM.hudStartBtn.classList.remove('alarm', 'shake');
+      DOM.statusDot.className  = 'status-dot ok';
+      DOM.statusText.textContent = 'Ready';
+    } else {
+      DOM.statusDot.className  = 'status-dot ok';
+      DOM.statusText.textContent = 'Running';
+    }
+  },
+
+  updateStatusBar() {
+    const n = pipelineStore.components.length;
+    DOM.statusComponents.textContent = `${n} component${n !== 1 ? 's' : ''}`;
+    const fluidName = DOM.selectFluid.options[DOM.selectFluid.selectedIndex]?.text ?? '—';
+    DOM.statusConfig.textContent = `${fluidName} · ${_tempC}°C`;
   },
 
   showBlockToast(msg) {
-    let t = document.getElementById('block-toast') || document.createElement('div');
-    if (!t.id) { t.id = 'block-toast'; t.className = 'toast-alert'; document.body.appendChild(t); }
-    t.textContent = msg; t.style.opacity = '1';
-    setTimeout(() => t.style.opacity = '0', 3000);
+    let t = document.getElementById('block-toast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'block-toast';
+      t.className = 'toast-alert';
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.style.opacity = '1';
+    clearTimeout(t._hideTimer);
+    t._hideTimer = setTimeout(() => t.style.opacity = '0', 3000);
   },
 };
 
-// --- 4. EVENT BINDINGS ---
+// ─── EVENT BINDINGS ───────────────────────────────────────────────────────────
 function bindEvents() {
   bindToolbar();
+  bindDropdowns();
+  bindSidebar();
   bindFluidControls();
   bindResizeHandlers();
   bindDragDrop();
@@ -298,12 +380,39 @@ function bindToolbar() {
     localStorage.setItem('pf-theme', isLight ? '' : 'light');
   };
   DOM.btnUnits.onclick    = () => { Units.toggle(); DOM.btnUnits.textContent = Units.isMetric ? 'SI' : 'IMP'; };
-  DOM.btnFit.onclick      = Actions.zoomToFit;
   DOM.btnClear.onclick    = () => { pipelineStore.clear?.(); setupInitialState(); UI.refreshCanvas(); };
-  DOM.btnNew.onclick      = Actions.newProject;
-  DOM.btnSave.onclick     = Actions.saveProject;
-  DOM.btnLoad.onclick     = Actions.loadProject;
+  DOM.btnFit.onclick      = Actions.zoomToFit;
   DOM.hudStartBtn.onclick = Actions.toggleSimulation;
+
+  // Dropdown item bağlantıları
+  DOM.btnNew.onclick        = () => { closeAllDropdowns(); Actions.newProject(); };
+  DOM.btnSave.onclick       = () => { closeAllDropdowns(); Actions.saveProject(); };
+  DOM.btnLoad.onclick       = () => { closeAllDropdowns(); Actions.loadProject(); };
+  DOM.btnExportJson.onclick = () => { closeAllDropdowns(); Actions.exportJSON(); };
+
+  // Tab bar
+  DOM.btnTabAdd.onclick = () => UI.showBlockToast('Multi-tab coming soon');
+}
+
+function bindDropdowns() {
+  DOM.ddNewTrigger.onclick    = (e) => { e.stopPropagation(); toggleDropdown('dd-new'); };
+  DOM.ddExportTrigger.onclick = (e) => { e.stopPropagation(); toggleDropdown('dd-export'); };
+  document.addEventListener('click', closeAllDropdowns);
+}
+
+function toggleDropdown(id) {
+  const dd = document.getElementById(id);
+  const wasOpen = dd.classList.contains('open');
+  closeAllDropdowns();
+  if (!wasOpen) dd.classList.add('open');
+}
+
+function closeAllDropdowns() {
+  document.querySelectorAll('.tb-dropdown.open').forEach(d => d.classList.remove('open'));
+}
+
+function bindSidebar() {
+  DOM.sidebarToggle.onclick = Actions.toggleSidebar;
 }
 
 function bindFluidControls() {
@@ -311,22 +420,24 @@ function bindFluidControls() {
     _fluidId = e.target.value;
     const range = fluidRegistry.get(_fluidId)?.meta.valid_range;
     if (range) {
-      DOM.tempSlider.min = range.T_min_C; DOM.tempSlider.max = range.T_max_C;
+      DOM.tempSlider.min = range.T_min_C;
+      DOM.tempSlider.max = range.T_max_C;
       _tempC = Math.max(range.T_min_C, Math.min(_tempC, range.T_max_C));
-      DOM.tempSlider.value = _tempC; DOM.tempLabel.textContent = `${_tempC}C`;
+      DOM.tempSlider.value      = _tempC;
+      DOM.tempLabel.textContent = `${_tempC}°C`;
     }
     Actions.updateFluid();
   };
   DOM.tempSlider.oninput = (e) => {
     _tempC = parseInt(e.target.value);
-    DOM.tempLabel.textContent = `${_tempC}C`;
+    DOM.tempLabel.textContent = `${_tempC}°C`;
     Actions.updateFluid();
   };
 }
 
 function bindResizeHandlers() {
   document.querySelectorAll('.resize-handler').forEach(h =>
-    h.onmousedown = (e) => Actions.handleComponentResize(e, h)
+      h.onmousedown = (e) => Actions.handleComponentResize(e, h)
   );
 }
 
@@ -335,7 +446,10 @@ function bindDragDrop() {
     e.preventDefault();
     const svgPt = Interactions.clientToSVG(e.clientX, e.clientY);
     Interactions.dropIdx = Interactions.calcDropIdx(svgPt.x, svgPt.y);
-    renderer.render(pipelineStore.layout, { selectedId: pipelineStore.selectedId, dropIdx: Interactions.dropIdx });
+    renderer.render(pipelineStore.layout, {
+      selectedId: pipelineStore.selectedId,
+      dropIdx:    Interactions.dropIdx,
+    });
   };
   DOM.canvasScroll.ondrop = (e) => {
     e.preventDefault();
@@ -347,13 +461,18 @@ function bindDragDrop() {
 function bindStoreSubscriptions() {
   pipelineStore.on('components:change', () => {
     UI.refreshCanvas();
+    UI.updateStatusBar();
     tooltip.rebind(DOM.svgCanvas);
     if (engine.sysState === SysState.RUNNING) animator.reset();
     if (engine.sysState === SysState.IDLE)    Actions.saveProject(true);
   });
-  pipelineStore.on('selection:change', () => { UI.refreshCanvas(); UI.renderProps(); });
+  pipelineStore.on('selection:change', () => {
+    UI.refreshCanvas();
+    UI.renderProps();
+  });
   Units.onChange(() => {
-    UI.refreshCanvas(); UI.renderProps();
+    UI.refreshCanvas();
+    UI.renderProps();
     if (chart._lastData) chart.draw(chart._lastData);
     DOM.tempLabel.textContent = Units.temp(_tempC);
   });
@@ -364,13 +483,16 @@ function bindEngineCallbacks() {
     animator.update(pipelineStore.layout, snap);
     chart.draw({
       results: snap.nodes.map(n => ({
-        P_in: n.P_in / 1e5, P_out: n.P_out / 1e5, v: n.v,
-        dP_major: n.dP_major / 1e5, dP_minor: n.dP_minor / 1e5,
+        P_in:      n.P_in  / 1e5,
+        P_out:     n.P_out / 1e5,
+        v:         n.v,
+        dP_major:  n.dP_major / 1e5,
+        dP_minor:  n.dP_minor / 1e5,
       })),
       components:  pipelineStore.components,
       selectedIdx: pipelineStore.selectedId
-        ? pipelineStore.components.findIndex(c => c.id === pipelineStore.selectedId)
-        : null,
+          ? pipelineStore.components.findIndex(c => c.id === pipelineStore.selectedId)
+          : null,
     });
     UI.updateHUD(snap);
   });
@@ -380,10 +502,12 @@ function bindEngineCallbacks() {
     if (!significant.length) return;
     DOM.hudStartBtn.classList.add('alarm');
     DOM.hudStartBtn.classList.remove('shake');
-    void DOM.hudStartBtn.offsetWidth;
+    void DOM.hudStartBtn.offsetWidth; // reflow — animasyonu sıfırla
     DOM.hudStartBtn.classList.add('shake');
+    DOM.statusDot.className   = 'status-dot err';
+    DOM.statusText.textContent = 'Alarm';
     const top = significant.find(a => a.level === 'critical') ?? significant[0];
-    UI.showBlockToast(`${top.message}`);
+    UI.showBlockToast(top.message);
   });
 }
 
@@ -391,7 +515,6 @@ function bindKeyboard() {
   document.addEventListener('keydown', (e) => {
     const active   = document.activeElement;
     const inExpand = active?.closest('.cat-chip-expand');
-
     if (inExpand) { _handleExpandKey(e, inExpand); return; }
     if (['INPUT', 'SELECT', 'TEXTAREA'].includes(active?.tagName)) return;
     _handleCatalogKey(e);
@@ -399,25 +522,18 @@ function bindKeyboard() {
 }
 
 function _handleExpandKey(e, inExpand) {
-  const focusables = Array.from(inExpand.querySelectorAll('input:not([disabled]), select:not([disabled])'));
-  const idx        = focusables.indexOf(document.activeElement);
-
+  const focusables = Array.from(
+      inExpand.querySelectorAll('input:not([disabled]), select:not([disabled])')
+  );
+  const idx = focusables.indexOf(document.activeElement);
   switch (e.key) {
-    case 'Tab':
-      if (e.shiftKey) break;
-      e.preventDefault(); focusables[idx + 1]?.focus(); break;
-    case 'ArrowDown':
-      e.preventDefault(); focusables[idx + 1]?.focus(); break;
-    case 'ArrowUp':
-      e.preventDefault(); focusables[idx - 1]?.focus(); break;
-    case 'ArrowRight':
-      e.preventDefault(); _stepInput(document.activeElement, 1); break;
-    case 'ArrowLeft':
-      e.preventDefault(); _stepInput(document.activeElement, -1); break;
-    case 'Enter':
-      e.preventDefault(); inExpand.querySelector('.cat-expand-add')?.click(); break;
-    case 'Escape':
-      e.preventDefault(); CatalogManager.closeExpanded(); break;
+    case 'Tab':        if (!e.shiftKey) { e.preventDefault(); focusables[idx + 1]?.focus(); } break;
+    case 'ArrowDown':  e.preventDefault(); focusables[idx + 1]?.focus(); break;
+    case 'ArrowUp':    e.preventDefault(); focusables[idx - 1]?.focus(); break;
+    case 'ArrowRight': e.preventDefault(); _stepInput(document.activeElement,  1); break;
+    case 'ArrowLeft':  e.preventDefault(); _stepInput(document.activeElement, -1); break;
+    case 'Enter':      e.preventDefault(); inExpand.querySelector('.cat-expand-add')?.click(); break;
+    case 'Escape':     e.preventDefault(); CatalogManager.closeExpanded(); break;
   }
 }
 
@@ -472,26 +588,14 @@ function _stepInput(el, dir) {
         if (constraint?.step) step = constraint.step;
       } catch (_) {}
     }
-    const min  = el.min !== '' ? parseFloat(el.min) : -Infinity;
-    const max  = el.max !== '' ? parseFloat(el.max) :  Infinity;
-    el.value   = Math.min(max, Math.max(min, +(parseFloat(el.value || 0) + dir * step).toFixed(10)));
+    const min = el.min !== '' ? parseFloat(el.min) : -Infinity;
+    const max = el.max !== '' ? parseFloat(el.max) :  Infinity;
+    el.value  = Math.min(max, Math.max(min, +(parseFloat(el.value || 0) + dir * step).toFixed(10)));
     el.dispatchEvent(new Event('input', { bubbles: true }));
   }
 }
 
-// --- 5. INIT ---
-function setupInitialState() {
-  _fluidId = SystemConfig.get('fluid_id') ?? 'water';
-  _tempC   = SystemConfig.get('T_in_C')   ?? 20;
-  DOM.selectFluid.value = _fluidId; DOM.tempSlider.value = _tempC;
-  DOM.tempLabel.textContent = `${_tempC}C`;
-  if (pipelineStore.components.length === 0) {
-    pipelineStore.insert(CatalogManager.makeComp({
-      type: 'pump', subtype: 'centrifugal', name: 'Main Supply Pump',
-    }), 0);
-  }
-}
-
+// ─── INTERACTIONS ─────────────────────────────────────────────────────────────
 const Interactions = {
   dropIdx: null,
   clientToSVG(clientX, clientY) {
@@ -507,10 +611,24 @@ const Interactions = {
       { idx: layouts.length, x: layouts.at(-1).ox, y: layouts.at(-1).oy },
     ];
     return Math.max(1, points.reduce((prev, curr) =>
-      Math.hypot(x - curr.x, y - curr.y) < Math.hypot(x - prev.x, y - prev.y) ? curr : prev
+        Math.hypot(x - curr.x, y - curr.y) < Math.hypot(x - prev.x, y - prev.y) ? curr : prev
     ).idx);
   },
 };
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+function setupInitialState() {
+  _fluidId = SystemConfig.get('fluid_id') ?? 'water';
+  _tempC   = SystemConfig.get('T_in_C')   ?? 20;
+  DOM.selectFluid.value     = _fluidId;
+  DOM.tempSlider.value      = _tempC;
+  DOM.tempLabel.textContent = `${_tempC}°C`;
+  if (pipelineStore.components.length === 0) {
+    pipelineStore.insert(CatalogManager.makeComp({
+      type: 'pump', subtype: 'centrifugal', name: 'Main Supply Pump',
+    }), 0);
+  }
+}
 
 const CatalogManager = createCatalogManager({
   catBody:   DOM.catBody,
@@ -524,6 +642,6 @@ const CatalogManager = createCatalogManager({
   bindEvents();
   if (localStorage.getItem(STORAGE_KEY)) Actions.loadProject();
   else { setupInitialState(); Actions.updateFluid(); }
+  UI.updateStatusBar();
   tooltip.rebind(DOM.svgCanvas);
 })();
-

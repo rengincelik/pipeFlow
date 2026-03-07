@@ -10,39 +10,87 @@
 </head>
 <body>
 
-  <!--Topbar-->
-  <header id="topbar">
+<!-- TOPBAR -->
+<header id="topbar">
 
-    <div class="topbar-left">
-      <div class="logo">
-        <span>PIPEFLOW</span>
+  <!-- Logo -->
+  <div class="logo">
+    <div class="logo-mark">P</div>
+    <span class="logo-text">PIPEFLOW</span>
+  </div>
+
+  <!-- Tab bar -->
+  <div id="tab-bar">
+    <div class="tab active" data-tab-id="1">
+      <span class="tab-name">Project 1</span>
+      <span class="tab-close" title="Close">×</span>
+    </div>
+    <div class="tab-add" id="btn-tab-add" title="New tab">+</div>
+  </div>
+
+  <!-- Fluid kontrol -->
+  <div id="fluid-type">
+    <span class="label">FLUID</span>
+    <select id="select-fluid">
+      <option value="water">Water</option>
+      <option value="eg50">EG 50%</option>
+    </select>
+    <div id="fluid-temp">
+      <input type="range" id="temp-slider" min="5" max="90" value="20" step="1">
+      <span id="temp-label">20°C</span>
+    </div>
+  </div>
+
+  <!-- Sağ grup -->
+  <div class="topbar-right">
+
+    <!-- New dropdown -->
+    <div class="tb-dropdown" id="dd-new">
+      <button class="tb-btn" id="dd-new-trigger">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="2" y="2" width="12" height="12" rx="1.5"/>
+          <line x1="8" y1="5" x2="8" y2="11"/>
+          <line x1="5" y1="8" x2="11" y2="8"/>
+        </svg>
+        New
+      </button>
+      <div class="tb-dropdown-menu">
+        <div class="tb-dropdown-item" id="btn-new">New Project</div>
+        <div class="tb-dropdown-item" id="btn-new-tab">New Tab</div>
       </div>
     </div>
 
-    <div class="topbar-center">
-      <!-- Fluid seçimi -->
-      <div id="fluid-type">
-        <span class="label">Fluid</span>
-          <select id="select-fluid">
-            <option value="water">Water</option>
-            <option value="eg50">Ethylene Glycol 50%</option>
-          </select>
-
-          <div id="fluid-temp" style="display:flex; align-items:center; gap:6px;">
-            <input type="range" id="temp-slider" min="5" max="90" value="20" step="1"
-              style="width:80px;">
-            <span id="temp-label" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#6b7280;">
-              20°C
-            </span>
-          </div>
+    <!-- Export dropdown -->
+    <div class="tb-dropdown" id="dd-export">
+      <button class="tb-btn" id="dd-export-trigger">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M8 2v7M5 6l3 3 3-3"/>
+          <path d="M3 11v2h10v-2"/>
+        </svg>
+        Export
+      </button>
+      <div class="tb-dropdown-menu">
+        <div class="tb-dropdown-item" id="btn-save">Save to Browser</div>
+        <div class="tb-dropdown-item" id="btn-load">Load from Browser</div>
+        <div class="tb-dropdown-sep"></div>
+        <div class="tb-dropdown-item" id="btn-export-json">Export JSON</div>
+        <div class="tb-dropdown-item disabled">
+          Export PDF
+          <span class="item-badge">soon</span>
+        </div>
+        <div class="tb-dropdown-item disabled">
+          Export CSV
+          <span class="item-badge">soon</span>
+        </div>
       </div>
-
-
     </div>
 
-    <div class="topbar-right">
+    <div class="toolbar-sep"></div>
 
-      <button class="theme-toggle" id="theme-btn"   aria-label="Toggle theme">
+    <button id="btn-units" title="Toggle units">SI</button>
+
+    <!-- Theme toggle -->
+    <button class="theme-toggle" id="theme-btn" aria-label="Toggle theme">
         <span class="theme-icon sun">
           <svg viewBox="0 0 24 24">
             <circle cx="12" cy="12" r="5" fill="currentColor"/>
@@ -54,28 +102,24 @@
             </g>
           </svg>
         </span>
-        <span class="theme-icon moon">
+      <span class="theme-icon moon">
           <svg viewBox="0 0 24 24">
-            <path d="M21 12.5A9 9 0 1 1 11.5 3
-                    7 7 0 0 0 21 12.5z" fill="currentColor"/>
+            <path d="M21 12.5A9 9 0 1 1 11.5 3 7 7 0 0 0 21 12.5z" fill="currentColor"/>
           </svg>
         </span>
-        <span class="slider"></span>
-      </button>
+      <span class="slider"></span>
+    </button>
 
-      <button id="btn-units">SI</button>
+  </div>
+</header>
 
+<!-- ANA LAYOUT -->
+<div id="layout">
 
+  <!-- SOL KOLON -->
+  <aside id="col-left">
 
-
-    </div>
-
-  </header>
-
-  <!-- ANA LAYOUT -->
-  <div id="layout">
-    <!-- SOL KOLON -->
-    <aside id="col-left">
+    <div class="sidebar-content">
       <!-- Catalog -->
       <div id="panel-catalog">
         <div class="panel-header">
@@ -83,10 +127,12 @@
         </div>
         <div class="panel-scroll" id="cat-body"></div>
       </div>
-      <!-- resize -->
+
+      <!-- Dikey resize (catalog / props arası) -->
       <section class="resize-handler" data-resize="left">
         <div class="resize-grip"></div>
       </section>
+
       <!-- Properties -->
       <div id="panel-props">
         <div class="panel-header">
@@ -99,94 +145,100 @@
           </div>
         </div>
       </div>
-    </aside>
+    </div>
 
-    <!-- Dikey kolon resize -->
-    <section class="resize-handler" data-resize="vertical">
-      <div class="resize-grip" data-resize="vertical"></div>
+    <!-- Sidebar collapse toggle -->
+    <div id="sidebar-toggle" title="Toggle sidebar">‹</div>
+
+  </aside>
+
+  <!-- Dikey kolon resize (sidebar / canvas arası) -->
+  <section class="resize-handler" data-resize="vertical">
+    <div class="resize-grip" data-resize="vertical"></div>
+  </section>
+
+  <!-- SAĞ KOLON -->
+  <main id="col-right">
+
+    <!-- Canvas Paneli -->
+    <div id="panel-canvas">
+      <div id="canvas-bar">
+        <button id="btn-label" class="toolbar-btn" title="Toggle Labels">Labels</button>
+        <button id="btn-clear" class="toolbar-btn" title="Clear all">Clear</button>
+        <div class="toolbar-spacer"></div>
+        <button id="btn-fit"  class="toolbar-btn" title="Fit to view">Fit</button>
+      </div>
+
+      <!-- SVG Canvas -->
+      <div id="canvas-scroll">
+        <svg id="svg-canvas" xmlns="http://www.w3.org/2000/svg"></svg>
+        <canvas id="flow-canvas"></canvas>
+      </div>
+
+      <!-- HUD Widget -->
+      <div id="hud">
+        <button id="hud-start-btn" class="hud-start-btn">
+          <span id="hud-btn-icon">▶</span>
+          <span id="hud-btn-label">START</span>
+        </button>
+        <div id="hud-counters">
+          <div class="hud-counter-row">
+            <span class="hud-counter-label">TIME</span>
+            <span id="hud-time" class="hud-counter-val">00:00:00</span>
+          </div>
+          <div class="hud-counter-row">
+            <span class="hud-counter-label">VOL</span>
+            <span id="hud-vol" class="hud-counter-val">0.0 L</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Yatay resize (canvas / chart arası) -->
+    <section class="resize-handler" data-resize="right">
+      <div class="resize-grip"></div>
     </section>
 
-    <!-- SAĞ KOLON -->
-    <main id="col-right">
-
-      <!-- Canvas Paneli -->
-      <div id="panel-canvas">
-        <div id="canvas-bar">
-          <button class="button" id="btn-label"  title="Toggle Labels">
-            Labels
-          </button>
-
-          <button class="button" id="btn-fit" title="Fit to View">
-            <svg width="12" height="12" viewBox="0 0 12 12"><rect x="1" y="1" width="4" height="4" rx="0.5" fill="none" stroke="currentColor" stroke-width="1"/><rect x="7" y="7" width="4" height="4" rx="0.5" fill="none" stroke="currentColor" stroke-width="1"/><line x1="5" y1="3" x2="7" y2="3" stroke="currentColor" stroke-width="1"/><line x1="9" y1="5" x2="9" y2="7" stroke="currentColor" stroke-width="1"/></svg>
-            Fit
-          </button>
-          <button class="button"  id="btn-clear" title="Clear all">
-            <svg width="12" height="12" viewBox="0 0 12 12"><line x1="2" y1="2" x2="10" y2="10" stroke="currentColor" stroke-width="1.4"/><line x1="10" y1="2" x2="2" y2="10" stroke="currentColor" stroke-width="1.4"/></svg>
-            Clear
-          </button>
-            <button id="btn-new"  class="toolbar-btn" title="New project">New</button>
-
-            <button id="btn-save" class="toolbar-btn" title="Save to browser">Save</button>
-
-            <button id="btn-load" class="toolbar-btn" title="Load from browser">Load</button>
-
-
-
-        </div>
-        <!-- SVG Canvas -->
-        <div id="canvas-scroll"   >
-          <svg id="svg-canvas" xmlns="http://www.w3.org/2000/svg"></svg>
-            <canvas id="flow-canvas" style="
-              position: absolute;
-              top: 0; left: 0;
-              pointer-events: none;
-            "></canvas>
-        </div>
-        <!-- HUD Widget -->
-        <div id="hud">
-          <button id="hud-start-btn"  class="hud-start-btn">
-            <span id="hud-btn-icon">▶</span>
-            <span id="hud-btn-label">START</span>
-          </button>
-          <div id="hud-counters">
-            <div class="hud-counter-row">
-              <span class="hud-counter-label">⏱</span>
-              <span id="hud-time" class="hud-counter-val">00:00:00</span>
-            </div>
-            <div class="hud-counter-row">
-              <span class="hud-counter-label">💧</span>
-              <span id="hud-vol" class="hud-counter-val">0.0 L</span>
-            </div>
+    <!-- Chart Paneli -->
+    <div id="panel-chart">
+      <div class="panel-header">
+        <span>Pressure &amp; Velocity Profile</span>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="chart-controls">
+            <button class="chart-zoom-btn active" data-chart-zoom="all">All</button>
+            <button class="chart-zoom-btn" data-chart-zoom="selected">Selected</button>
           </div>
-        </div>
-      </div>
-
-      <!-- resize -->
-      <section class="resize-handler" data-resize="right">
-        <div class="resize-grip"></div>
-      </section>
-
-      <!-- Chart Paneli -->
-      <div id="panel-chart">
-        <div class="panel-header">
-          <span>Pressure &amp; Velocity Profile</span>
           <div class="chart-legend">
-            <span class="legend-item"><span class="legend-line" ></span>P (bar)</span>
-            <span class="legend-item"><span class="legend-line legend-dashed"></span>v (m/s)</span>
+              <span class="legend-item">
+                <span class="legend-line"></span>P (bar)
+              </span>
+            <span class="legend-item">
+                <span class="legend-line legend-dashed"></span>v (m/s)
+              </span>
           </div>
         </div>
-        <div id="chart-body">
-          <canvas id="chart-canvas"></canvas>
-          <div id="chart-empty">ADD COMPONENTS TO SEE THE PROFILE</div>
-        </div>
       </div>
+      <div id="chart-body">
+        <canvas id="chart-canvas"></canvas>
+        <div id="chart-empty">ADD COMPONENTS TO SEE THE PROFILE</div>
+      </div>
+    </div>
 
-    </main>
+  </main>
+</div>
 
+<!-- BOTTOMBAR -->
+<footer id="bottombar">
+  <div class="status-item">
+    <div class="status-dot ok" id="status-dot"></div>
+    <span id="status-text">Ready</span>
   </div>
-  <footer id="bottombar">
+  <div class="status-sep"></div>
+  <div class="status-item" id="status-components">0 components</div>
+  <div class="status-sep"></div>
+  <div class="status-item" id="status-config">—</div>
+</footer>
 
-  </footer>
-  <script type="module" src="main.js"></script>
+<script type="module" src="main.js"></script>
 </body>
 </html>
