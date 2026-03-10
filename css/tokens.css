@@ -1,0 +1,118 @@
+/* region 1. TOKENS */ /* ─── 1. TOKENS ──────────────────────────────────────────── */
+:root {
+	/* Surfaces */
+	--bg-base:      #0d0f12;
+	--bg-surface:   #13161b;
+	--bg-raised:    #1a1e26;
+	--bg-hover:     #1f2430;
+	--bg-active:    #252b38;
+
+	/* Borders */
+	--border:       rgba(255,255,255,0.07);
+	--border-mid:   rgba(255,255,255,0.11);
+	--border-hi:    rgba(255,255,255,0.18);
+
+	/* Text */
+	--text:         #e8eaf0;
+	--text-mid:     #a0a8bc;
+	--text-dim:     #545c70;
+	--text-mono:    #c8cdd8;
+
+	/* Accent & semantic */
+	--accent:       #f0a500;
+	--accent-lo:    rgba(240,165,0,0.09);
+	--accent-mid:   rgba(240,165,0,0.18);
+	--blue:         #3b82f6;
+	--blue-lo:      rgba(59,130,246,0.09);
+	--blue-mid:     rgba(59,130,246,0.18);
+	--green:        #22c55e;
+	--green-lo:     rgba(34,197,94,0.09);
+	--red:          #ef4444;
+	--red-lo:       rgba(239,68,68,0.09);
+	--orange:       #f97316;
+	--purple:       #a855f7;
+
+	/* Pipeline SVG renkleri — renderer tarafından kullanılır, değiştirme */
+	--c-pipe:       #4a9eff;
+	--c-trans:      #6e3eff;
+	--c-elbow:      #fbbf24;
+	--c-valve:      #43d339;
+	--c-valve-cl:   #f87171;
+	--c-prv:        #f472b6;
+	--c-pump:       #3b82f6;
+	--c-node-in:    #34d399;
+	--c-node-out:   #f87171;
+	--c-lbl-dim:    #4a5060;
+	--c-lbl-mid:    #6a7480;
+
+	/* SVG stroke widths */
+	--sw-idle:  2.5px;
+	--sw-hover: 3.5px;
+	--sw-sel:   4.5px;
+
+	/* Dimensions */
+	--topbar-h:     44px;
+	--bottombar-h:  28px;
+	--sidebar-w:    300px;
+	--collapse-w:   32px;
+
+	/* Typography */
+	--font-sans:    'IBM Plex Sans', system-ui, sans-serif;
+	--font-mono:    'IBM Plex Mono', 'Fira Code', monospace;
+	--text-xs:      11px;
+	--text-sm:      12px;
+	--text-base:    13px;
+	--text-lg:      14px;
+
+	/* Radius */
+	--r-sm:  3px;
+	--r-md:  6px;
+	--r-lg:  10px;
+
+	/* Transitions */
+	--t-fast: 0.12s;
+	--t-mid:  0.2s;
+}
+
+/* ─── Light tema ─────────────────────────────────────────── */
+[data-theme="light"] {
+	--bg-base:      #eef0f4;
+	--bg-surface:   #f8f9fb;
+	--bg-raised:    #ffffff;
+	--bg-hover:     #eef0f6;
+	--bg-active:    #e4e7f0;
+	--border:       rgba(0,0,0,0.07);
+	--border-mid:   rgba(0,0,0,0.11);
+	--border-hi:    rgba(0,0,0,0.18);
+	--text:         #111318;
+	--text-mid:     #4a5260;
+	--text-dim:     #9aa0b0;
+	--text-mono:    #1e2330;
+	--accent:       #c47800;
+	--accent-lo:    rgba(196,120,0,0.08);
+	--accent-mid:   rgba(196,120,0,0.16);
+	--blue:         #1a7fd4;
+	--blue-lo:      rgba(26,127,212,0.08);
+	--blue-mid:     rgba(26,127,212,0.16);
+	--green:        #16a34a;
+	--green-lo:     rgba(22,163,74,0.08);
+	--red:          #dc2626;
+	--red-lo:       rgba(220,38,38,0.08);
+	--c-pipe:       #1a7fd4;
+	--c-trans:      #7c3aed;
+	--c-elbow:      #c47800;
+	--c-valve:      #16a34a;
+	--c-valve-cl:   #dc2626;
+	--c-prv:        #9d174d;
+	--c-pump:       #1a7fd4;
+	--c-node-in:    #16a34a;
+	--c-node-out:   #dc2626;
+	--c-lbl-dim:    #8a94a4;
+	--c-lbl-mid:    #6a7480;
+}
+
+.no-transition *,
+.no-transition *::before,
+.no-transition *::after { transition: none !important; }
+
+/* endregion */

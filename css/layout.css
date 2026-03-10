@@ -1,0 +1,138 @@
+/* region 3. LAYOUT */ /* ─── 3. LAYOUT ──────────────────────────────────────────── */ /* Topbar */
+#topbar {
+	position: fixed;
+	top: 0; left: 0; right: 0;
+	height: var(--topbar-h);
+	background: var(--bg-surface);
+	border-bottom: 1px solid var(--border-mid);
+	display: flex;
+	align-items: center;
+	padding: 0 10px;
+	gap: 6px;
+	z-index: 200;
+	user-select: none;
+	flex-shrink: 0;
+}
+
+/* Ana layout */
+#layout {
+	display: flex;
+	position: fixed;
+	top: var(--topbar-h);
+	left: 0; right: 0;
+	bottom: var(--bottombar-h);
+	overflow: hidden;
+}
+
+/* Sol kolon */
+#col-left {
+	width: var(--sidebar-w);
+	min-width: var(--sidebar-w);
+	display: flex;
+	flex-direction: column;
+	background: var(--bg-surface);
+	border-right: 1px solid var(--border-mid);
+	flex-shrink: 0;
+	overflow: hidden;
+	position: relative;
+	transition: width var(--t-mid) ease, min-width var(--t-mid) ease;
+}
+
+#col-left.collapsed {
+	width: var(--collapse-w);
+	min-width: var(--collapse-w);
+}
+
+#col-left.collapsed .sidebar-content {
+	opacity: 0;
+	pointer-events: none;
+}
+
+.sidebar-content {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	overflow: hidden;
+	min-height: 0;
+	transition: opacity var(--t-fast);
+}
+
+/* Sidebar toggle */
+#sidebar-toggle {
+	position: absolute;
+	top: 50%;
+	right: -12px;
+	transform: translateY(-50%);
+	width: 12px;
+	height: 40px;
+	background: var(--bg-surface);
+	border: 1px solid var(--border-hi);
+	border-left: none;
+	border-radius: 0 var(--r-md) var(--r-md) 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	z-index: 10;
+	color: var(--text-dim);
+	font-size: 8px;
+	transition: all var(--t-fast);
+}
+
+#sidebar-toggle:hover {
+	background: var(--bg-hover);
+	color: var(--text);
+}
+
+/* Sağ kolon */
+#col-right {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	min-width: 0;
+}
+
+/* Bottombar */
+#bottombar {
+	height: var(--bottombar-h);
+	background: var(--bg-surface);
+	border-top: 1px solid var(--border-mid);
+	position: fixed;
+	bottom: 0; left: 0; right: 0;
+	display: flex;
+	align-items: center;
+	padding: 0 12px;
+	gap: 16px;
+	z-index: 200;
+	user-select: none;
+}
+
+.status-item {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	font-family: var(--font-mono);
+	font-size: var(--text-xs);
+	color: var(--text-dim);
+}
+
+.status-dot {
+	width: 5px; height: 5px;
+	border-radius: 50%;
+	background: var(--text-dim);
+	flex-shrink: 0;
+}
+
+.status-dot.ok   { background: var(--green); }
+
+.status-dot.warn { background: var(--accent); }
+
+.status-dot.err  { background: var(--red); }
+
+.status-sep {
+	width: 1px; height: 12px;
+	background: var(--border-mid);
+}
+
+/* endregion */

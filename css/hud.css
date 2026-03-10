@@ -1,88 +1,86 @@
-/* HUD WIDGET — canvas sağ alt köşe */
-#hud {
-  position:absolute;
-  bottom: 30px;
-  right: 30px;
-  align-items: center;
-  justify-content: space-evenly ;
-  border: 1px solid var(--border);
-  border-radius: var(45px);
-  padding: 15px;
-  display: flex;
-  flex-direction: column;
-  width: 180px;
-  z-index: 100;
-  user-select: none;
-}
-/* Start butonu */
-.hud-start-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 38px;
-  border-radius: var(--r-sm);
-  border: 1px solid var(--border);
-  color: var(--text-mid);
-  font-size: var(--text-sm);
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.hud-start-btn:hover {
-  border-color: var(--green);
-  color: var(--green);
-  background: var(--green-lo);
-}
-.hud-start-btn.running {
-  border-color: var(--red);
-  color: var(--red);
-  background: var(--red-lo);
-}
-/* Sayaçlar */
-#hud-counters {
-  display: flex;
-  flex-direction: column;
-  width: auto;
-  overflow: visible;
-}
-.hud-counter-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-evenly;
-  width: auto;
-  overflow: visible;
-}
-.hud-counter-label {
-  font-size: var(--text-sm);
-  overflow: visible;
-}
-.hud-counter-val {
-  font-family: var(--font-mono);
-  font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--text);
-  letter-spacing: 0.05em;
-  overflow: visible;
-}
-.hud-start-btn.blocked {
-  animation: shake 0.3s ease;
+/* region 6. HUD */
+/* ─── 6. HUD ─────────────────────────────────────────────── */
+#hud
+{
+	position: absolute;
+	bottom: 16px;
+	right: 16px;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	background: var(--bg-surface);
+	border: 1px solid var(--border-hi);
+	border-radius: var(--r-lg);
+	padding: 8px 12px;
+	box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+	z-index: 100;
+	user-select: none;
 }
 
+.hud-start-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	height: 32px;
+	padding: 0 14px;
+	border-radius: var(--r-sm);
+	border: 1px solid var(--border-mid);
+	color: var(--text-mid);
+	font-family: var(--font-mono);
+	font-size: var(--text-xs);
+	font-weight: 700;
+	letter-spacing: 0.1em;
+	cursor: pointer;
+	transition: all var(--t-fast);
+}
+
+.hud-start-btn:hover {
+	border-color: var(--green);
+	color: var(--green);
+	background: var(--green-lo);
+}
+
+.hud-start-btn.running {
+	border-color: var(--red);
+	color: var(--red);
+	background: var(--red-lo);
+}
 
 .hud-start-btn.alarm {
-  border-color: var(--clr-alarm, #e74c3c);
-  color: var(--clr-alarm, #e74c3c);
+	border-color: var(--red);
+	color: var(--red);
 }
 
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  20%       { transform: translateX(-4px); }
-  40%       { transform: translateX(4px); }
-  60%       { transform: translateX(-3px); }
-  80%       { transform: translateX(3px); }
+.hud-start-btn.blocked { animation: shake 0.3s ease; }
+
+#hud-counters {
+	display: flex;
+	gap: 14px;
+	padding-left: 10px;
+	border-left: 1px solid var(--border-mid);
 }
 
-.shake {
-  animation: shake 0.35s ease;
+.hud-counter-row {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
 }
+
+.hud-counter-label {
+	font-family: var(--font-mono);
+	font-size: 9px;
+	color: var(--text-dim);
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.hud-counter-val {
+	font-family: var(--font-mono);
+	font-size: var(--text-lg);
+	font-weight: 600;
+	color: var(--text);
+	letter-spacing: 0.04em;
+}
+
+/* endregion */

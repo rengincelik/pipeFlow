@@ -1,0 +1,103 @@
+/* region 9. PIPELINE SVG */ /* ─── 9. PIPELINE SVG ────────────────────────────────────── */
+.component { cursor: pointer; fill: none; }
+
+.hitbox {
+	fill: transparent;
+	stroke: none;
+	pointer-events: all;
+}
+
+/* Labels */
+.component .lbl { display: none; }
+
+.component.labels-on .lbl { display: block; }
+
+.lbl {
+	font-family: var(--font-mono);
+	font-size: 13px;
+	pointer-events: none;
+	user-select: none;
+}
+
+.lbl-dim  { fill: var(--c-lbl-dim); font-weight: bold; }
+
+.lbl-vel  { fill: var(--c-pipe);    font-style: italic; }
+
+.lbl-head { fill: var(--c-pump);    font-weight: bold; }
+
+/* Seçili */
+.component.selected .pipe-centerline,
+.component.selected .elbow-path,
+.component.selected .valve-stem,
+.component.selected .valve-tri,
+.component.selected .pump-circle,
+.component.selected .pump-stem,
+.component.selected .pipe-body {
+	stroke-width: var(--sw-sel) !important;
+	filter: drop-shadow(0 0 5px currentColor);
+}
+
+/* Hover */
+.component:hover .pipe-centerline,
+.component:hover .elbow-path,
+.component:hover .valve-stem,
+.component:hover .valve-tri,
+.component:hover .pump-circle,
+.component:hover .pump-stem,
+.component:hover .pipe-body { stroke-width: var(--sw-hover); }
+
+/* Pipe */
+.pipe-centerline { stroke: var(--c-pipe); stroke-width: var(--sw-idle); }
+
+.pipe-arrow      { fill: var(--c-pipe); }
+
+/* Elbow */
+.elbow-path { stroke: var(--c-elbow); stroke-width: var(--sw-idle); fill: none; }
+
+/* Valve */
+.valve-stem { stroke: var(--c-valve); stroke-width: var(--sw-idle); }
+
+.valve-tri  {
+	stroke: var(--c-valve);
+	fill: color-mix(in srgb, var(--c-valve) 10%, transparent);
+	stroke-width: 1.5px;
+}
+
+/* Transition */
+.pipe-reducer, .pipe-expander {
+	stroke: var(--c-trans);
+	fill: color-mix(in srgb, var(--c-trans) 5%, transparent);
+	stroke-width: var(--sw-idle);
+}
+
+/* Pump */
+.pump-circle, .pump-stem { stroke: var(--c-pump); stroke-width: var(--sw-idle); }
+
+.pump-blade  { fill: var(--c-pump); }
+
+/* PRV */
+.prv-stem {
+	stroke: var(--c-prv);
+	stroke-width: 1.5;
+}
+
+.prv-status-circle {
+	fill: var(--text-dim);
+	stroke: var(--c-prv);
+	stroke-width: 1.5;
+	transition: fill var(--t-fast);
+}
+
+.prv-port-line {
+	stroke: var(--c-prv);
+	stroke-width: 2;
+	stroke-linecap: round;
+	opacity: 0.7;
+}
+
+.prv-active .prv-port-line {
+	stroke: var(--red);
+	opacity: 1;
+}
+
+/* endregion */

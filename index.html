@@ -1,244 +1,290 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PipeFlow — Pipeline Designer</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>PipeFlow — Pipeline Designer</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+		<link rel="stylesheet" href="./style.css">
+		<script type="module" src="main.js"></script>
+	</head>
+	
+	<body>
+	
+		<header id="topbar">
+			
+			<!-- <editor-fold desc="Logo"> -->
+			<div class="logo">
+				<div class="logo-mark">P</div>
+				<span class="logo-text">PIPEFLOW</span>
+			</div>
+			<!-- </editor-fold> -->
+			
+			<!-- <editor-fold desc="Tab bar"> -->
+			<div id="tab-bar">
+				<div class="tab active" data-tab-id="1">
+					<span class="tab-name">Project 1</span>
+					<span class="tab-close" title="Close">×</span>
+				</div>
+				<div class="tab-add" id="btn-tab-add" title="New tab">+</div>
+			</div>
+			<!-- </editor-fold> -->
+			
+			<!-- <editor-fold desc="Fluid kontrol"> -->
+			<div id="fluid-type">
+				<span class="label">FLUID</span>
+				<select id="select-fluid">
+					<option value="water">Water</option>
+					<option value="eg50">EG 50%</option>
+				</select>
+				<div id="fluid-temp">
+					<input type="range" id="temp-slider" min="5" max="90" value="20" step="1">
+					<span id="temp-label">20°C</span>
+				</div>
+			</div>
+			<!-- </editor-fold> -->
+			
+			<!-- <editor-fold desc="Sağ grup"> -->
+			<div class="topbar-right">
+				
+				<!-- <editor-fold desc="New dropdown"> -->
+				<div class="tb-dropdown" id="dd-new">
+					<button class="tb-btn" id="dd-new-trigger">
+						<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+							<rect x="2" y="2" width="12" height="12" rx="1.5"/>
+							<line x1="8" y1="5" x2="8" y2="11"/>
+							<line x1="5" y1="8" x2="11" y2="8"/>
+						</svg>
+						New
+					</button>
+					<div class="tb-dropdown-menu">
+						<div class="tb-dropdown-item" id="btn-new">New Project</div>
+						<div class="tb-dropdown-item" id="btn-new-tab">New Tab</div>
+					</div>
+				</div>
+				<!-- </editor-fold> -->
+				
+				<!-- <editor-fold desc="Export dropdown"> -->
+				<div class="tb-dropdown" id="dd-export">
+					<button class="tb-btn" id="dd-export-trigger">
+						<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+							<path d="M8 2v7M5 6l3 3 3-3"/>
+							<path d="M3 11v2h10v-2"/>
+						</svg>
+						Export
+					</button>
+					<div class="tb-dropdown-menu">
+						<div class="tb-dropdown-item" id="btn-save">Save to Browser</div>
+						<div class="tb-dropdown-sep"></div>
+						<div class="tb-dropdown-item" id="btn-export-json">Export JSON</div>
+						<div class="tb-dropdown-item disabled">
+							Export PDF
+							<span class="item-badge">soon</span>
+						</div>
+						<div class="tb-dropdown-item disabled">
+							Export CSV
+							<span class="item-badge">soon</span>
+						</div>
+					</div>
+				</div>
+				<!-- </editor-fold> -->
+				
+				<!-- <editor-fold desc="Import dropdown"> -->
+				<div class="tb-dropdown" id="dd-import">
+					<button class="tb-btn" id="dd-import-trigger">
+						<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+							<path d="M8 2v7M5 6l3 3 3-3"/>
+							<path d="M3 11v2h10v-2"/>
+						</svg>
+						Import
+					</button>
+					<div class="tb-dropdown-menu">
+						<div class="tb-dropdown-item" id="btn-load">Load from Browser</div>
+						<div class="tb-dropdown-sep"></div>
+						<div class="tb-dropdown-item" id="btn-import-json">Import JSON</div>
+						<div class="tb-dropdown-item disabled">
+							Import PDF
+							<span class="item-badge">soon</span>
+						</div>
+						<div class="tb-dropdown-item disabled">
+							Import CSV
+							<span class="item-badge">soon</span>
+						</div>
+					</div>
+				</div>
+				<!-- </editor-fold> -->
+				
+				<div class="toolbar-sep"></div>
+				
+				<button id="btn-units" title="Toggle units">SI</button>
+				
+				<!-- <editor-fold desc="Theme toggle"> -->
+				<button class="theme-toggle" id="theme-btn" aria-label="Toggle theme">
+				<span class="theme-icon sun">
+				  <svg viewBox="0 0 24 24">
+					<circle cx="12" cy="12" r="5" fill="currentColor"/>
+					<g stroke="currentColor" stroke-width="2">
+					  <line x1="12" y1="1" x2="12" y2="4"/>
+					  <line x1="12" y1="20" x2="12" y2="23"/>
+					  <line x1="1" y1="12" x2="4" y2="12"/>
+					  <line x1="20" y1="12" x2="23" y2="12"/>
+					</g>
+				  </svg>
+				</span>
+					<span class="theme-icon moon">
+				  <svg viewBox="0 0 24 24">
+					<path d="M21 12.5A9 9 0 1 1 11.5 3 7 7 0 0 0 21 12.5z" fill="currentColor"/>
+				  </svg>
+				</span>
+					<span class="slider"></span>
+				</button>
+				<!-- </editor-fold> -->
+			
+			</div>
+			<!-- </editor-fold> -->
+		</header>
+		
+		<main id="layout">
+			
+			<!-- <editor-fold desc="SOL KOLON"> -->
+			<aside id="col-left">
+				
+				<div class="sidebar-content">
+					<!-- <editor-fold desc="Catalog"> -->
+					<div id="panel-catalog">
+						<div class="panel-header">
+							<span>Catalog</span>
+						</div>
+						<div class="panel-scroll" id="cat-body"></div>
+					</div>
+					<!-- </editor-fold> -->
+					
+					<!-- <editor-fold desc="Dikey resize"> -->
+					<section class="resize-handler" data-resize="left">
+						<div class="resize-grip"></div>
+					</section>
+					<!-- </editor-fold> -->
+					
+					<!-- <editor-fold desc="Properties"> -->
+					<div id="panel-props">
+						<div class="panel-header">
+							<span>Properties</span>
+						</div>
+						<div class="panel-scroll" id="prop-body">
+							<div id="prop-empty">
+								<div class="prop-empty-icon">◈</div>
+								<div class="prop-empty-text">SELECT A COMPONENT</div>
+							</div>
+						</div>
+					</div>
+					<!-- </editor-fold> -->
+					
+				</div>
+				
+				<!-- <editor-fold desc="Sidebar collapse toggle"> -->
+				<div id="sidebar-toggle" title="Toggle sidebar">‹</div>
+				<!-- </editor-fold> -->
+				
+			</aside>
+			<!-- </editor-fold> -->
+			
+			<!-- <editor-fold desc="Dikey kolon resize"> -->
+			<section class="resize-handler" data-resize="vertical">
+				<div class="resize-grip" data-resize="vertical"></div>
+			</section>
+			<!-- </editor-fold> -->
+			
+			<!-- <editor-fold desc="SAĞ KOLON"> -->
+			<div id="col-right">
+				
+				<!-- <editor-fold desc="Canvas Paneli"> -->
+				<div id="panel-canvas">
+					
+					<!-- <editor-fold desc="Canvar Bar"> -->
+					<div id="canvas-bar">
+						<button id="btn-label" class="toolbar-btn" title="Toggle Labels">Labels</button>
+						<button id="btn-clear" class="toolbar-btn" title="Clear all">Clear</button>
+						<div class="toolbar-spacer"></div>
+						<button id="btn-fit"  class="toolbar-btn" title="Fit to view">Fit</button>
+					</div>
+					<!-- </editor-fold> -->
+					
+					<!-- <editor-fold desc="SVG Canvas"> -->
+					<div id="canvas-scroll">
+						<svg id="svg-canvas" xmlns="http://www.w3.org/2000/svg"></svg>
+						<canvas id="flow-canvas"></canvas>
+					</div>
+					<!-- </editor-fold> -->
+					
+					<!-- <editor-fold desc="HUD Widget"> -->
+					<div id="hud">
+						<button id="hud-start-btn" class="hud-start-btn">
+							<span id="hud-btn-icon">▶</span>
+							<span id="hud-btn-label">START</span>
+						</button>
+						<div id="hud-counters">
+							<div class="hud-counter-row">
+								<span class="hud-counter-label">TIME</span>
+								<span id="hud-time" class="hud-counter-val">00:00:00</span>
+							</div>
+							<div class="hud-counter-row">
+								<span class="hud-counter-label">VOL</span>
+								<span id="hud-vol" class="hud-counter-val">0.0 L</span>
+							</div>
+						</div>
+					</div>
+					<!-- </editor-fold> -->
+				</div>
+				<!-- </editor-fold> -->
+				
+				<!-- <editor-fold desc="Resize handler"> -->
+				<section class="resize-handler" data-resize="right">
+					<div class="resize-grip"></div>
+				</section>
+				<!-- </editor-fold> -->
+				
+				<!-- <editor-fold desc="Chart Paneli"> -->
+				<div id="panel-chart">
+					<div class="panel-header">
+						<span>Pressure &amp; Velocity Profile</span>
+						<div style="display:flex;align-items:center;gap:10px;">
+							<div class="chart-controls">
+								<button class="chart-zoom-btn active" data-chart-zoom="all">All</button>
+								<button class="chart-zoom-btn" data-chart-zoom="selected">Selected</button>
+							</div>
+							<div class="chart-legend">
+					  <span class="legend-item">
+						<span class="legend-line"></span>P (bar)
+					  </span>
+								<span class="legend-item">
+						<span class="legend-line legend-dashed"></span>v (m/s)
+					  </span>
+							</div>
+						</div>
+					</div>
+					<div id="chart-body">
+						<canvas id="chart-canvas"></canvas>
+						<div id="chart-empty">ADD COMPONENTS TO SEE THE PROFILE</div>
+					</div>
+				</div>
+				<!-- </editor-fold> -->
+				
+			</div>
+			<!-- </editor-fold> -->
+			
+		</main>
+		
+		<footer id="bottombar">
+			<div class="status-item">
+				<div class="status-dot ok" id="status-dot"></div>
+				<span id="status-text">Ready</span>
+			</div>
+			<div class="status-sep"></div>
+			<div class="status-item" id="status-components">0 components</div>
+			<div class="status-sep"></div>
+			<div class="status-item" id="status-config">—</div>
+		</footer>
+	</body>
 
-<!-- TOPBAR -->
-<header id="topbar">
-
-  <!-- Logo -->
-  <div class="logo">
-    <div class="logo-mark">P</div>
-    <span class="logo-text">PIPEFLOW</span>
-  </div>
-
-  <!-- Tab bar -->
-  <div id="tab-bar">
-    <div class="tab active" data-tab-id="1">
-      <span class="tab-name">Project 1</span>
-      <span class="tab-close" title="Close">×</span>
-    </div>
-    <div class="tab-add" id="btn-tab-add" title="New tab">+</div>
-  </div>
-
-  <!-- Fluid kontrol -->
-  <div id="fluid-type">
-    <span class="label">FLUID</span>
-    <select id="select-fluid">
-      <option value="water">Water</option>
-      <option value="eg50">EG 50%</option>
-    </select>
-    <div id="fluid-temp">
-      <input type="range" id="temp-slider" min="5" max="90" value="20" step="1">
-      <span id="temp-label">20°C</span>
-    </div>
-  </div>
-
-  <!-- Sağ grup -->
-  <div class="topbar-right">
-
-    <!-- New dropdown -->
-    <div class="tb-dropdown" id="dd-new">
-      <button class="tb-btn" id="dd-new-trigger">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-          <rect x="2" y="2" width="12" height="12" rx="1.5"/>
-          <line x1="8" y1="5" x2="8" y2="11"/>
-          <line x1="5" y1="8" x2="11" y2="8"/>
-        </svg>
-        New
-      </button>
-      <div class="tb-dropdown-menu">
-        <div class="tb-dropdown-item" id="btn-new">New Project</div>
-        <div class="tb-dropdown-item" id="btn-new-tab">New Tab</div>
-      </div>
-    </div>
-
-    <!-- Export dropdown -->
-    <div class="tb-dropdown" id="dd-export">
-      <button class="tb-btn" id="dd-export-trigger">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M8 2v7M5 6l3 3 3-3"/>
-          <path d="M3 11v2h10v-2"/>
-        </svg>
-        Export
-      </button>
-      <div class="tb-dropdown-menu">
-        <div class="tb-dropdown-item" id="btn-save">Save to Browser</div>
-        <div class="tb-dropdown-item" id="btn-load">Load from Browser</div>
-        <div class="tb-dropdown-sep"></div>
-        <div class="tb-dropdown-item" id="btn-export-json">Export JSON</div>
-        <div class="tb-dropdown-item disabled">
-          Export PDF
-          <span class="item-badge">soon</span>
-        </div>
-        <div class="tb-dropdown-item disabled">
-          Export CSV
-          <span class="item-badge">soon</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="toolbar-sep"></div>
-
-    <button id="btn-units" title="Toggle units">SI</button>
-
-    <!-- Theme toggle -->
-    <button class="theme-toggle" id="theme-btn" aria-label="Toggle theme">
-        <span class="theme-icon sun">
-          <svg viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="5" fill="currentColor"/>
-            <g stroke="currentColor" stroke-width="2">
-              <line x1="12" y1="1" x2="12" y2="4"/>
-              <line x1="12" y1="20" x2="12" y2="23"/>
-              <line x1="1" y1="12" x2="4" y2="12"/>
-              <line x1="20" y1="12" x2="23" y2="12"/>
-            </g>
-          </svg>
-        </span>
-      <span class="theme-icon moon">
-          <svg viewBox="0 0 24 24">
-            <path d="M21 12.5A9 9 0 1 1 11.5 3 7 7 0 0 0 21 12.5z" fill="currentColor"/>
-          </svg>
-        </span>
-      <span class="slider"></span>
-    </button>
-
-  </div>
-</header>
-
-<!-- ANA LAYOUT -->
-<div id="layout">
-
-  <!-- SOL KOLON -->
-  <aside id="col-left">
-
-    <div class="sidebar-content">
-      <!-- Catalog -->
-      <div id="panel-catalog">
-        <div class="panel-header">
-          <span>Catalog</span>
-        </div>
-        <div class="panel-scroll" id="cat-body"></div>
-      </div>
-
-      <!-- Dikey resize (catalog / props arası) -->
-      <section class="resize-handler" data-resize="left">
-        <div class="resize-grip"></div>
-      </section>
-
-      <!-- Properties -->
-      <div id="panel-props">
-        <div class="panel-header">
-          <span>Properties</span>
-        </div>
-        <div class="panel-scroll" id="prop-body">
-          <div id="prop-empty">
-            <div class="prop-empty-icon">◈</div>
-            <div class="prop-empty-text">SELECT A COMPONENT</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Sidebar collapse toggle -->
-    <div id="sidebar-toggle" title="Toggle sidebar">‹</div>
-
-  </aside>
-
-  <!-- Dikey kolon resize (sidebar / canvas arası) -->
-  <section class="resize-handler" data-resize="vertical">
-    <div class="resize-grip" data-resize="vertical"></div>
-  </section>
-
-  <!-- SAĞ KOLON -->
-  <main id="col-right">
-
-    <!-- Canvas Paneli -->
-    <div id="panel-canvas">
-      <div id="canvas-bar">
-        <button id="btn-label" class="toolbar-btn" title="Toggle Labels">Labels</button>
-        <button id="btn-clear" class="toolbar-btn" title="Clear all">Clear</button>
-        <div class="toolbar-spacer"></div>
-        <button id="btn-fit"  class="toolbar-btn" title="Fit to view">Fit</button>
-      </div>
-
-      <!-- SVG Canvas -->
-      <div id="canvas-scroll">
-        <svg id="svg-canvas" xmlns="http://www.w3.org/2000/svg"></svg>
-        <canvas id="flow-canvas"></canvas>
-      </div>
-
-      <!-- HUD Widget -->
-      <div id="hud">
-        <button id="hud-start-btn" class="hud-start-btn">
-          <span id="hud-btn-icon">▶</span>
-          <span id="hud-btn-label">START</span>
-        </button>
-        <div id="hud-counters">
-          <div class="hud-counter-row">
-            <span class="hud-counter-label">TIME</span>
-            <span id="hud-time" class="hud-counter-val">00:00:00</span>
-          </div>
-          <div class="hud-counter-row">
-            <span class="hud-counter-label">VOL</span>
-            <span id="hud-vol" class="hud-counter-val">0.0 L</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Yatay resize (canvas / chart arası) -->
-    <section class="resize-handler" data-resize="right">
-      <div class="resize-grip"></div>
-    </section>
-
-    <!-- Chart Paneli -->
-    <div id="panel-chart">
-      <div class="panel-header">
-        <span>Pressure &amp; Velocity Profile</span>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <div class="chart-controls">
-            <button class="chart-zoom-btn active" data-chart-zoom="all">All</button>
-            <button class="chart-zoom-btn" data-chart-zoom="selected">Selected</button>
-          </div>
-          <div class="chart-legend">
-              <span class="legend-item">
-                <span class="legend-line"></span>P (bar)
-              </span>
-            <span class="legend-item">
-                <span class="legend-line legend-dashed"></span>v (m/s)
-              </span>
-          </div>
-        </div>
-      </div>
-      <div id="chart-body">
-        <canvas id="chart-canvas"></canvas>
-        <div id="chart-empty">ADD COMPONENTS TO SEE THE PROFILE</div>
-      </div>
-    </div>
-
-  </main>
-</div>
-
-<!-- BOTTOMBAR -->
-<footer id="bottombar">
-  <div class="status-item">
-    <div class="status-dot ok" id="status-dot"></div>
-    <span id="status-text">Ready</span>
-  </div>
-  <div class="status-sep"></div>
-  <div class="status-item" id="status-components">0 components</div>
-  <div class="status-sep"></div>
-  <div class="status-item" id="status-config">—</div>
-</footer>
-
-<script type="module" src="main.js"></script>
-</body>
 </html>

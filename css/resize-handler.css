@@ -1,0 +1,48 @@
+/* region 10. RESIZE HANDLERS */ /* ─── 10. RESIZE HANDLERS ────────────────────────────────── */
+.resize-handler {
+	height: 3px;
+	background: transparent;
+	cursor: ns-resize;
+	flex-shrink: 0;
+	transition: background var(--t-fast);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	position: relative;
+}
+
+.resize-handler::after {
+	content: '';
+	position: absolute;
+	inset: -3px 0;
+}
+
+.resize-grip {
+	width: 32px; height: 3px;
+	background: var(--border-hi);
+	border-radius: 2px;
+	pointer-events: none;
+}
+
+.resize-handler[data-resize="vertical"] {
+	height: 100%;
+	width: 3px;
+	cursor: ew-resize;
+	flex-direction: column;
+}
+
+.resize-handler[data-resize="vertical"]::after {
+	inset: 0 -3px;
+}
+
+.resize-grip[data-resize="vertical"] {
+	width: 3px; height: 32px;
+}
+
+.resize-handler:hover,
+.resize-handler.active { background: var(--accent); }
+
+.resize-handler:hover .resize-grip,
+.resize-handler.active .resize-grip { background: var(--accent); }
+
+/* endregion */
