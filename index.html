@@ -245,22 +245,20 @@
 				<!-- </editor-fold> -->
 				
 				<!-- <editor-fold desc="Chart Paneli"> -->
+				
 				<div id="panel-chart">
 					<div class="panel-header">
-						<span>Pressure &amp; Velocity Profile</span>
-						<div style="display:flex;align-items:center;gap:10px;">
-							<div class="chart-controls">
-								<button class="chart-zoom-btn active" data-chart-zoom="all">All</button>
-								<button class="chart-zoom-btn" data-chart-zoom="selected">Selected</button>
+						<span>Analysis</span>
+						<div style="display:flex;align-items:center;gap:8px;">
+							
+							<!-- Metrik seçici — radio davranışı, data-chart-metric -->
+							<div class="chart-metric-tabs">
+								<button class="chart-metric-btn active" data-chart-metric="dP">ΔP</button>
+								<button class="chart-metric-btn" data-chart-metric="pressure">Pressure</button>
+								<button class="chart-metric-btn" data-chart-metric="velocity">Velocity</button>
+								<button class="chart-metric-btn" data-chart-metric="flow">Flow</button>
 							</div>
-							<div class="chart-legend">
-					  <span class="legend-item">
-						<span class="legend-line"></span>P (bar)
-					  </span>
-								<span class="legend-item">
-						<span class="legend-line legend-dashed"></span>v (m/s)
-					  </span>
-							</div>
+						
 						</div>
 					</div>
 					<div id="chart-body">

@@ -331,6 +331,14 @@ function bindToolbar() {
 	DOM.btnImportJson.onclick = () => { ddManager.closeAll(); Actions.importJSON(); };
 
 	DOM.btnTabAdd.onclick = () => UI.showBlockToast('Multi-tab coming soon');
+
+	document.querySelectorAll('[data-chart-metric]').forEach(btn => {
+		btn.addEventListener('click', () => {
+			document.querySelectorAll('[data-chart-metric]').forEach(b => b.classList.remove('active'));
+			btn.classList.add('active');
+			chart.setMetric(btn.dataset.chartMetric);
+		});
+	});
 }
 
 function bindSidebar() {
@@ -485,6 +493,7 @@ const CatalogManager = createCatalogManager({
 		engine,
 		animator,
 		UI,
+		Actions,
 		DOM,
 		tooltip,
 		setupInitialState,
@@ -492,6 +501,7 @@ const CatalogManager = createCatalogManager({
 		pipelineStore,
 		SystemConfig,
 		createComponent,
+		onSyncFluid: (fluidId, tempC) => { _fluidId = fluidId; _tempC = tempC; },
 	});
 
 	ddManager = createDropdownManager({

@@ -11,6 +11,7 @@ export function createProjectIO({
 									engine,
 									animator,
 									UI,
+									Actions,
 									DOM,
 									tooltip,
 									setupInitialState,
@@ -18,6 +19,7 @@ export function createProjectIO({
 									pipelineStore,
 									SystemConfig,
 									createComponent,
+									onSyncFluid,
 								}) {
 
 	// <editor-fold desc="saveProject">
@@ -41,7 +43,7 @@ export function createProjectIO({
 			_stopIfRunning();
 			pipelineStore.deserialize(data, (type, subtype) => createComponent(type, subtype));
 			_syncFluidUI();
-			UI.updateFluid();
+			Actions.updateFluid();
 			UI.refreshCanvas();
 			UI.renderProps();
 			tooltip.rebind(DOM.svgCanvas);
@@ -60,7 +62,7 @@ export function createProjectIO({
 		SystemConfig.reset();
 		_syncFluidUI();
 		setupInitialState();
-		UI.updateFluid();
+		Actions.updateFluid();
 		UI.refreshCanvas();
 		UI.renderProps();
 		tooltip.rebind(DOM.svgCanvas);
@@ -130,6 +132,7 @@ export function createProjectIO({
 		DOM.selectFluid.value     = fluidId;
 		DOM.tempSlider.value      = tempC;
 		DOM.tempLabel.textContent = `${tempC}°C`;
+		onSyncFluid(fluidId, tempC);   // ← main.js'teki değişkenleri günceller
 	}
 	// </editor-fold>
 

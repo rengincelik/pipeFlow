@@ -153,6 +153,38 @@
 	overflow: hidden;
 }
 
+.chart-metric-tabs {
+	display: flex;
+	background: var(--bg-raised);
+	border: 1px solid var(--border-mid);
+	border-radius: var(--r-sm);
+	padding: 2px;
+	gap: 2px;
+}
+
+.chart-metric-btn {
+	height: 20px;
+	padding: 0 8px;
+	border: none;
+	border-radius: 2px;
+	background: transparent;
+	color: var(--text-dim);
+	font-family: var(--font-mono);
+	font-size: 10px;
+	cursor: pointer;
+	transition: all var(--t-fast);
+	white-space: nowrap;
+}
+
+.chart-metric-btn:hover {
+	color: var(--text-mid);
+	background: var(--bg-hover);
+}
+
+.chart-metric-btn.active {
+	background: var(--accent-lo);
+	color: var(--accent);
+}
 .chart-controls {
 	display: flex;
 	align-items: center;
