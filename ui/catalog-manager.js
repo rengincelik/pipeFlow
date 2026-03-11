@@ -1,8 +1,8 @@
 'use strict';
 
-import { createComponent } from './components/base.js';
-import { CATALOG_DEF }     from './data/catalogs.js';
-import { pipelineStore }   from './state/pipeline-store.js';
+import { createComponent } from '../components/base.js';
+import { CATALOG_DEF }     from '../data/catalogs.js';
+import { pipelineStore }   from '../state/pipeline-store.js';
 
 /**
  * createCatalogManager({ catBody, showToast })
@@ -82,6 +82,7 @@ export function createCatalogManager({ catBody, showToast }) {
               <div class="cat-chip-wrap" data-gi="${gi}" data-ii="${ii}">
                 <div class="cat-chip" draggable="true" data-gi="${gi}" data-ii="${ii}">
                   <span class="cat-chip-icon">${it.icon}</span> 
+                  <span class="cat-chip-name">${it.desc}</span>
                   <span class="cat-chip-arrow">▾</span>
                 </div>
                 <div class="cat-chip-expand" id="expand-${gi}-${ii}"></div>

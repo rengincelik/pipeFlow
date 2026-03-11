@@ -18,7 +18,7 @@ import { SimulationEngine, SysState } from './Simulation/SimulationEngine.js';
 import { Units } from './data/unit-system.js';
 import { fluidRegistry } from './data/fluid-model.js';
 import { createComponent } from './components/base.js';
-import { createCatalogManager } from './catalog-manager.js';
+import { createCatalogManager } from './ui/catalog-manager.js';
 
 // Yan etkili component importları (kayıt için sıra önemli)
 import './components/pipe.js';

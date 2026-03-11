@@ -402,12 +402,14 @@ function bindDragDrop() {
 			selectedId: pipelineStore.selectedId,
 			dropIdx:    Interactions.dropIdx,
 		});
+		zoom.onRendererUpdate(); // renderer viewBox'ı ezdi — zoom'u geri uygula
 	};
 	DOM.canvasScroll.ondrop = (e) => {
 		e.preventDefault();
 		const template = JSON.parse(e.dataTransfer.getData('text/plain'));
 		pipelineStore.insert(CatalogManager.makeComp(template), Interactions.dropIdx);
 	};
+
 }
 
 function bindStoreSubscriptions() {

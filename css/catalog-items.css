@@ -55,13 +55,15 @@
 	flex-shrink: 0;
 	color: var(--text-dim);
 }
-
 .cat-chip-name {
-	font-family: var(--font-mono);
 	font-size: var(--text-xs);
-	color: var(--text-mid);
+	color: var(--text-secondary);
 	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
+
 
 .cat-chip-arrow {
 	font-size: 9px;

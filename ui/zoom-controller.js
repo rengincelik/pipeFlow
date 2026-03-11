@@ -109,7 +109,13 @@ export function createZoomController(svgEl, flowCanvas) {
 		_panVBStart = { offsetX, offsetY };
 		svgEl.style.cursor = 'grabbing';
 	}
-
+	/** HTML5 drag başladığında pan'ı iptal et. */
+	function cancelPan() {
+		_pendingPan = false;
+		_panning    = false;
+		_didDrag    = false;
+		svgEl.style.cursor = _spaceDown ? 'grab' : '';
+	}
 	function _updateZoomLabel() {
 		const label = document.getElementById('zoom-label');
 		if (label) label.textContent = Math.round(scale * 100) + '%';
@@ -265,5 +271,5 @@ export function createZoomController(svgEl, flowCanvas) {
 
 	function getScale() { return scale; }
 
-	return { attach, detach, reset, onRendererUpdate, getScale, didConsumeDrag };
+	return { attach, detach, reset, onRendererUpdate, getScale, didConsumeDrag, cancelPan };
 }
