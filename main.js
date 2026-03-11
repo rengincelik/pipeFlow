@@ -1,6 +1,5 @@
 'use strict';
 // <editor-fold desc="IMPORTS">
-// ─── IMPORTS ─────────────────────────────────────────────────────────────────
 import {
 	SystemConfig,
 	pipelineStore,
@@ -21,12 +20,11 @@ import { createKeyboardController } from './input/keyboard-controller.js';
 import { createProjectIO }          from './state/project-io.js';
 import { createDropdownManager }    from './ui/dropdown-manager.js';
 import { createHudUpdater }         from './ui/hud-updater.js';
-
+import { createZoomController } from './ui/zoom-controller.js';
 
 // </editor-fold>
 
 // <editor-fold desc="DOM">
-// ─── DOM ──────────────────────────────────────────────────────────────────────
 const DOM = {
 	// Layout
 	canvasScroll:     document.getElementById('canvas-scroll'),
@@ -92,17 +90,16 @@ const DOM = {
 };
 
 let _fluidId, _tempC;
-
 // </editor-fold>
 
 // <editor-fold desc="INSTANCES">
-// ─── INSTANCES ────────────────────────────────────────────────────────────────
 const renderer   = new SVGRenderer(DOM.svgCanvas);
 const chart      = new ChartRenderer(DOM.chartCanvas);
 const engine     = new SimulationEngine(pipelineStore, { rho: 1000, mu: 0.001 });
 const animator   = new FlowAnimator(DOM.svgCanvas, DOM.flowCanvas);
 const tooltip    = new TooltipManager(DOM.svgCanvas, engine, pipelineStore);
 const hudUpdater = createHudUpdater({ DOM, Units });
+const zoom = createZoomController(DOM.svgCanvas, DOM.flowCanvas);
 
 // IO ve keyboard — CatalogManager ve Actions henüz tanımlı değil,
 // bunlar init()'te bağlanır (aşağı bak).
@@ -164,12 +161,14 @@ const Actions = {
 		UI.renderProps();
 	},
 
+
 	zoomToFit() {
 		const bbox = DOM.svgCanvas.getBBox();
 		if (!bbox.width || !bbox.height) return;
 		const pad = 40;
 		DOM.svgCanvas.setAttribute('viewBox',
 			`${bbox.x - pad} ${bbox.y - pad} ${bbox.width + pad * 2} ${bbox.height + pad * 2}`);
+		zoom.reset(); // viewBox renderer'ın fit değerine döndü, zoom state'i sıfırla
 	},
 
 	// IO delegate'leri — init()'ten sonra kullanılabilir
@@ -189,7 +188,7 @@ const Actions = {
 // </editor-fold>
 
 // <editor-fold desc="UI">
-// ─── UI ───────────────────────────────────────────────────────────────────────
+
 const UI = {
 	refreshCanvas() {
 		renderer.render(pipelineStore.layout, {
@@ -299,7 +298,6 @@ const UI = {
 // </editor-fold>
 
 // <editor-fold desc="EVENT BINDINGS">
-// ─── EVENT BINDINGS ───────────────────────────────────────────────────────────
 function bindEvents() {
 	bindToolbar();
 	bindSidebar();
@@ -311,6 +309,7 @@ function bindEvents() {
 	ddManager.bind();
 	keyboard.bind();
 	renderer.onCompClick = (id) => pipelineStore.select(id);
+	zoom.attach();
 }
 
 function bindToolbar() {
@@ -339,6 +338,22 @@ function bindToolbar() {
 			chart.setMetric(btn.dataset.chartMetric);
 		});
 	});
+
+	document.getElementById('btn-zoom-in') ?.addEventListener('click', () => {
+		DOM.svgCanvas.dispatchEvent(new WheelEvent('wheel', {
+			deltaY: -1, bubbles: true, cancelable: true,
+			clientX: DOM.svgCanvas.getBoundingClientRect().left + DOM.svgCanvas.getBoundingClientRect().width  / 2,
+			clientY: DOM.svgCanvas.getBoundingClientRect().top  + DOM.svgCanvas.getBoundingClientRect().height / 2,
+		}));
+	});
+	document.getElementById('btn-zoom-out')?.addEventListener('click', () => {
+		DOM.svgCanvas.dispatchEvent(new WheelEvent('wheel', {
+			deltaY: 1, bubbles: true, cancelable: true,
+			clientX: DOM.svgCanvas.getBoundingClientRect().left + DOM.svgCanvas.getBoundingClientRect().width  / 2,
+			clientY: DOM.svgCanvas.getBoundingClientRect().top  + DOM.svgCanvas.getBoundingClientRect().height / 2,
+		}));
+	});
+
 }
 
 function bindSidebar() {
@@ -391,6 +406,7 @@ function bindDragDrop() {
 function bindStoreSubscriptions() {
 	pipelineStore.on('components:change', () => {
 		UI.refreshCanvas();
+		zoom.onRendererUpdate(); // renderer viewBox'ı güncelledi — zoom state'i senkronize et
 		UI.updateStatusBar();
 		tooltip.rebind(DOM.svgCanvas);
 		if (engine.sysState === SysState.RUNNING) animator.reset();
@@ -444,7 +460,6 @@ function bindEngineCallbacks() {
 // </editor-fold>
 
 // <editor-fold desc="INTERACTIONS">
-// ─── INTERACTIONS ─────────────────────────────────────────────────────────────
 const Interactions = {
 	dropIdx: null,
 	clientToSVG(clientX, clientY) {
@@ -468,7 +483,6 @@ const Interactions = {
 // </editor-fold>
 
 // <editor-fold desc="INIT">
-// ─── INIT ─────────────────────────────────────────────────────────────────────
 function setupInitialState() {
 	_fluidId = SystemConfig.get('fluid_id') ?? 'water';
 	_tempC   = SystemConfig.get('T_in_C')   ?? 20;

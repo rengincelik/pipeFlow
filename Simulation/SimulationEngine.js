@@ -182,7 +182,6 @@ function calcPump(params, Q_m3s, rampF) {
     nodeState: NodeState.FLOWING,
   };
 }
-
 function calcPipe(params, P_in, Q_m3s, fluid) {
   const D  = params.diameter_mm;
   const v  = velocity(Q_m3s, D);
@@ -197,7 +196,6 @@ function calcPipe(params, P_in, Q_m3s, fluid) {
 
   return { P_out, D_out_mm: D, dP_major, dP_minor: 0, v, Re, f, nodeState: NodeState.FLOWING };
 }
-
 function calcElbow(params, P_in, Q_m3s, fluid) {
   const D  = params.diameter_mm;
   const v  = velocity(Q_m3s, D);
@@ -212,7 +210,6 @@ function calcElbow(params, P_in, Q_m3s, fluid) {
     nodeState: NodeState.FLOWING,
   };
 }
-
 function calcTransition(params, P_in, Q_m3s, fluid) {
   const D_in  = params.d_in_mm;
   const D_out = params.d_out_mm;
@@ -239,7 +236,6 @@ function calcTransition(params, P_in, Q_m3s, fluid) {
     nodeState: NodeState.FLOWING,
   };
 }
-
 function calcValve(params, P_in, Q_m3s, fluid) {
   const D      = params.diameter_mm;
   const v      = velocity(Q_m3s, D);
@@ -735,4 +731,3 @@ export class SimulationEngine {
     }
   }
 }
-

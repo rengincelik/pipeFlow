@@ -73,4 +73,3 @@ fluidRegistry.set('eg50', new EmpiricalFluidModel({
     cp: [3.3, 0.005]
   }
 }));
-

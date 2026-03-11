@@ -69,14 +69,14 @@ export const CATALOG_DEF = [
 // Sadece küçükten büyüğe bitişik veya 2 adım atlayan çiftler
 export const TRANSITION_PAIRS = DN_LIST.flatMap((big, i) =>
   DN_LIST.slice(0, i).map(small => ({
-    label:   `${DN_LIST[i].dn} → ${small.dn}`,
-    d_in:    big.d,
-    d_out:   small.d,
-  }))
-).filter((_, i, arr) => {
-  // Sadece 1 veya 2 DN adım atlayan çiftleri al — çok uç kombinasyonları ele
-  return true; // hepsini göster, istersen filtre eklersin
-});
+		label:   `${DN_LIST[i].dn} → ${small.dn}`,
+		d_in:    big.d,
+		d_out:   small.d,
+	  }))
+	).filter((_, i, arr) => {
+	  // Sadece 1 veya 2 DN adım atlayan çiftleri al — çok uç kombinasyonları ele
+	  return true; // hepsini göster, istersen filtre eklersin
+	});
 
 // Expander için tersi
 export const EXPANDER_PAIRS = TRANSITION_PAIRS.map(p => ({

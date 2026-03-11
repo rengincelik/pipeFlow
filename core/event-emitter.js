@@ -1,8 +1,6 @@
 'use strict';
 
-// ═══════════════════════════════════════════════════════════
 // MINIMAL EVENT EMITTER — Node'a bağımlılık yok
-// ═══════════════════════════════════════════════════════════
 
 export class EventEmitter {
   constructor() { this._listeners = {}; }
