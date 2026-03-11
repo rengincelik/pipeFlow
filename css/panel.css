@@ -153,6 +153,8 @@
 	overflow: hidden;
 }
 
+
+
 .chart-metric-tabs {
 	display: flex;
 	background: var(--bg-raised);
@@ -246,6 +248,7 @@
 	) !important;
 	background-size: 8px 2px !important;
 }
+
 
 #chart-body {
 	flex: 1;

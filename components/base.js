@@ -62,20 +62,27 @@ export class ComponentBase extends EventEmitter {
   getParams() {
     return { type: this.type, subtype: this.subtype };
   }
-getSafeParams() {
-  const raw  = this.getParams();
-  const safe = validateParams(raw);
 
-  if (safe.__invalid && safe.__warnings.length > 0) {
-    // Production'da bu satırı kaldır veya log seviyesini düşür
-    console.warn(
-      `[Validation] ${this.type}/${this.subtype} (id:${this.id}):`,
-      safe.__warnings
-    );
-  }
+	getSafeParams() {
+		const raw  = this.getParams();
+		const safe = validateParams(raw);
 
-  return safe;
-}
+		if (safe.__invalid && safe.__warnings.length > 0) {
+			const key = safe.__warnings.join('|');
+			if (key !== this._lastWarningKey) {
+				this._lastWarningKey = key;
+				console.warn(
+					`[Validation] ${this.type}/${this.subtype} (id:${this.id}):`,
+					safe.__warnings
+				);
+			}
+		} else {
+			this._lastWarningKey = null; // warning geçince sıfırla
+		}
+		return safe;
+	}
+
+
 
   computeExit(ix, iy) {
     const vec = DIR_VEC[this.entryDir];

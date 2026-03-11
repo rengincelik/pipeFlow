@@ -35,7 +35,24 @@ export class TransitionComponent extends ComponentBase {
       this.override('d_out_mm', DEFAULT_D_IN_REDUCER);
     }
   }
+	override(key, val, isUser) {
+		// Önce normal override'ı uygula
+		const result = ComponentBase.prototype.override.call(this, key, val, isUser);
 
+		// d_in değişince d_out'u catalog'dan otomatik güncelle
+		if (key === 'd_in_mm' && !isUser) {
+			const allPairs = this.isReducer ? TRANSITION_PAIRS : EXPANDER_PAIRS;
+			const pairs    = allPairs.filter(p => p.d_in === val);
+			const hasMatch = pairs.some(p => p.d_out === this.d_out_mm);
+
+			if (!hasMatch && pairs.length > 0) {
+				// sistem set ediyor, isUser=false
+				ComponentBase.prototype.override.call(this, 'd_out_mm', pairs[0].d_out, false);
+			}
+		}
+
+		return result;
+	}
   getParams() {
     return {
       type:     'transition',

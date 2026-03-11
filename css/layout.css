@@ -29,6 +29,7 @@
 	width: var(--sidebar-w);
 	min-width: var(--sidebar-w);
 	display: flex;
+	padding: 5px;
 	flex-direction: column;
 	background: var(--bg-surface);
 	border-right: 1px solid var(--border-mid);
