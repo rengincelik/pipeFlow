@@ -308,7 +308,10 @@ function bindEvents() {
 	bindEngineCallbacks();
 	ddManager.bind();
 	keyboard.bind();
-	renderer.onCompClick = (id) => pipelineStore.select(id);
+	renderer.onCompClick = (id) => {
+		if (zoom.didConsumeDrag()) return; // pan hareketi varsa click'i yuttur
+		pipelineStore.select(id);
+	};
 	zoom.attach();
 }
 
@@ -339,20 +342,24 @@ function bindToolbar() {
 		});
 	});
 
-	document.getElementById('btn-zoom-in') ?.addEventListener('click', () => {
+
+	const _zoomStep = (dir) => {
+		const rect = DOM.svgCanvas.getBoundingClientRect();
 		DOM.svgCanvas.dispatchEvent(new WheelEvent('wheel', {
-			deltaY: -1, bubbles: true, cancelable: true,
-			clientX: DOM.svgCanvas.getBoundingClientRect().left + DOM.svgCanvas.getBoundingClientRect().width  / 2,
-			clientY: DOM.svgCanvas.getBoundingClientRect().top  + DOM.svgCanvas.getBoundingClientRect().height / 2,
+			deltaY:    dir > 0 ? 1 : -1,
+			bubbles:   true,
+			cancelable: true,
+			clientX:   rect.left + rect.width  / 2,
+			clientY:   rect.top  + rect.height / 2,
 		}));
-	});
-	document.getElementById('btn-zoom-out')?.addEventListener('click', () => {
-		DOM.svgCanvas.dispatchEvent(new WheelEvent('wheel', {
-			deltaY: 1, bubbles: true, cancelable: true,
-			clientX: DOM.svgCanvas.getBoundingClientRect().left + DOM.svgCanvas.getBoundingClientRect().width  / 2,
-			clientY: DOM.svgCanvas.getBoundingClientRect().top  + DOM.svgCanvas.getBoundingClientRect().height / 2,
-		}));
-	});
+	};
+	document.getElementById('btn-zoom-in') ?.addEventListener('click', () => _zoomStep(-1));
+	document.getElementById('btn-zoom-out')?.addEventListener('click', () => _zoomStep(+1));
+
+
+
+
+
 
 }
 
