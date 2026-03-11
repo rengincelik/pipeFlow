@@ -82,7 +82,7 @@
 }
 
 .prv-status-circle {
-	fill: var(--text-dim);
+	fill: none;
 	stroke: var(--c-prv);
 	stroke-width: 1.5;
 	transition: fill var(--t-fast);

@@ -110,10 +110,7 @@ export class PRVComponent extends ComponentBase {
   }
 
 
-  getLabelContent(type) {
-    if (type === 'label') return `PRV ${this.P_set_bar}bar`;
-    return null;
-  }
+
 
   // ── Props Panel ──────────────────────────────────────────
 

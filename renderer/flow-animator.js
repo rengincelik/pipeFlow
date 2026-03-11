@@ -17,7 +17,12 @@ const BASE_SPEED      = 40;    // px/s — v=1m/s referans
 const MAX_VIS_SPEED   = 120;   // px/s üst sınır
 const RAMP_ALPHA_RATE = 0.04;  // fade-in hızı
 const FILL_SPEED_PX_S = 60;    // sıvının boruyu doldurma hızı px/s
-
+const BLADE_COUNT     = 4;
+const BLADE_LEN       = 7;      // px
+const BLADE_WIDTH     = 2.2;    // px
+const PUMP_RPM_DEG_S  = 360;    // derece/s tam hızda
+const PUMP_R          = 12;     // pump.js shapeSpec ile aynı
+const INERTIA_DECAY   = 2.8;    // rad/s² yavaşlama (stop'ta)
 
 export class FlowAnimator {
   /**
@@ -30,6 +35,10 @@ export class FlowAnimator {
     this._ctx       = canvasEl.getContext('2d');
 
     this._segments  = [];
+	  this._pumpAngle    = 0;   // rad — anlık açı
+	  this._pumpOmega   = 0;   // rad/s — anlık açısal hız
+	  this._pumpCenter  = null; // { cx, cy } SVG koordinatı
+
     this._running   = false;
     this._rafId     = null;
     this._lastTime  = null;
@@ -40,6 +49,7 @@ export class FlowAnimator {
     this._ro = new ResizeObserver(() => this._syncSize());
     this._ro.observe(svgEl);
     this._syncSize();
+
   }
 
   // ── Boyut senkronu ─────────────────────────────────────────
@@ -56,13 +66,26 @@ export class FlowAnimator {
     this._h = rect.height;
   }
 
+	_syncPumpCenter(layouts, snapshot) {
+		// layouts[0] her zaman pompa (pipeline-store kuralı)
+		const l = layouts?.[0];
+		if (!l) { this._pumpCenter = null; return; }
+
+		const len = Math.hypot(l.ox - l.ix, l.oy - l.iy);
+		const mx  = l.ix + (l.ox - l.ix) / 2;
+		const my  = l.iy + (l.oy - l.iy) / 2;
+		this._pumpCenter = { cx: mx, cy: my };
+	}
   // ── Public API ─────────────────────────────────────────────
 
   /** Her engine tick'te çağrılır */
-  update(layouts, snapshot) {
-    this._rampF = snapshot?.rampFactor ?? 0;
-    this._syncSegments(layouts, snapshot);
-  }
+	update(layouts, snapshot) {
+		this._rampF      = snapshot?.rampFactor ?? 0;
+		this._pumpState  = snapshot?.pumpState  ?? 'STOPPED';
+		this._syncSegments(layouts, snapshot);
+		this._syncPumpCenter(layouts, snapshot);
+	}
+
 
   /** Pompa start'ta çağrılır */
   start() {
@@ -172,6 +195,7 @@ export class FlowAnimator {
     const ctx = this._ctx;
 
     ctx.clearRect(0, 0, this._w, this._h);
+	this._stepPump(dt);
 
     // SVG viewBox → Canvas koordinat dönüşümü
     const svgRect = this._svg.getBoundingClientRect();
@@ -217,5 +241,73 @@ export class FlowAnimator {
       });
     });
   }
-}
 
+
+	_stepPump(dt) {
+		if (!this._pumpCenter) return;
+
+		const state   = this._pumpState ?? 'STOPPED';
+		const ramp    = this._rampF ?? 0;
+		const omega   = (PUMP_RPM_DEG_S * Math.PI / 180); // rad/s max
+
+		// Hedef açısal hız
+		const targetOmega = omega * ramp;
+
+		// Smooth geçiş — stop'ta inertia, start'ta ramp
+		if (state === 'STOPPED' || state === 'OVERLOAD') {
+			// İnertia ile yavaşla
+			this._pumpOmega = Math.max(0, this._pumpOmega - INERTIA_DECAY * dt);
+		} else {
+			// rampFactor zaten smooth geçiş yapıyor — direkt takip et
+			this._pumpOmega += (targetOmega - this._pumpOmega) * Math.min(1, dt * 3);
+		}
+
+		this._pumpAngle += this._pumpOmega * dt;
+
+		// Canvas koordinatına dönüştür
+		const svgRect = this._svg.getBoundingClientRect();
+		const vb      = this._svg.viewBox.baseVal;
+		const scaleX  = svgRect.width  / (vb.width  || svgRect.width);
+		const scaleY  = svgRect.height / (vb.height || svgRect.height);
+		const offX    = -vb.x * scaleX;
+		const offY    = -vb.y * scaleY;
+
+		const cx = this._pumpCenter.cx * scaleX + offX;
+		const cy = this._pumpCenter.cy * scaleY + offY;
+		const r  = PUMP_R ;
+
+		// OVERLOAD'da kırmızımsı renk
+		const isOverload = state === 'OVERLOAD';
+		const alpha      = 0.55 + ramp * 0.35;
+		const color      = isOverload
+			? `rgba(255, 120, 80, ${alpha})`
+			: `rgba(120, 200, 255, ${alpha})`;     // parçacıklarla aynı renk ailesi
+
+		const ctx = this._ctx;
+		ctx.save();
+		ctx.strokeStyle = color;
+		ctx.lineWidth   = BLADE_WIDTH;
+		ctx.lineCap     = 'round';
+
+		for (let i = 0; i < BLADE_COUNT; i++) {
+			const angle = this._pumpAngle + (i * Math.PI * 2) / BLADE_COUNT;
+			const x1    = cx + Math.cos(angle) * (r * 0.25);  // merkeze yakın başla
+			const y1    = cy + Math.sin(angle) * (r * 0.25);
+			const x2    = cx + Math.cos(angle) * (r * 0.82);  // çember içinde bit
+			const y2    = cy + Math.sin(angle) * (r * 0.82);
+
+			ctx.beginPath();
+			ctx.moveTo(x1, y1);
+			ctx.lineTo(x2, y2);
+			ctx.stroke();
+		}
+
+		// Merkez nokta
+		ctx.beginPath();
+		ctx.arc(cx, cy, 1.8, 0, Math.PI * 2);
+		ctx.fillStyle = color;
+		ctx.fill();
+
+		ctx.restore();
+	}
+}

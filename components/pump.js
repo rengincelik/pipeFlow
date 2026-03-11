@@ -66,8 +66,8 @@ export class PumpComponent extends ComponentBase {
         { tag: 'line',   cls: 'pump-stem',   x1: ix,     y1: iy, x2: mx - R,   y2: iy },
         { tag: 'line',   cls: 'pump-stem',   x1: mx + R, y1: iy, x2: ix + len, y2: iy },
         { tag: 'circle', cls: 'pump-circle', cx: mx, cy: iy, r: R },
-        { tag: 'path',   cls: 'pump-blade',  d: `M${mx},${iy} L${mx - 5},${iy - 7} L${mx + 7},${iy - 3} Z` },
-      ],
+
+	  ],
       anchors:     [{ type: 'label', x: mx, y: iy }],
       orientation: this.entryDir,
     };
