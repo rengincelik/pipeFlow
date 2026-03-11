@@ -75,42 +75,44 @@
 }
 
 /* ─── Light tema ─────────────────────────────────────────── */
+/* ─── Light tema ─────────────────────────────────────────── */
 [data-theme="light"] {
-	--bg-base:      #eef0f4;
-	--bg-surface:   #f8f9fb;
-	--bg-raised:    #ffffff;
-	--bg-hover:     #eef0f6;
-	--bg-active:    #e4e7f0;
-	--border:       rgba(0,0,0,0.07);
-	--border-mid:   rgba(0,0,0,0.11);
-	--border-hi:    rgba(0,0,0,0.18);
-	--text:         #111318;
-	--text-mid:     #4a5260;
-	--text-dim:     #9aa0b0;
-	--text-mono:    #1e2330;
+	--bg-base:      #f5f0e8;
+	--bg-surface:   #faf7f2;
+	--bg-raised:    #fffdf8;
+	--bg-hover:     #ede8de;
+	--bg-active:    #e4ddd0;
+	--border:       rgba(80,60,20,0.08);
+	--border-mid:   rgba(80,60,20,0.13);
+	--border-hi:    rgba(80,60,20,0.22);
+	--text:         #1e1a12;
+	--text-mid:     #5a5040;
+	--text-dim:     #a09070;
+	--text-mono:    #2a2418;
 	--accent:       #c47800;
-	--accent-lo:    rgba(196,120,0,0.08);
-	--accent-mid:   rgba(196,120,0,0.16);
-	--blue:         #1a7fd4;
-	--blue-lo:      rgba(26,127,212,0.08);
-	--blue-mid:     rgba(26,127,212,0.16);
-	--green:        #16a34a;
-	--green-lo:     rgba(22,163,74,0.08);
-	--red:          #dc2626;
-	--red-lo:       rgba(220,38,38,0.08);
-	--c-pipe:       #1a7fd4;
-	--c-trans:      #7c3aed;
-	--c-elbow:      #c47800;
-	--c-valve:      #16a34a;
-	--c-valve-cl:   #dc2626;
-	--c-prv:        #9d174d;
-	--c-pump:       #1a7fd4;
-	--c-node-in:    #16a34a;
-	--c-node-out:   #dc2626;
-	--c-lbl-dim:    #8a94a4;
-	--c-lbl-mid:    #6a7480;
+	--accent-lo:    rgba(196,120,0,0.09);
+	--accent-mid:   rgba(196,120,0,0.18);
+	--blue:         #2271b8;
+	--blue-lo:      rgba(34,113,184,0.09);
+	--blue-mid:     rgba(34,113,184,0.18);
+	--green:        #2a8c4a;
+	--green-lo:     rgba(42,140,74,0.09);
+	--red:          #c93030;
+	--red-lo:       rgba(201,48,48,0.09);
+	--orange:       #e06010;
+	--purple:       #7c3aed;
+	--c-pipe:       #2271b8;
+	--c-trans:      #6d28d9;
+	--c-elbow:      #b06800;
+	--c-valve:      #2a8c4a;
+	--c-valve-cl:   #c93030;
+	--c-prv:        #a0185a;
+	--c-pump:       #2271b8;
+	--c-node-in:    #2a8c4a;
+	--c-node-out:   #c93030;
+	--c-lbl-dim:    #9a9080;
+	--c-lbl-mid:    #7a7060;
 }
-
 .no-transition *,
 .no-transition *::before,
 .no-transition *::after { transition: none !important; }
