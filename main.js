@@ -15,12 +15,12 @@ import {
 	createCatalogManager
 } from './imports.js';
 
-
-import { createKeyboardController } from './input/keyboard-controller.js';
-import { createProjectIO }          from './state/project-io.js';
-import { createDropdownManager }    from './ui/dropdown-manager.js';
-import { createHudUpdater }         from './ui/hud-updater.js';
-import { createZoomController } from './ui/zoom-controller.js';
+import { MATERIALS }                   from './data/catalogs.js';
+import { createKeyboardController }    from './input/keyboard-controller.js';
+import { createProjectIO }             from './state/project-io.js';
+import { createDropdownManager }       from './ui/dropdown-manager.js';
+import { createHudUpdater }            from './ui/hud-updater.js';
+import { createZoomController }        from './ui/zoom-controller.js';
 
 // </editor-fold>
 
@@ -89,7 +89,9 @@ const DOM = {
 	statusConfig:     document.getElementById('status-config'),
 };
 
-let _fluidId, _tempC;
+// M5: _fluidId / _tempC global mutable'ları KALDIRILDI.
+// Okuma: SystemConfig.get('fluid_id') / SystemConfig.get('T_in_C')
+// Yazma: SystemConfig.set(...) — Actions.updateFluid, bindFluidControls, IO.onSyncFluid
 // </editor-fold>
 
 // <editor-fold desc="INSTANCES">
@@ -99,7 +101,7 @@ const engine     = new SimulationEngine(pipelineStore, { rho: 1000, mu: 0.001 })
 const animator   = new FlowAnimator(DOM.svgCanvas, DOM.flowCanvas);
 const tooltip    = new TooltipManager(DOM.svgCanvas, engine, pipelineStore);
 const hudUpdater = createHudUpdater({ DOM, Units });
-const zoom = createZoomController(DOM.svgCanvas, DOM.flowCanvas);
+const zoom       = createZoomController(DOM.svgCanvas, DOM.flowCanvas);
 
 // IO ve keyboard — CatalogManager ve Actions henüz tanımlı değil,
 // bunlar init()'te bağlanır (aşağı bak).
@@ -108,15 +110,17 @@ let IO, keyboard, ddManager;
 // </editor-fold>
 
 // <editor-fold desc="ACTIONS">
-// ─── ACTIONS ──────────────────────────────────────────────────────────────────
 const Actions = {
+	// M5: _fluidId/_tempC yerine SystemConfig'ten oku
 	updateFluid() {
-		const model = fluidRegistry.get(_fluidId);
+		const fluidId = SystemConfig.get('fluid_id');
+		const tempC   = SystemConfig.get('T_in_C');
+		const model   = fluidRegistry.get(fluidId);
 		if (!model) return;
-		const props = model.getProps(_tempC);
+		const props = model.getProps(tempC);
 		engine.setFluid({ rho: props.rho, mu: props.mu_mPas / 1000 });
-		SystemConfig.set('T_in_C',   _tempC);
-		SystemConfig.set('fluid_id', _fluidId);
+		// SystemConfig.set çağrıları buradan KALDIRILDI —
+		// zaten bindFluidControls içinde set ediliyor, tekrar set gerekmez
 		UI.updateStatusBar();
 	},
 
@@ -187,7 +191,6 @@ const Actions = {
 // </editor-fold>
 
 // <editor-fold desc="UI">
-
 const UI = {
 	refreshCanvas() {
 		renderer.render(pipelineStore.layout, {
@@ -232,12 +235,12 @@ const UI = {
 					const [d_in, d_out] = raw.split('|').map(Number);
 					comp.override('d_in_mm',  d_in,  true);
 					comp.override('d_out_mm', d_out, true);
-					pipelineStore._propagateDiameter(pipelineStore.components.indexOf(comp));
+					// M8: public wrapper kullan
+					pipelineStore.propagateDiameterFrom(comp);
 					this.renderProps();
 
 				} else if (prop === 'opening_pct') {
 					// Tek yazar — sadece override, engine bir sonraki tick'te okur
-					// comp.open ve engine.setComponentProp çağrıları KALDIRILDI
 					const val = parseInt(raw);
 					comp.override('opening_pct', val, true);
 					// Durum etiketi — hemen güncelle (tick bekleme)
@@ -253,9 +256,18 @@ const UI = {
 
 				} else {
 					const num = parseFloat(raw);
+
+					// M7+C1: material_id değişince eps_mm'i de güncelle
+					if (prop === 'material_id') {
+						const mat = MATERIALS.find(m => m.id === raw);
+						if (mat) comp.override('eps_mm', mat.eps);
+					}
+
 					comp.override(prop, isNaN(num) ? raw : num, true);
+
 					if (['diameter_mm', 'd_out_mm'].includes(prop))
-						pipelineStore._propagateDiameter(pipelineStore.components.indexOf(comp));
+						// M8: public wrapper kullan
+						pipelineStore.propagateDiameterFrom(comp);
 				}
 
 				pipelineStore.emit('components:change');
@@ -281,11 +293,13 @@ const UI = {
 		}
 	},
 
+	// M5: _tempC yerine SystemConfig.get('T_in_C')
 	updateStatusBar() {
 		const n = pipelineStore.components.length;
 		DOM.statusComponents.textContent = `${n} component${n !== 1 ? 's' : ''}`;
 		const fluidName = DOM.selectFluid.options[DOM.selectFluid.selectedIndex]?.text ?? '—';
-		DOM.statusConfig.textContent = `${fluidName} · ${_tempC}°C`;
+		const tempC     = SystemConfig.get('T_in_C') ?? 20;
+		DOM.statusConfig.textContent = `${fluidName} · ${tempC}°C`;
 	},
 
 	showBlockToast(msg) {
@@ -353,11 +367,11 @@ function bindToolbar() {
 	const _zoomStep = (dir) => {
 		const rect = DOM.svgCanvas.getBoundingClientRect();
 		DOM.svgCanvas.dispatchEvent(new WheelEvent('wheel', {
-			deltaY:    dir > 0 ? 1 : -1,
-			bubbles:   true,
+			deltaY:     dir > 0 ? 1 : -1,
+			bubbles:    true,
 			cancelable: true,
-			clientX:   rect.left + rect.width  / 2,
-			clientY:   rect.top  + rect.height / 2,
+			clientX:    rect.left + rect.width  / 2,
+			clientY:    rect.top  + rect.height / 2,
 		}));
 	};
 	document.getElementById('btn-zoom-in') ?.addEventListener('click', () => _zoomStep(-1));
@@ -368,22 +382,27 @@ function bindSidebar() {
 	DOM.sidebarToggle.onclick = Actions.toggleSidebar;
 }
 
+// M5: _fluidId/_tempC yazmaları SystemConfig.set(...) ile yapılıyor
 function bindFluidControls() {
 	DOM.selectFluid.onchange = (e) => {
-		_fluidId = e.target.value;
-		const range = fluidRegistry.get(_fluidId)?.meta.valid_range;
+		const fluidId = e.target.value;
+		SystemConfig.set('fluid_id', fluidId);
+		const range = fluidRegistry.get(fluidId)?.meta.valid_range;
 		if (range) {
+			const prevT = SystemConfig.get('T_in_C') ?? 20;
+			const tempC = Math.max(range.T_min_C, Math.min(prevT, range.T_max_C));
 			DOM.tempSlider.min        = range.T_min_C;
 			DOM.tempSlider.max        = range.T_max_C;
-			_tempC                    = Math.max(range.T_min_C, Math.min(_tempC, range.T_max_C));
-			DOM.tempSlider.value      = _tempC;
-			DOM.tempLabel.textContent = `${_tempC}°C`;
+			DOM.tempSlider.value      = tempC;
+			DOM.tempLabel.textContent = `${tempC}°C`;
+			SystemConfig.set('T_in_C', tempC);
 		}
 		Actions.updateFluid();
 	};
 	DOM.tempSlider.oninput = (e) => {
-		_tempC = parseInt(e.target.value);
-		DOM.tempLabel.textContent = `${_tempC}°C`;
+		const tempC = parseInt(e.target.value);
+		SystemConfig.set('T_in_C', tempC);
+		DOM.tempLabel.textContent = `${tempC}°C`;
 		Actions.updateFluid();
 	};
 }
@@ -429,7 +448,8 @@ function bindStoreSubscriptions() {
 		UI.refreshCanvas();
 		UI.renderProps();
 		if (chart._lastData) chart.draw(chart._lastData);
-		DOM.tempLabel.textContent = Units.temp(_tempC);
+		// M5: _tempC yerine SystemConfig.get('T_in_C')
+		DOM.tempLabel.textContent = Units.temp(SystemConfig.get('T_in_C') ?? 20);
 		// HU1: birim değişince HUD volume'ü yeniden göster
 		hudUpdater.redrawVolume();
 	});
@@ -499,12 +519,13 @@ const Interactions = {
 // </editor-fold>
 
 // <editor-fold desc="INIT">
+// M5: _fluidId/_tempC yerine SystemConfig'ten oku
 function setupInitialState() {
-	_fluidId = SystemConfig.get('fluid_id') ?? 'water';
-	_tempC   = SystemConfig.get('T_in_C')   ?? 20;
-	DOM.selectFluid.value     = _fluidId;
-	DOM.tempSlider.value      = _tempC;
-	DOM.tempLabel.textContent = `${_tempC}°C`;
+	const fluidId = SystemConfig.get('fluid_id') ?? 'water';
+	const tempC   = SystemConfig.get('T_in_C')   ?? 20;
+	DOM.selectFluid.value     = fluidId;
+	DOM.tempSlider.value      = tempC;
+	DOM.tempLabel.textContent = `${tempC}°C`;
 	if (pipelineStore.components.length === 0) {
 		pipelineStore.insert(CatalogManager.makeComp({
 			type: 'pump', subtype: 'centrifugal', name: 'Main Supply Pump',
@@ -530,7 +551,11 @@ const CatalogManager = createCatalogManager({
 		pipelineStore,
 		SystemConfig,
 		createComponent,
-		onSyncFluid: (fluidId, tempC) => { _fluidId = fluidId; _tempC = tempC; },
+		// M5: _fluidId/_tempC global'leri yok — SystemConfig üzerinden set et
+		onSyncFluid: (fluidId, tempC) => {
+			SystemConfig.set('fluid_id', fluidId);
+			SystemConfig.set('T_in_C',   tempC);
+		},
 	});
 
 	ddManager = createDropdownManager({
