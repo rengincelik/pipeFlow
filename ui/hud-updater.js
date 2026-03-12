@@ -25,11 +25,13 @@ export function createHudUpdater({ DOM, Units }) {
 	// </editor-fold>
 
 	// <editor-fold desc="_updateVolume">
+	// Units.volume(m3) — metric: L / m³, imperial: gal / kgal
+	// Units.onChange ile birim değişince otomatik yeniden çizilir (bindStoreSubscriptions'ta)
+	let _lastVolume_m3 = null;
+
 	function _updateVolume(vol_m3) {
-		const vol = vol_m3 * 1000;
-		DOM.hudVol.textContent = vol < 1000
-			? `${vol.toFixed(1)} L`
-			: `${(vol / 1000).toFixed(2)} m³`;
+		_lastVolume_m3 = vol_m3;
+		DOM.hudVol.textContent = Units.volume(vol_m3);
 	}
 	// </editor-fold>
 
@@ -53,9 +55,9 @@ export function createHudUpdater({ DOM, Units }) {
 				: 0;
 
 			const fill = !isFinite(n.P_in) ? 'var(--text-dim)'
-				: ratio < 0.8                ? 'var(--green)'
-					: ratio < 1.0                ? 'var(--accent)'
-						:                              'var(--red)';
+				: ratio < 0.8               ? 'var(--green)'
+					: ratio < 1.0               ? 'var(--accent)'
+						:                             'var(--red)';
 
 			DOM.svgCanvas
 				.querySelector(`[data-prv-circle="${n.id}"]`)
@@ -68,6 +70,7 @@ export function createHudUpdater({ DOM, Units }) {
 
 			DOM.propBody.querySelectorAll('[data-live="prv_p_in"]').forEach(el => {
 				el.textContent = isFinite(n.P_in)
+					// P_in Pa cinsinden gelir, Units.pressure bar bekler
 					? Units.pressure(n.P_in / 1e5)
 					: '—';
 			});
@@ -75,5 +78,5 @@ export function createHudUpdater({ DOM, Units }) {
 	}
 	// </editor-fold>
 
-	return { update };
+	return { update, redrawVolume: () => { if (_lastVolume_m3 != null) DOM.hudVol.textContent = Units.volume(_lastVolume_m3); } };
 }

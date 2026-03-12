@@ -3,7 +3,7 @@
 import { EventEmitter }   from '../core/event-emitter.js';
 import { SystemConfig }   from './system-config.js';
 import { computeLayout }  from '../renderer/svg-renderer.js';
-
+//TODO: renderı buradan almamız lazımmış
 
 export class PipelineStore extends EventEmitter {
   constructor() {

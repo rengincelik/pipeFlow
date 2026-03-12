@@ -139,8 +139,6 @@ export function createCatalogManager({ catBody, showToast }) {
         } else if (prop === 'efficiency') {
           comp.override('efficiency', parseInt(raw) / 100, true);
         } else if (prop === 'opening_pct') {
-          comp.opening_pct = parseInt(raw);
-          comp.open        = parseInt(raw) > 0;
           comp.override('opening_pct', parseInt(raw), true);
         } else {
           const num = parseFloat(raw);

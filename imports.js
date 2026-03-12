@@ -12,7 +12,7 @@ import { FlowAnimator } from './renderer/flow-animator.js';
 import { TooltipManager } from './renderer/tooltip-manager.js';
 
 // Simülasyon
-import { SimulationEngine, SysState } from './Simulation/SimulationEngine.js';
+import { SimulationEngine, SysState } from './Simulation/simulation-engine.js';
 
 // Veri ve component yönetimi
 import { Units } from './data/unit-system.js';

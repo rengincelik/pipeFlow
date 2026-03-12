@@ -161,14 +161,13 @@ const Actions = {
 		UI.renderProps();
 	},
 
-
 	zoomToFit() {
 		const bbox = DOM.svgCanvas.getBBox();
 		if (!bbox.width || !bbox.height) return;
 		const pad = 40;
 		DOM.svgCanvas.setAttribute('viewBox',
 			`${bbox.x - pad} ${bbox.y - pad} ${bbox.width + pad * 2} ${bbox.height + pad * 2}`);
-		zoom.reset(); // viewBox renderer'ın fit değerine döndü, zoom state'i sıfırla
+		zoom.reset();
 	},
 
 	// IO delegate'leri — init()'ten sonra kullanılabilir
@@ -222,34 +221,43 @@ const UI = {
 			el[eventName] = () => {
 				const prop = el.dataset.prop;
 				const raw  = el.value;
+
+				// Slider label güncelle (opening_pct ve efficiency için)
 				if (el.type === 'range') {
 					const label = el.nextElementSibling;
 					if (label) label.textContent = raw + '%';
 				}
+
 				if (prop === 'transition_pair') {
 					const [d_in, d_out] = raw.split('|').map(Number);
 					comp.override('d_in_mm',  d_in,  true);
 					comp.override('d_out_mm', d_out, true);
 					pipelineStore._propagateDiameter(pipelineStore.components.indexOf(comp));
 					this.renderProps();
+
 				} else if (prop === 'opening_pct') {
+					// Tek yazar — sadece override, engine bir sonraki tick'te okur
+					// comp.open ve engine.setComponentProp çağrıları KALDIRILDI
 					const val = parseInt(raw);
+					comp.override('opening_pct', val, true);
+					// Durum etiketi — hemen güncelle (tick bekleme)
 					const tag = DOM.propBody.querySelector('.valve-status-tag');
 					if (tag) {
-						tag.textContent  = val > 0 ? 'OPEN' : 'CLOSED';
-						tag.className    = `valve-status-tag ${val > 0 ? 'on' : 'off'}`;
+						tag.textContent = val > 0 ? 'OPEN' : 'CLOSED';
+						tag.className   = `valve-status-tag ${val > 0 ? 'on' : 'off'}`;
 					}
-					comp.opening_pct = val;
-					comp.open        = val > 0;
-					engine.setComponentProp(comp.id, 'opening', val / 100);
+
 				} else if (prop === 'efficiency') {
+					// Slider: 10–100 (gösterim), store: 0.0–1.0 (ham)
 					comp.override('efficiency', parseInt(raw) / 100, true);
+
 				} else {
 					const num = parseFloat(raw);
 					comp.override(prop, isNaN(num) ? raw : num, true);
 					if (['diameter_mm', 'd_out_mm'].includes(prop))
 						pipelineStore._propagateDiameter(pipelineStore.components.indexOf(comp));
 				}
+
 				pipelineStore.emit('components:change');
 			};
 		});
@@ -309,7 +317,7 @@ function bindEvents() {
 	ddManager.bind();
 	keyboard.bind();
 	renderer.onCompClick = (id) => {
-		if (zoom.didConsumeDrag()) return; // pan hareketi varsa click'i yuttur
+		if (zoom.didConsumeDrag()) return;
 		pipelineStore.select(id);
 	};
 	zoom.attach();
@@ -342,7 +350,6 @@ function bindToolbar() {
 		});
 	});
 
-
 	const _zoomStep = (dir) => {
 		const rect = DOM.svgCanvas.getBoundingClientRect();
 		DOM.svgCanvas.dispatchEvent(new WheelEvent('wheel', {
@@ -355,12 +362,6 @@ function bindToolbar() {
 	};
 	document.getElementById('btn-zoom-in') ?.addEventListener('click', () => _zoomStep(-1));
 	document.getElementById('btn-zoom-out')?.addEventListener('click', () => _zoomStep(+1));
-
-
-
-
-
-
 }
 
 function bindSidebar() {
@@ -402,20 +403,19 @@ function bindDragDrop() {
 			selectedId: pipelineStore.selectedId,
 			dropIdx:    Interactions.dropIdx,
 		});
-		zoom.onRendererUpdate(); // renderer viewBox'ı ezdi — zoom'u geri uygula
+		zoom.onRendererUpdate();
 	};
 	DOM.canvasScroll.ondrop = (e) => {
 		e.preventDefault();
 		const template = JSON.parse(e.dataTransfer.getData('text/plain'));
 		pipelineStore.insert(CatalogManager.makeComp(template), Interactions.dropIdx);
 	};
-
 }
 
 function bindStoreSubscriptions() {
 	pipelineStore.on('components:change', () => {
 		UI.refreshCanvas();
-		zoom.onRendererUpdate(); // renderer viewBox'ı güncelledi — zoom state'i senkronize et
+		zoom.onRendererUpdate();
 		UI.updateStatusBar();
 		tooltip.rebind(DOM.svgCanvas);
 		if (engine.sysState === SysState.RUNNING) animator.reset();
@@ -430,25 +430,32 @@ function bindStoreSubscriptions() {
 		UI.renderProps();
 		if (chart._lastData) chart.draw(chart._lastData);
 		DOM.tempLabel.textContent = Units.temp(_tempC);
+		// HU1: birim değişince HUD volume'ü yeniden göster
+		hudUpdater.redrawVolume();
 	});
 }
 
 function bindEngineCallbacks() {
 	engine.onTick((snap) => {
 		animator.update(pipelineStore.layout, snap);
+
+		// M1/CH6: Raw Pa gönder — chart ve Units.pressureVal(Pa) dönüşümü yapar
+		// Önceki kod: n.P_in / 1e5 burada yapıyordu — KALDIRILDI
 		chart.draw({
 			results: snap.nodes.map(n => ({
-				P_in:     n.P_in  / 1e5,
-				P_out:    n.P_out / 1e5,
-				v:        n.v,
-				dP_major: n.dP_major / 1e5,
-				dP_minor: n.dP_minor / 1e5,
+				P_in:     n.P_in,        // Pa
+				P_out:    n.P_out,       // Pa
+				v:        n.v,           // m/s
+				dP_major: n.dP_major,    // Pa
+				dP_minor: n.dP_minor,    // Pa
+				Q_m3s:    snap.Q_m3s,    // m³/s — M2 fix (tüm node'lara kopyala)
 			})),
 			components:  pipelineStore.components,
-			selectedIdx: pipelineStore.selectedId
+			selectedIdx: pipelineStore.selectedId != null    // M3 fix: falsy 0 koruması
 				? pipelineStore.components.findIndex(c => c.id === pipelineStore.selectedId)
 				: null,
 		});
+
 		UI.updateHUD(snap);
 	});
 
@@ -457,7 +464,7 @@ function bindEngineCallbacks() {
 		if (!significant.length) return;
 		DOM.hudStartBtn.classList.add('alarm');
 		DOM.hudStartBtn.classList.remove('shake');
-		void DOM.hudStartBtn.offsetWidth; // reflow — animasyonu sıfırla
+		void DOM.hudStartBtn.offsetWidth;
 		DOM.hudStartBtn.classList.add('shake');
 		DOM.statusDot.className    = 'status-dot err';
 		DOM.statusText.textContent = 'Alarm';
@@ -511,7 +518,6 @@ const CatalogManager = createCatalogManager({
 });
 
 (function init() {
-	// Bağımlılıkları burada inject et — Actions ve CatalogManager bu noktada hazır
 	IO = createProjectIO({
 		engine,
 		animator,

@@ -100,7 +100,8 @@ export class FlowAnimator {
   /** Pompa stop'ta çağrılır */
   stop() {
     this._running   = false;
-    this._startTime = null;
+	  this._pumpState = 'STOPPED';
+	  this._startTime = null;
     if (this._rafId) {
       cancelAnimationFrame(this._rafId);
       this._rafId = null;
@@ -115,10 +116,15 @@ export class FlowAnimator {
     if (this._ctx) this._ctx.clearRect(0, 0, this._w, this._h);
   }
 
-  destroy() {
-    this.stop();
-    this._ro.disconnect();
-  }
+	destroy() {
+		this._running = false;
+		this._pumpOmega = 0;  // inertia bekleme — direkt öldür
+		if (this._rafId) {
+			cancelAnimationFrame(this._rafId);
+			this._rafId = null;
+		}
+		this._ro.disconnect();
+	}
 
   // ── Segment senkronu ───────────────────────────────────────
 
@@ -180,15 +186,20 @@ export class FlowAnimator {
 
   // ── Animasyon döngüsü ──────────────────────────────────────
 
-  _loop(timestamp) {
-    if (!this._running) return;
-    const dt = this._lastTime
-      ? Math.min((timestamp - this._lastTime) / 1000, 0.05)
-      : 0;
-    this._lastTime = timestamp;
-    this._step(dt);
-    this._rafId = requestAnimationFrame(t => this._loop(t));
-  }
+	_loop(timestamp) {
+		// running=false ama omega hâlâ varsa devam et (inertia)
+		if (!this._running && this._pumpOmega < 0.01) {
+			this._rafId = null;
+			this._ctx.clearRect(0, 0, this._w, this._h);
+			return;
+		}
+		const dt = this._lastTime
+			? Math.min((timestamp - this._lastTime) / 1000, 0.05)
+			: 0;
+		this._lastTime = timestamp;
+		this._step(dt);
+		this._rafId = requestAnimationFrame(t => this._loop(t));
+	}
 
   _step(dt) {
     const now = performance.now() / 1000;

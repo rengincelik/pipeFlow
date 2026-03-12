@@ -64,6 +64,9 @@ export const CATALOG_DEF = [
   },
 
 ];
+//TODO: k table eklememiz lazım vana için
+//TODO: angle gaçiş açısı eklememiz lazım transition için.
+
 
 // Tüm geçerli reducer çiftlerini DN_LIST'ten otomatik üret
 // Sadece küçükten büyüğe bitişik veya 2 adım atlayan çiftler

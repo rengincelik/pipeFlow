@@ -12,7 +12,7 @@ const PHYS_DT        = 0.1;    // s  — her tick'in fiziksel karşılığı
 const RAMP_DURATION  = 2.0;    // s  — pompanın nominal değere ulaşma süresi
 const MAX_ITER_CW    = 50;     // Colebrook-White max iterasyon
 const CW_TOL         = 1e-8;   // Colebrook-White yakınsama toleransı
-const DEADHEAD_WARN  = 5.0;    // s  — deadhead alarm süresi
+const DEADHEAD_WARN  = 1.0;    // s  — deadhead alarm süresi
 
 // Çalışma noktası bisection parametreleri
 const MAX_ITER_OP    = 50;     // max iterasyon
@@ -588,13 +588,14 @@ export class SimulationEngine {
     let Q_effective;
     let convergenceFailed = false;
 
-    if (converged) {
-      Q_effective       = Q_op;
-      this._Q_operating = Q_op;
-    } else {
-      Q_effective       = this._Q_operating;
-      convergenceFailed = true;
-    }
+	  if (converged) {
+		  Q_effective       = Q_op;
+		  this._Q_operating = Q_op;
+	  } else {
+		  Q_effective       = 0;          // converge edemediyse hat kapalı say
+		  this._Q_operating = 0.001;      // bir sonraki tick için tahmini sıfırla
+		  convergenceFailed = false;       // alarm üretme — beklenen durum
+	  }
 
     // ── Nihai zincir hesabı ──────────────────────────────────────────────
     const { nodes, isBlocked } = evaluateSystem(

@@ -36,6 +36,7 @@ class SystemConfigClass extends EventEmitter {
 
     };
     this._values = { ...this._defaults };
+	//TODO: buraya angle eklenebilir.
   }
 
   set(key, value) {
@@ -50,6 +51,9 @@ class SystemConfigClass extends EventEmitter {
   reset() { this._values = { ...this._defaults }; this.emit('reset'); }
 }
 // ── OVERRIDE MİXIN ──────────────────────────────────────────
+
+//TODO: bu kısımı componenta base e taşımamaız lazımmış
+
 export const OverrideMixin = {
   _overrides: null,
 

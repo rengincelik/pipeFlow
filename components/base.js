@@ -16,7 +16,7 @@ export const DIR_VEC = {
   down:  { dx:  0, dy:  1 },
   up:    { dx:  0, dy: -1 },
 };
-//Todo: deneme
+
 
 export class ComponentBase extends EventEmitter {
   constructor(type, subtype) {
