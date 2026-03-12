@@ -3,6 +3,9 @@
 import { EventEmitter }   from '../core/event-emitter.js';
 import { SystemConfig }   from './system-config.js';
 import { computeLayout }  from '../utils/layout.js';
+import { resetIdCounter } from '../components/base.js';
+
+
 // S5: computeLayout artık utils/layout.js'ten — svg-renderer.js'e bağımlılık KALDIRILDI
 
 export class PipelineStore extends EventEmitter {
@@ -96,11 +99,32 @@ export class PipelineStore extends EventEmitter {
 		if (data.systemConfig) {
 			Object.entries(data.systemConfig).forEach(([k, v]) => SystemConfig.set(k, v));
 		}
-		data.components?.forEach(d => {
+
+		const comps = data.components ?? [];
+
+		// S9: İlk eleman pompa olmalı — değilse yüklemeyi iptal et
+		if (comps.length > 0 && comps[0].type !== 'pump') {
+			console.error('[PipelineStore] deserialize: İlk eleman pompa değil, yükleme iptal edildi.');
+			this.emit('components:change');
+			return this;
+		}
+
+		// B4: insert() yerine direkt push — her eleman kendi id'sini serialize'dan alır
+		// insert() çağrılsaydı _propagateDiameter her adımda tetiklenirdi (gereksiz)
+		comps.forEach(d => {
 			const comp = componentFactory(d.type, d.subtype);
 			comp.applySerializedData(d);
-			this.insert(comp);
+			this._components.push(comp);
 		});
+
+		// Tüm elemanlar yerleştikten sonra tek seferde çap propagasyonu
+		this._propagateDiameter(1);
+
+		// B3: Yüklenen en yüksek id'yi bul, counter'ı hizala
+		const maxId = this._components.reduce((m, c) => Math.max(m, c.id), 0);
+		resetIdCounter(maxId);
+
+		this.emit('components:change');
 		return this;
 	}
 

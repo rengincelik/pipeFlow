@@ -213,6 +213,7 @@ export class ComponentBase extends EventEmitter {
 
   serialize() {
     return {
+		id: this.id,
       type:      this.type,
       subtype:   this.subtype,
       name:      this.name,
@@ -226,6 +227,7 @@ export class ComponentBase extends EventEmitter {
     if (data.overrides) {
       Object.entries(data.overrides).forEach(([k, v]) => this.override(k, v));
     }
+	if(data.id) this.id = data.id;
     if (data.name)     this.name     = data.name;
     if (data.entryDir) this.entryDir = data.entryDir;
     if (data.exitDir)  this.exitDir  = data.exitDir;
@@ -319,4 +321,10 @@ export function deserializeComponent(data) {
   const comp = createComponent(data.type, data.subtype);
   comp.applySerializedData(data);
   return comp;
+}
+
+// B3: deserialize sonrası counter'ı en yüksek id'ye hizala
+// pipeline-store.deserialize() sonunda çağrılır
+export function resetIdCounter(maxId) {
+	if (maxId > _idCounter) _idCounter = maxId;
 }
