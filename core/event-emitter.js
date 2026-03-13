@@ -15,10 +15,9 @@ export class EventEmitter {
     if (list) this._listeners[event] = list.filter(f => f !== fn);
   }
 
-  emit(event, ...args) {
-    (this._listeners[event] ?? []).forEach(fn => fn(...args));
-    (this._listeners['*']    ?? []).forEach(fn => fn(event, ...args));
-  }
+	emit(event, ...args) {
+		[...(this._listeners[event] ?? [])].forEach(fn => fn(...args));
+	}
 
   once(event, fn) {
     const wrapper = (...args) => { fn(...args); this.off(event, wrapper); };

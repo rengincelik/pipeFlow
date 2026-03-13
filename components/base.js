@@ -3,10 +3,10 @@
 // COMPONENT BASE — tüm boru hattı elemanlarının ana sınıfı
 
 import { EventEmitter }    from '../core/event-emitter.js';
-import { OverrideMixin }   from '../state/system-config.js';
+import { OverrideMixin }   from '../core/override-mixin';
 import { svgEl, setAttrs } from '../renderer/svg-utils.js';
 import { Units }           from '../data/unit-system.js';
-import { validateParams } from '../components/validation.js';
+import { validateParams } from './validation.js';
 
 let _idCounter = 0;
 

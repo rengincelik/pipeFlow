@@ -1,7 +1,7 @@
 'use strict';
 
 import { ComponentBase, registerComponentType } from './base.js';
-import { fitHQCurve }                           from '../Simulation/simulation-engine.js';
+import { fitHQCurve } from '../utils/hq-math.js';
 import { Units }                                from '../data/unit-system.js';
 import { validateParams } from './validation.js';
 

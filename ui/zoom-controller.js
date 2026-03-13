@@ -234,14 +234,9 @@ export function createZoomController(svgEl, flowCanvas) {
 	 * Base viewBox'ı günceller, mevcut zoom/pan'ı korur.
 	 */
 	function onRendererUpdate() {
-		if (scale === 1 && offsetX === 0 && offsetY === 0) {
-			_captureBase();
-		} else {
-			_captureBase();
-			_apply();
-		}
+		_captureBase();
+		if (scale !== 1 || offsetX !== 0 || offsetY !== 0) _apply();
 	}
-
 	/** Zoom ve pan'ı sıfırla — zoomToFit() sonrası çağrılır. */
 	function reset() {
 		scale   = 1;

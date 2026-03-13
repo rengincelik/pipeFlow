@@ -1,4 +1,8 @@
 'use strict';
+// Dosya başına ekle:
+import { fitHQCurve, evalHQ } from '../utils/hq-math.js';
+
+
 
 // SIMULATION ENGINE
 // Boru hattı dinamik simülasyon motoru.
@@ -102,56 +106,6 @@ function valveK(subtype, opening, K_table) {
 }
 
 
-// ── H-Q POLİNOM ───────────────────────────────────────────────────────────
-
-/**
- * 3 noktadan ikinci dereceden H-Q polinomu fit eder.
- * Noktalar: (0, H_shutoff), (Q_nom, H_nom), (Q_max, 0)
- *
- * H(Q) = a0 + a1*Q + a2*Q²
- *
- * Matris çözümü (3x3 Vandermonde):
- * [1  0       0        ] [a0]   [H_shutoff]
- * [1  Q_nom   Q_nom²   ] [a1] = [H_nom    ]
- * [1  Q_max   Q_max²   ] [a2]   [0        ]
- */
-export function fitHQCurve(H_shutoff, Q_nom, H_nom, Q_max) {
-	// Satır 0: Q=0,     H=H_shutoff  → a0 = H_shutoff
-	// Satır 1: Q=Q_nom, H=H_nom
-	// Satır 2: Q=Q_max, H=0
-
-	const a0 = H_shutoff;
-	// a0 + a1*Q_max + a2*Q_max² = 0
-	// a0 + a1*Q_nom + a2*Q_nom² = H_nom
-
-	// İki denklem, iki bilinmeyen (a1, a2):
-	// a1*Q_nom + a2*Q_nom² = H_nom - a0   ... (i)
-	// a1*Q_max + a2*Q_max² = -a0           ... (ii)
-
-	const rhs1 = H_nom - a0;
-	const rhs2 = -a0;
-
-	// Cramer:
-	const det = Q_nom * Q_max * Q_max - Q_max * Q_nom * Q_nom;
-	if (Math.abs(det) < 1e-12) {
-		// Dejenere — sabit head fallback
-		return { a0: H_shutoff, a1: 0, a2: 0 };
-	}
-
-	const a1 = (rhs1 * Q_max * Q_max - rhs2 * Q_nom * Q_nom) / det;
-	const a2 = (Q_nom * rhs2 - Q_max * rhs1) / det;
-
-	return { a0, a1, a2 };
-}
-
-/**
- * H-Q polinomunu Q'da değerlendir.
- * Negatif head döndürme — fiziksel anlamsız.
- */
-export function evalHQ(coeffs, Q) {
-	const H = coeffs.a0 + coeffs.a1 * Q + coeffs.a2 * Q * Q;
-	return Math.max(0, H);
-}
 
 
 // ── ELEMAN HESAP FONKSİYONLARI ────────────────────────────────────────────
