@@ -206,7 +206,9 @@ export class ComponentBase extends EventEmitter {
 	}
 
 	calcHydraulics(Q_m3s, fluid) {
-
+		// TODO: Katman 1 — Reynolds, akış rejimi, f hesabı burada yapılacak.
+		// Her component kendi Re/f değerini döndürecek.
+		// Şu an engine._tick() içindeki calc* fonksiyonları bu görevi üstleniyor.
 	}
 
 	renderPropsHTML() { return ''; }

@@ -92,3 +92,7 @@ export const EXPANDER_PAIRS = TRANSITION_PAIRS.map(p => ({
 export const CATALOG_MAP = new Map(
   CATALOG_DEF.flatMap(g => g.items.map(item => [`${item.type}:${item.subtype}`, item]))
 );
+// ── Transition ──────────────────────────
+// D1: cone_angle_deg SystemConfig.defaults'ta tanımlı (10°)
+// TRANSITION_PAIRS ve EXPANDER_PAIRS burada DN eşleşmelerini tutar;
+// konik açı hesabı TransitionComponent.length_m getter'ında yapılır.

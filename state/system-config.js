@@ -33,6 +33,7 @@ class SystemConfigClass extends EventEmitter {
 			K:           0.9,
 
 			// ── Transition ──────────────────────────
+			cone_angle_deg: 10,   // D2/S4: konik açı (yarı açı, derece)
 
 		};
 		this._values = { ...this._defaults };

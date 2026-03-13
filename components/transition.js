@@ -1,5 +1,5 @@
 'use strict';
-
+import { SystemConfig } from '../state/system-config.js';
 import { ComponentBase, registerComponentType } from './base.js';
 import { Units } from '../data/unit-system.js';
 import { TRANSITION_PAIRS, EXPANDER_PAIRS } from '../data/catalogs.js';
@@ -11,7 +11,6 @@ const TAPER = 4;
 const DEFAULT_D_IN_REDUCER  = 53.1;
 const DEFAULT_D_OUT_REDUCER = 26.9;
 
-const CONE_HALF_ANGLE_DEG = 10;
 
 export class TransitionComponent extends ComponentBase {
 
@@ -53,10 +52,11 @@ export class TransitionComponent extends ComponentBase {
 	get outDiameter_mm() { return this.d_out_mm; }
 
 	get length_m() {
-		const dIn  = this.d_in_mm  / 1000;
-		const dOut = this.d_out_mm / 1000;
+		const dIn       = this.d_in_mm  / 1000;
+		const dOut      = this.d_out_mm / 1000;
 		if (dIn === dOut) return 0;
-		const theta = CONE_HALF_ANGLE_DEG * Math.PI / 180;
+		const angleDeg  = this.resolve('cone_angle_deg') ?? SystemConfig.get('cone_angle_deg') ?? 10;
+		const theta     = angleDeg * Math.PI / 180;
 		return Math.abs(dIn - dOut) / (2 * Math.tan(theta));
 	}
 

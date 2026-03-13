@@ -129,7 +129,7 @@ function calcPump(params, Q_m3s, rampF) {
 		dP_major:  0,
 		dP_minor:  0,
 		v,
-		Re:        0,
+		Re: reynolds(v, params.diameter_mm, params.fluid.rho, params.fluid.mu),
 		H_actual,
 		P_shaft,
 		nodeState: NodeState.FLOWING,

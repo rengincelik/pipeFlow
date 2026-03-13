@@ -102,7 +102,8 @@ export class TooltipManager {
 		const Re    = this._fmt(node.Re,        v => Math.round(v).toLocaleString());
 		const dPmaj = this._fmt(node.dP_major,  v => Units.pressure(v / 1e5, 4));
 		const dPmin = this._fmt(node.dP_minor,  v => Units.pressure(v / 1e5, 4));
-		const regime = isFinite(node.Re) ? this._regime(node.Re) : '—';
+
+		const regime = (isFinite(node.Re) && node.Re > 0) ? this._regime(node.Re) : '—';
 		const state  = node.nodeState ?? '—';
 
 		// ── Eleman tipine göre ekstra satırlar ─────────────────
@@ -150,7 +151,7 @@ export class TooltipManager {
         ${this._row('P out',  P_out)}
         ${this._row('v',      vel)}
         ${this._row('Q',      Q)}
-        ${this._row('Re',     `${Re} · ${regime}`)}
+        ${this._row('Re',     `${(node.Re > 0) ? this._row('Re', `${Re} · ${regime}`) : ''}`)}
         ${this._row('ΔP maj', dPmaj, '#f87171')}
         ${this._row('ΔP min', dPmin, '#fbbf24')}
         ${extra}

@@ -362,6 +362,8 @@ function bindToolbar() {
 	};
 
 	DOM.btnFit.onclick      = Actions.zoomToFit;
+
+	DOM.btnLabel.onclick = () => UI.showBlockToast('Label toggle coming in V1');
 	DOM.hudStartBtn.onclick = Actions.toggleSimulation;
 
 	DOM.btnNew.onclick        = () => { ddManager.closeAll(); Actions.newProject(); };
