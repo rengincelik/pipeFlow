@@ -20,26 +20,12 @@ export class TooltipManager {
 	}
 
 	// ── Tooltip DOM elementi ───────────────────────────────────
+	// R2/TT1: inline style.cssText → CSS class (flow-tooltip)
+	// Stil tanımı style.css'te .flow-tooltip sınıfında
 	_createEl() {
 		const el = document.createElement('div');
 		el.id = 'flow-tooltip';
-		el.style.cssText = `
-      position: fixed;
-      z-index: 9999;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 0.12s ease;
-      background: #0e1117;
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 6px;
-      padding: 10px 13px;
-      min-width: 170px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 11px;
-      line-height: 1.7;
-      color: #c8cdd8;
-    `;
+		el.className = 'flow-tooltip';
 		return el;
 	}
 
@@ -140,14 +126,14 @@ export class TooltipManager {
 		}
 
 		if (comp.type === 'pump') {
-			// TT2: comp._overrides?.H_m yanlış prop — head_m kullan
+			// TT2: comp.resolve('head_m') — doğru prop adı
 			const headVal = comp.resolve('head_m');
 			const H = this._fmt(headVal, v => `${v} m`);
 			extra = this._row('Nom. Head', H);
 		}
 
 		if (comp.type === 'elbow') {
-			// TT3: comp._overrides?.K ?? comp.K → comp.resolve('K')
+			// TT3: comp.resolve('K') — override mixin üzerinden
 			const K = this._fmt(comp.resolve('K'), v => v.toFixed(2));
 			extra = this._row('K', K);
 		}

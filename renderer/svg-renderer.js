@@ -6,9 +6,13 @@
 
 import { svgEl, setAttrs, createNode } from './svg-utils.js';
 
-const ORIGIN_X = 80;
-const ORIGIN_Y = 200;
-const PAD      = 80;
+// R5: Layout sabitleri — burada belgelenmiş, değiştirilmek istenirse tek nokta.
+// ORIGIN_X/Y: İlk elemanın (pompa) SVG içindeki başlangıç koordinatı.
+// PAD: viewBox hesabında eleman koordinatlarının dışına eklenen kenar boşluğu.
+// Bu değerler svg-renderer içinde tutulur; ileride SystemConfig'e taşınabilir.
+const ORIGIN_X = 80;   // px — ilk elemanın X başlangıcı
+const ORIGIN_Y = 200;  // px — ilk elemanın Y başlangıcı
+const PAD      = 80;   // px — viewBox kenar boşluğu
 
 export function computeLayout(components) {
 	if (!components.length) return [];
@@ -43,6 +47,12 @@ export class SVGRenderer {
 	}
 
 	_init() {
+		// R4: Layer isimleri — CLAUDE.md'den farklı, bu liste doğru:
+		// layer-spine   → boru gövde çizgileri
+		// layer-comps   → eleman SVG'leri (pump, valve vb.)
+		// layer-labels  → isim etiketleri
+		// layer-nodes   → A/B inlet-outlet node'ları
+		// layer-overlay → seçim highlight, warning ikonları, drop indicator
 		this._layerSpine   = svgEl('g'); this._layerSpine.id   = 'layer-spine';
 		this._layerComps   = svgEl('g'); this._layerComps.id   = 'layer-comps';
 		this._layerLabels  = svgEl('g'); this._layerLabels.id  = 'layer-labels';
@@ -192,26 +202,14 @@ export class SVGRenderer {
 		});
 	}
 
+	// R2/TT1: Tooltip inline style → CSS class (warning-tooltip sınıfı)
+	// style.css'te .warning-tooltip tanımı olmalı
 	_showWarningTooltip(x, y, message) {
 		let tip = document.getElementById('warning-tooltip');
 		if (!tip) {
 			tip = document.createElement('div');
 			tip.id = 'warning-tooltip';
-			tip.style.cssText = `
-        position: fixed;
-        z-index: 9999;
-        pointer-events: none;
-        background: #1a1a2e;
-        border: 1px solid #ef4444;
-        border-radius: 5px;
-        padding: 7px 11px;
-        font-family: 'IBM Plex Mono', monospace;
-        font-size: 11px;
-        color: #fca5a5;
-        max-width: 260px;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.5);
-        white-space: pre-wrap;
-      `;
+			tip.className = 'warning-tooltip';
 			document.body.appendChild(tip);
 		}
 		tip.textContent = message;
@@ -239,9 +237,14 @@ export class SVGRenderer {
 		if (tip) tip.style.opacity = '0';
 	}
 
+	// R6: destroy() — tooltip DOM'dan kaldır
+	destroy() {
+		const tip = document.getElementById('warning-tooltip');
+		if (tip) tip.remove();
+	}
+
 	_renderDropIndicator(layouts, dropIdx) {
 		// R1: innerHTML = '' yerine sadece .drop-indicator'ları sil
-		// .warning-node elementleri korunur
 		this._layerOverlay.querySelectorAll('.drop-indicator').forEach(el => el.remove());
 
 		if (dropIdx === null || !layouts.length) return;

@@ -106,7 +106,7 @@ export class PumpComponent extends ComponentBase {
 
 			this.row('Nominal Flow',
 				this.input('Q_nom_lps', Q_nom_lps), 'L/s'),
-//TODO: burada birim değişmiyor. incelenebilir.
+			//TODO: burada birim değişmiyor. incelenebilir.
 
 			this.row('Max Flow',
 				this.input('Q_max_lps', Q_max_lps), 'L/s'),
@@ -122,9 +122,11 @@ export class PumpComponent extends ComponentBase {
           <span class="prop-slider-val">${etaPct}%</span>
         </div>`),
 
-			// Status: data-live ile tick'te güncellenir (P3 fix scope dışı, şimdilik statik)
+			// P3: isRunning instance property'si kaldırıldı — status data-live ile tick'te güncellenir.
+			// hud-updater.js'teki _updatePump pump_state'i yazarsa burada görünür.
+			// Şu an engine snapshot'ta pumpState string olarak var (STOPPED/RAMPING/RUNNING/OVERLOAD).
 			this.row('Status',
-				`<span class="p-status-tag idle">IDLE</span>`),
+				`<span class="prop-value" data-live="pump_state">—</span>`),
 
 			this.row('Shaft Power',
 				`<span class="prop-value" data-live="P_shaft">—</span>`, 'W'),

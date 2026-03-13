@@ -5,7 +5,24 @@
  * main.js'ten çağrılır, instance inject edilir.
  * Döndürür: { bind() }
  */
-export function createKeyboardController({CatalogManager, Actions, pipelineStore, createComponent, catBody}) {
+export function createKeyboardController({ CatalogManager, Actions, pipelineStore, createComponent, catBody }) {
+
+	// KB1: Constraint cache — her _stepInput çağrısında createComponent() alloc önlenir.
+	// renderProps() çağrılınca (eleman değişince) cache sıfırlanır.
+	const _constraintCache = new Map();
+
+	function _getCachedConstraint(type, subtype, prop) {
+		const key = `${type}:${subtype}:${prop}`;
+		if (_constraintCache.has(key)) return _constraintCache.get(key);
+		try {
+			const constraint = createComponent(type, subtype).getConstraint(prop);
+			_constraintCache.set(key, constraint);
+			return constraint;
+		} catch (_) {
+			_constraintCache.set(key, null);
+			return null;
+		}
+	}
 
 	// <editor-fold desc="_stepInput">
 	function _stepInput(el, dir) {
@@ -15,7 +32,7 @@ export function createKeyboardController({CatalogManager, Actions, pipelineStore
 			const idx = el.selectedIndex;
 			if (dir > 0 && idx < el.options.length - 1) el.selectedIndex = idx + 1;
 			if (dir < 0 && idx > 0) el.selectedIndex = idx - 1;
-			el.dispatchEvent(new Event('change', {bubbles: true}));
+			el.dispatchEvent(new Event('change', { bubbles: true }));
 			return;
 		}
 
@@ -26,7 +43,8 @@ export function createKeyboardController({CatalogManager, Actions, pipelineStore
 			if (prop) {
 				try {
 					const t = CatalogManager.getTemplate(CatalogManager.focusedGi, CatalogManager.focusedIi);
-					const constraint = createComponent(t.type, t.subtype).getConstraint(prop);
+					// KB1: createComponent() yerine cache'den oku
+					const constraint = _getCachedConstraint(t.type, t.subtype, prop);
 					if (constraint?.step) step = constraint.step;
 				} catch (_) {
 				}
@@ -35,7 +53,7 @@ export function createKeyboardController({CatalogManager, Actions, pipelineStore
 			const min = el.min !== '' ? parseFloat(el.min) : -Infinity;
 			const max = el.max !== '' ? parseFloat(el.max) : Infinity;
 			el.value = Math.min(max, Math.max(min, +(parseFloat(el.value || 0) + dir * step).toFixed(10)));
-			el.dispatchEvent(new Event('input', {bubbles: true}));
+			el.dispatchEvent(new Event('input', { bubbles: true }));
 		}
 	}
 
@@ -129,6 +147,9 @@ export function createKeyboardController({CatalogManager, Actions, pipelineStore
 
 			case 'Delete':
 			case 'Backspace':
+				// KB4: INPUT/SELECT/TEXTAREA guard bind()'daki keydown handler'da yapılıyor —
+				// buraya gelinmişse zaten güvenli input değil.
+				// prop-slider-group'taki range input'u INPUT tag'i sayılır → zaten korunuyor.
 				if (pipelineStore.selectedComp?.type !== 'pump') Actions.deleteComponent();
 				break;
 
@@ -149,12 +170,14 @@ export function createKeyboardController({CatalogManager, Actions, pipelineStore
 				_handleExpandKey(e, inExpand);
 				return;
 			}
+			// KB4: INPUT/SELECT/TEXTAREA + contenteditable içindeyken catalog key'lerini yutma
 			if (['INPUT', 'SELECT', 'TEXTAREA'].includes(active?.tagName)) return;
+			if (active?.isContentEditable) return;
 			_handleCatalogKey(e);
 		});
 	}
 
 	// </editor-fold>
 
-	return {bind};
+	return { bind };
 }

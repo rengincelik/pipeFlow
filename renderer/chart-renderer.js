@@ -532,8 +532,9 @@ export class ChartRenderer {
 		}
 	}
 
+	// CH7: PRV subtype kontrolü zaten compColor() içinde yapılıyor —
+	// _compLabel'de ayrı 'prv' case'i gereksiz, kaldırıldı.
 	_compLabel(comp) {
-		if (comp.type === 'valve' && comp.subtype === 'prv') return 'PRV';
 		const map = { pump: 'PMP', pipe: 'PIP', valve: 'VLV', transition: 'TRN', elbow: 'ELB' };
 		return map[comp.type] ?? comp.type.slice(0, 3).toUpperCase();
 	}

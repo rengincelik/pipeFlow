@@ -476,12 +476,12 @@ function bindEngineCallbacks() {
 		// M1/CH6: Raw Pa gönder — chart ve Units.pressureVal(Pa) dönüşümü yapar
 		chart.draw({
 			results: snap.nodes.map(n => ({
-				P_in:     n.P_in,        // Pa
-				P_out:    n.P_out,       // Pa
-				v:        n.v,           // m/s
-				dP_major: n.dP_major,    // Pa
-				dP_minor: n.dP_minor,    // Pa
-				Q_m3s:    snap.Q_m3s,    // m³/s — M2: tüm node'lara kopyala
+				P_in:     n.P_in,
+				P_out:    n.P_out,
+				v:        n.v,
+				dP_major: n.dP_major,
+				dP_minor: n.dP_minor,
+				Q_m3s:    snap.Q_m3s,
 			})),
 			components:  pipelineStore.components,
 			selectedIdx: pipelineStore.selectedId != null   // M3: falsy 0 koruması
@@ -490,6 +490,14 @@ function bindEngineCallbacks() {
 		});
 
 		UI.updateHUD(snap);
+
+		// M9: data-prv-circle attribute'larını tick'te güncelle
+		snap.nodes.forEach(n => {
+			if (n.subtype !== 'prv') return;
+			const el = DOM.svgCanvas.querySelector(`[data-prv-circle="${n.id}"]`);
+			if (!el) return;
+			el.setAttribute('fill', n.prvState === 'active' ? '#ef4444' : 'var(--c-prv)');
+		});
 	});
 
 	engine.onAlarm((alarms) => {
@@ -558,7 +566,7 @@ const CatalogManager = createCatalogManager({
 		Actions,
 		DOM,
 		tooltip,
-		zoom,           // IO5: zoom inject edildi
+		zoom,
 		setupInitialState,
 		SysState,
 		pipelineStore,

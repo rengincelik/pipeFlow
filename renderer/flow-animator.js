@@ -9,10 +9,12 @@
 
 // ── Ayarlar ────────────────────────────────────────────────
 const PARTICLE_R      = 2.8;   // daire yarıçapı (px)
-const PARTICLES_PER_M = 0.4;   // metre başına parçacık sayısı
+const PARTICLES_PER_M = 0.4;   // metre başına parçacık sayısı (lenPx / PX_PER_M ile ölçeklenir)
 const MIN_PARTICLES   = 1;
 const MAX_PARTICLES   = 6;
-const PX_PER_M        = 18;    // svg-renderer ile aynı
+// FA3: PX_PER_M — SVG renderer ile aynı sabit (svg-renderer.js ORIGIN/PAD sabitleriyle tutarlı)
+// Segment uzunluğu SVG'den gelir; bu sabit sadece parçacık sayısı tahmini için referans.
+const PX_PER_M        = 18;    // svg-renderer.js ile eşleştirilmiş referans ölçeği
 const BASE_SPEED      = 40;    // px/s — v=1m/s referans
 const MAX_VIS_SPEED   = 120;   // px/s üst sınır
 const RAMP_ALPHA_RATE = 0.04;  // fade-in hızı
@@ -23,6 +25,36 @@ const BLADE_WIDTH     = 2.2;    // px
 const PUMP_RPM_DEG_S  = 360;    // derece/s tam hızda
 const PUMP_R          = 12;     // pump.js shapeSpec ile aynı
 const INERTIA_DECAY   = 2.8;    // rad/s² yavaşlama (stop'ta)
+
+// FA2: Parçacık renkleri — CSS token'dan alınır, hardcode değil
+function cssVar(name) {
+	return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || null;
+}
+
+function fluidColor(alpha) {
+	// --c-fluid token yoksa --c-pipe fallback, o da yoksa sabit mavi
+	const raw = cssVar('--c-fluid') ?? cssVar('--c-pipe') ?? '#78c8ff';
+	return applyAlpha(raw, alpha);
+}
+
+function applyAlpha(color, alpha) {
+	if (!color) return `rgba(120,200,255,${alpha})`;
+	const c = color.trim();
+	if (c.startsWith('rgba') || c.startsWith('rgb')) {
+		return c.replace(/rgba?\(([^)]+)\)/, (_, inner) => {
+			const parts = inner.split(',').map(s => s.trim());
+			if (parts.length >= 3) return `rgba(${parts[0]},${parts[1]},${parts[2]},${alpha})`;
+			return `rgba(${inner},${alpha})`;
+		});
+	}
+	let h = c.replace('#', '');
+	if (h.length === 3) h = h.split('').map(x => x + x).join('');
+	const num = parseInt(h, 16);
+	const r = (num >> 16) & 255;
+	const g = (num >> 8)  & 255;
+	const b = num & 255;
+	return `rgba(${r},${g},${b},${alpha})`;
+}
 
 export class FlowAnimator {
 	/**
@@ -151,7 +183,7 @@ export class FlowAnimator {
 				existing.lenPx         = lenPx;
 				existing.v             = v;
 				existing.blocked       = blocked;
-				existing.negPressure   = negPressure;  // E5
+				existing.negPressure   = negPressure;
 				newSegs.push(existing);
 				return;
 			}
@@ -177,7 +209,7 @@ export class FlowAnimator {
 				x1: l.ix, y1: l.iy,
 				x2: l.ox, y2: l.oy,
 				lenPx, v, blocked,
-				negPressure,   // E5
+				negPressure,
 				count, particles, arrivalTime,
 			});
 		});
@@ -249,11 +281,11 @@ export class FlowAnimator {
 				ctx.beginPath();
 				ctx.arc(cx, cy, PARTICLE_R, 0, Math.PI * 2);
 
-				// E5: negatif basınçta kırmızımsı parçacık rengi
+				// FA2: E5 negatif basınç kırmızı, normal durum cssVar('--c-fluid') token'ından
 				if (seg.negPressure) {
-					ctx.fillStyle = `rgba(239, 68, 68, ${a})`;   // kırmızı — kavitasyon uyarısı
+					ctx.fillStyle = `rgba(239, 68, 68, ${a})`;
 				} else {
-					ctx.fillStyle = `rgba(120, 200, 255, ${a})`; // normal mavi
+					ctx.fillStyle = fluidColor(parseFloat(a));
 				}
 
 				ctx.fill();
@@ -291,9 +323,10 @@ export class FlowAnimator {
 
 		const isOverload = state === 'OVERLOAD';
 		const alpha      = 0.55 + ramp * 0.35;
+		// FA2: Pompa blade rengi de token'dan — overload kırmızı, normal fluidColor
 		const color      = isOverload
 			? `rgba(255, 120, 80, ${alpha})`
-			: `rgba(120, 200, 255, ${alpha})`;
+			: fluidColor(alpha);
 
 		const ctx = this._ctx;
 		ctx.save();
