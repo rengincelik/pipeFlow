@@ -6,21 +6,24 @@
 
 import { Units } from '../data/unit-system.js';
 
-export class TooltipManager {
-  constructor(svgEl, engine, pipelineStore) {
-    this._svg    = svgEl;
-    this._engine = engine;
-    this._store  = pipelineStore;
-    this._el     = this._createEl();
-    this._hideTimer = null;
-    document.body.appendChild(this._el);
-  }
+// TT5: Her g.component elementine bind edilmiş listener'ları takip et
+const _boundMap = new WeakMap();
 
-  // ── Tooltip DOM elementi ───────────────────────────────────
-  _createEl() {
-    const el = document.createElement('div');
-    el.id = 'flow-tooltip';
-    el.style.cssText = `
+export class TooltipManager {
+	constructor(svgEl, engine, pipelineStore) {
+		this._svg    = svgEl;
+		this._engine = engine;
+		this._store  = pipelineStore;
+		this._el     = this._createEl();
+		this._hideTimer = null;
+		document.body.appendChild(this._el);
+	}
+
+	// ── Tooltip DOM elementi ───────────────────────────────────
+	_createEl() {
+		const el = document.createElement('div');
+		el.id = 'flow-tooltip';
+		el.style.cssText = `
       position: fixed;
       z-index: 9999;
       pointer-events: none;
@@ -37,98 +40,119 @@ export class TooltipManager {
       line-height: 1.7;
       color: #c8cdd8;
     `;
-    return el;
-  }
+		return el;
+	}
 
-  // ── Listener bağlama ───────────────────────────────────────
-  bind(svgRoot) {
-    svgRoot.querySelectorAll('g.component').forEach(g => {
-      g.addEventListener('mouseenter', e => this._onEnter(e, g));
-      g.addEventListener('mousemove',  e => this._onMove(e));
-      g.addEventListener('mouseleave', () => this._onLeave());
-    });
-  }
+	// ── Listener bağlama ───────────────────────────────────────
+	// TT5: Bind öncesinde mevcut listener'ları temizle — WeakMap ile takip
+	bind(svgRoot) {
+		svgRoot.querySelectorAll('g.component').forEach(g => {
+			// Önceki listener'ları temizle
+			const prev = _boundMap.get(g);
+			if (prev) {
+				g.removeEventListener('mouseenter', prev.enter);
+				g.removeEventListener('mousemove',  prev.move);
+				g.removeEventListener('mouseleave', prev.leave);
+			}
 
-  rebind(svgRoot) { this.bind(svgRoot); }
+			// Yeni listener'lar
+			const handlers = {
+				enter: (e) => this._onEnter(e, g),
+				move:  (e) => this._onMove(e),
+				leave: ()  => this._onLeave(),
+			};
 
-  // ── Event handlers ─────────────────────────────────────────
-  _onEnter(e, g) {
-    clearTimeout(this._hideTimer);
-    const idClass = [...g.classList].find(c => c.startsWith('id-'));
-    if (!idClass) return;
-    const compId  = parseInt(idClass.replace('id-', ''));
-    const content = this._buildContent(compId);
-    if (!content) return;
-    this._el.innerHTML = content;
-    this._show(e.clientX, e.clientY);
-  }
+			g.addEventListener('mouseenter', handlers.enter);
+			g.addEventListener('mousemove',  handlers.move);
+			g.addEventListener('mouseleave', handlers.leave);
 
-  _onMove(e)  { this._reposition(e.clientX, e.clientY); }
-  _onLeave()  { this._hideTimer = setTimeout(() => this._hide(), 80); }
+			_boundMap.set(g, handlers);
+		});
+	}
 
-  // ── Güvenli değer — NaN/null/undefined → '—' ──────────────
-  _fmt(val, fn) {
-    if (val == null || !isFinite(val)) return '—';
-    return fn(val);
-  }
+	rebind(svgRoot) { this.bind(svgRoot); }
 
-  // ── İçerik oluştur ─────────────────────────────────────────
-  _buildContent(compId) {
-    const comp = this._store.components.find(c => c.id === compId);
-    if (!comp) return null;
+	// ── Event handlers ─────────────────────────────────────────
+	_onEnter(e, g) {
+		clearTimeout(this._hideTimer);
+		const idClass = [...g.classList].find(c => c.startsWith('id-'));
+		if (!idClass) return;
+		const compId  = parseInt(idClass.replace('id-', ''));
+		const content = this._buildContent(compId);
+		if (!content) return;
+		this._el.innerHTML = content;
+		this._show(e.clientX, e.clientY);
+	}
 
-    const snapshot = this._engine.lastSnapshot;
-    const node     = snapshot?.nodes?.find(n => n.id === compId);
+	_onMove(e)  { this._reposition(e.clientX, e.clientY); }
+	_onLeave()  { this._hideTimer = setTimeout(() => this._hide(), 80); }
 
-    // Engine çalışmıyor — sadece başlık
-    if (!node) {
-      return `
+	// ── Güvenli değer — NaN/null/undefined → '—' ──────────────
+	_fmt(val, fn) {
+		if (val == null || !isFinite(val)) return '—';
+		return fn(val);
+	}
+
+	// ── İçerik oluştur ─────────────────────────────────────────
+	_buildContent(compId) {
+		const comp = this._store.components.find(c => c.id === compId);
+		if (!comp) return null;
+
+		const snapshot = this._engine.lastSnapshot;
+		const node     = snapshot?.nodes?.find(n => n.id === compId);
+
+		// Engine çalışmıyor — sadece başlık
+		if (!node) {
+			return `
         <div style="color:#6b7280;font-size:10px;margin-bottom:4px;">ENGINE NOT RUNNING</div>
         <div style="color:#e2e8f0;font-weight:600;">${comp.name || comp.type}</div>`;
-    }
+		}
 
-    // ── Formatlı değerler ──────────────────────────────────
-    const P_in  = this._fmt(node.P_in,        v => Units.pressure(v / 1e5));
-    const P_out = this._fmt(node.P_out,       v => Units.pressure(v / 1e5));
-    const vel   = this._fmt(node.v,           v => Units.velocity(v));
-    const Q     = this._fmt(snapshot.Q_m3s,   v => Units.flow(v * 1000 * 60));
-    const Re    = this._fmt(node.Re,          v => Math.round(v).toLocaleString());
-    const dPmaj = this._fmt(node.dP_major,    v => Units.pressure(v / 1e5, 4));
-    const dPmin = this._fmt(node.dP_minor,    v => Units.pressure(v / 1e5, 4));
-    const regime = isFinite(node.Re) ? this._regime(node.Re) : '—';
-    const state  = node.nodeState ?? '—';
+		// ── Formatlı değerler ──────────────────────────────────
+		const P_in  = this._fmt(node.P_in,      v => Units.pressure(v / 1e5));
+		const P_out = this._fmt(node.P_out,     v => Units.pressure(v / 1e5));
+		const vel   = this._fmt(node.v,         v => Units.velocity(v));
+		const Q     = this._fmt(snapshot.Q_m3s, v => Units.flow(v * 1000 * 60));
+		const Re    = this._fmt(node.Re,        v => Math.round(v).toLocaleString());
+		const dPmaj = this._fmt(node.dP_major,  v => Units.pressure(v / 1e5, 4));
+		const dPmin = this._fmt(node.dP_minor,  v => Units.pressure(v / 1e5, 4));
+		const regime = isFinite(node.Re) ? this._regime(node.Re) : '—';
+		const state  = node.nodeState ?? '—';
 
-    // ── Eleman tipine göre ekstra satırlar ─────────────────
-    let extra = '';
+		// ── Eleman tipine göre ekstra satırlar ─────────────────
+		let extra = '';
 
-    if (comp.type === 'valve') {
-      const pct = this._fmt(node.opening, v => `${(v * 100).toFixed(0)}%`);
-      const K   = this._fmt(node.K,       v => v.toFixed(2));
-      extra = this._row('Opening', pct) + this._row('K', K);
-    }
+		if (comp.type === 'valve') {
+			const pct = this._fmt(node.opening, v => `${(v * 100).toFixed(0)}%`);
+			const K   = this._fmt(node.K,       v => v.toFixed(2));
+			extra = this._row('Opening', pct) + this._row('K', K);
+		}
 
-    if (comp.type === 'pipe') {
-      const f = this._fmt(node.f, v => v.toFixed(4));
-      extra = this._row('f (friction)', f);
-    }
+		if (comp.type === 'pipe') {
+			const f = this._fmt(node.f, v => v.toFixed(4));
+			extra = this._row('f (friction)', f);
+		}
 
-    if (comp.type === 'transition') {
-      const D_in  = this._fmt(comp.d_in_mm,  v => Units.diameter(v));
-      const D_out = this._fmt(comp.d_out_mm, v => Units.diameter(v));
-      extra = this._row('D in', D_in) + this._row('D out', D_out);
-    }
+		if (comp.type === 'transition') {
+			const D_in  = this._fmt(comp.d_in_mm,  v => Units.diameter(v));
+			const D_out = this._fmt(comp.d_out_mm, v => Units.diameter(v));
+			extra = this._row('D in', D_in) + this._row('D out', D_out);
+		}
 
-    if (comp.type === 'pump') {
-      const H = this._fmt(comp._overrides?.H_m, v => `${v} m`);
-      extra = this._row('Head', H);
-    }
+		if (comp.type === 'pump') {
+			// TT2: comp._overrides?.H_m yanlış prop — head_m kullan
+			const headVal = comp.resolve('head_m');
+			const H = this._fmt(headVal, v => `${v} m`);
+			extra = this._row('Nom. Head', H);
+		}
 
-    if (comp.type === 'elbow') {
-      const K = this._fmt(comp._overrides?.K ?? comp.K, v => v.toFixed(2));
-      extra = this._row('K', K);
-    }
+		if (comp.type === 'elbow') {
+			// TT3: comp._overrides?.K ?? comp.K → comp.resolve('K')
+			const K = this._fmt(comp.resolve('K'), v => v.toFixed(2));
+			extra = this._row('K', K);
+		}
 
-    return `
+		return `
       <div style="color:#94a3b8;font-size:10px;margin-bottom:6px;letter-spacing:0.05em;">
         ${comp.type.toUpperCase()}${comp.subtype ? ' · ' + comp.subtype : ''}
       </div>
@@ -146,55 +170,55 @@ export class TooltipManager {
         ${extra}
         ${this._row('State',  state, this._stateColor(state))}
       </div>`;
-  }
+	}
 
-  // ── Yardımcılar ────────────────────────────────────────────
-  _row(label, value, color = '#e2e8f0') {
-    return `
+	// ── Yardımcılar ────────────────────────────────────────────
+	_row(label, value, color = '#e2e8f0') {
+		return `
       <div style="display:flex;justify-content:space-between;gap:16px;">
         <span style="color:#6b7280">${label}</span>
         <span style="color:${color};font-variant-numeric:tabular-nums">${value}</span>
       </div>`;
-  }
+	}
 
-  _regime(Re) {
-    if (Re < 2300) return 'Laminar';
-    if (Re < 4000) return 'Trans.';
-    return 'Turbulent';
-  }
+	_regime(Re) {
+		if (Re < 2300) return 'Laminar';
+		if (Re < 4000) return 'Trans.';
+		return 'Turbulent';
+	}
 
-  _stateColor(state) {
-    return {
-      flowing: '#34d399',
-      blocked: '#f87171',
-      dry:     '#6b7280',
-      filling: '#fbbf24',
-    }[state] ?? '#e2e8f0';
-  }
+	_stateColor(state) {
+		return {
+			flowing: '#34d399',
+			blocked: '#f87171',
+			dry:     '#6b7280',
+			filling: '#fbbf24',
+		}[state] ?? '#e2e8f0';
+	}
 
-  // ── Pozisyon ───────────────────────────────────────────────
-  _show(x, y) {
-    this._reposition(x, y);
-    this._el.style.opacity = '1';
-  }
+	// ── Pozisyon ───────────────────────────────────────────────
+	_show(x, y) {
+		this._reposition(x, y);
+		this._el.style.opacity = '1';
+	}
 
-  _hide() {
-    this._el.style.opacity = '0';
-  }
+	_hide() {
+		this._el.style.opacity = '0';
+	}
 
-  _reposition(x, y) {
-    const tw = this._el.offsetWidth  || 180;
-    const th = this._el.offsetHeight || 200;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const offset = 14;
-    let left = x + offset;
-    let top  = y + offset;
-    if (left + tw > vw - 8) left = x - tw - offset;
-    if (top  + th > vh - 8) top  = y - th - offset;
-    this._el.style.left = left + 'px';
-    this._el.style.top  = top  + 'px';
-  }
+	_reposition(x, y) {
+		const tw = this._el.offsetWidth  || 180;
+		const th = this._el.offsetHeight || 200;
+		const vw = window.innerWidth;
+		const vh = window.innerHeight;
+		const offset = 14;
+		let left = x + offset;
+		let top  = y + offset;
+		if (left + tw > vw - 8) left = x - tw - offset;
+		if (top  + th > vh - 8) top  = y - th - offset;
+		this._el.style.left = left + 'px';
+		this._el.style.top  = top  + 'px';
+	}
 
-  destroy() { this._el.remove(); }
+	destroy() { this._el.remove(); }
 }

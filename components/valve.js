@@ -2,7 +2,6 @@
 
 import { ComponentBase, registerComponentType } from './base.js';
 import { Units } from '../data/unit-system.js';
-import { validateParams } from './validation.js';
 
 const ARM = 10;
 const S   = 10;
@@ -15,7 +14,8 @@ function closedX(cx, cy) {
 	];
 }
 
-const VALVE_DEFS = {
+// C5: export edildi — main.js bindPropInputs'ta subtype değişince name+K güncellemek için
+export const VALVE_DEFS = {
 	gate:      { name: 'Gate Valve',  K: 0.20 },
 	ball:      { name: 'Ball Valve',  K: 0.10 },
 	butterfly: { name: 'Butterfly',   K: 0.80 },
@@ -39,7 +39,6 @@ export class ValveComponent extends ComponentBase {
 		const d   = VALVE_DEFS[subtype] ?? VALVE_DEFS.gate;
 		this.name = d.name;
 		this.K    = d.K;
-		// NOT: this.open KALDIRILDI — tek kaynak opening_pct override'ı
 		this._lenPx = 54;
 	}
 	// </editor-fold>
@@ -103,7 +102,7 @@ export class ValveComponent extends ComponentBase {
 			{ value: 'check',     label: 'Check Valve' },
 		];
 
-		const pct  = this.opening_pct;   // getter üzerinden
+		const pct  = this.opening_pct;
 		const dVal = this.resolve('diameter_mm');
 
 		return [
@@ -122,21 +121,19 @@ export class ValveComponent extends ComponentBase {
 
 			this.row('State',
 				`<span class="valve-status-tag ${pct > 0 ? 'on' : 'off'}">
-          ${pct > 0 ? 'OPEN' : 'CLOSED'}</span>`),
+				${pct > 0 ? 'OPEN' : 'CLOSED'}</span>`),
 		].join('');
 	}
 	// </editor-fold>
 
 	// <editor-fold desc="serialize / applySerializedData">
 	serialize() {
-		// open instance property kaldırıldı — opening_pct zaten serializeOverrides içinde
 		return { ...super.serialize(), K: this.K };
 	}
 
 	applySerializedData(d) {
 		super.applySerializedData(d);
 		if (d.K != null) this.K = d.K;
-		// d.open restore kaldırıldı — opening_pct override'dan gelir
 		return this;
 	}
 	// </editor-fold>

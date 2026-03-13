@@ -16,6 +16,7 @@ import {
 } from './imports.js';
 
 import { MATERIALS }                   from './data/catalogs.js';
+import { VALVE_DEFS }                  from './components/valve.js';  // C5
 import { createKeyboardController }    from './input/keyboard-controller.js';
 import { createProjectIO }             from './state/project-io.js';
 import { createDropdownManager }       from './ui/dropdown-manager.js';
@@ -100,8 +101,10 @@ const chart      = new ChartRenderer(DOM.chartCanvas);
 const engine     = new SimulationEngine(pipelineStore, { rho: 1000, mu: 0.001 });
 const animator   = new FlowAnimator(DOM.svgCanvas, DOM.flowCanvas);
 const tooltip    = new TooltipManager(DOM.svgCanvas, engine, pipelineStore);
-const hudUpdater = createHudUpdater({ DOM, Units });
 const zoom       = createZoomController(DOM.svgCanvas, DOM.flowCanvas);
+
+// hudUpdater — pipelineStore inject (HU5)
+const hudUpdater = createHudUpdater({ DOM, Units, pipelineStore });
 
 // IO ve keyboard — CatalogManager ve Actions henüz tanımlı değil,
 // bunlar init()'te bağlanır (aşağı bak).
@@ -119,8 +122,6 @@ const Actions = {
 		if (!model) return;
 		const props = model.getProps(tempC);
 		engine.setFluid({ rho: props.rho, mu: props.mu_mPas / 1000 });
-		// SystemConfig.set çağrıları buradan KALDIRILDI —
-		// zaten bindFluidControls içinde set ediliyor, tekrar set gerekmez
 		UI.updateStatusBar();
 	},
 
@@ -235,15 +236,23 @@ const UI = {
 					const [d_in, d_out] = raw.split('|').map(Number);
 					comp.override('d_in_mm',  d_in,  true);
 					comp.override('d_out_mm', d_out, true);
-					// M8: public wrapper kullan
 					pipelineStore.propagateDiameterFrom(comp);
 					this.renderProps();
 
+				} else if (prop === 'subtype' && comp.type === 'valve') {
+					// C5: valve subtype değişince name ve K güncellenir
+					const def = VALVE_DEFS[raw];
+					if (def) {
+						comp.name    = def.name;
+						comp.K       = def.K;
+						comp.subtype = raw;
+					}
+					pipelineStore.emit('components:change');
+					this.renderProps();
+
 				} else if (prop === 'opening_pct') {
-					// Tek yazar — sadece override, engine bir sonraki tick'te okur
 					const val = parseInt(raw);
 					comp.override('opening_pct', val, true);
-					// Durum etiketi — hemen güncelle (tick bekleme)
 					const tag = DOM.propBody.querySelector('.valve-status-tag');
 					if (tag) {
 						tag.textContent = val > 0 ? 'OPEN' : 'CLOSED';
@@ -251,7 +260,6 @@ const UI = {
 					}
 
 				} else if (prop === 'efficiency') {
-					// Slider: 10–100 (gösterim), store: 0.0–1.0 (ham)
 					comp.override('efficiency', parseInt(raw) / 100, true);
 
 				} else {
@@ -266,7 +274,6 @@ const UI = {
 					comp.override(prop, isNaN(num) ? raw : num, true);
 
 					if (['diameter_mm', 'd_out_mm'].includes(prop))
-						// M8: public wrapper kullan
 						pipelineStore.propagateDiameterFrom(comp);
 				}
 
@@ -293,7 +300,6 @@ const UI = {
 		}
 	},
 
-	// M5: _tempC yerine SystemConfig.get('T_in_C')
 	updateStatusBar() {
 		const n = pipelineStore.components.length;
 		DOM.statusComponents.textContent = `${n} component${n !== 1 ? 's' : ''}`;
@@ -343,8 +349,18 @@ function bindToolbar() {
 		document.documentElement.dataset.theme = isLight ? '' : 'light';
 		localStorage.setItem('pf-theme', isLight ? '' : 'light');
 	};
-	DOM.btnUnits.onclick    = () => { Units.toggle(); DOM.btnUnits.textContent = Units.isMetric ? 'SI' : 'IMP'; };
-	DOM.btnClear.onclick    = () => { pipelineStore.clear?.(); setupInitialState(); UI.refreshCanvas(); };
+	DOM.btnUnits.onclick = () => { Units.toggle(); DOM.btnUnits.textContent = Units.isMetric ? 'SI' : 'IMP'; };
+
+	// M6: btnClear çift save önleme — _isClearing flag ile components:change listener'ı geçici sustur
+	DOM.btnClear.onclick = () => {
+		IO._isClearing = true;
+		pipelineStore.clear?.();
+		setupInitialState();
+		IO._isClearing = false;
+		IO.saveProject(true);   // tek kayıt
+		UI.refreshCanvas();
+	};
+
 	DOM.btnFit.onclick      = Actions.zoomToFit;
 	DOM.hudStartBtn.onclick = Actions.toggleSimulation;
 
@@ -382,7 +398,6 @@ function bindSidebar() {
 	DOM.sidebarToggle.onclick = Actions.toggleSidebar;
 }
 
-// M5: _fluidId/_tempC yazmaları SystemConfig.set(...) ile yapılıyor
 function bindFluidControls() {
 	DOM.selectFluid.onchange = (e) => {
 		const fluidId = e.target.value;
@@ -438,7 +453,8 @@ function bindStoreSubscriptions() {
 		UI.updateStatusBar();
 		tooltip.rebind(DOM.svgCanvas);
 		if (engine.sysState === SysState.RUNNING) animator.reset();
-		if (engine.sysState === SysState.IDLE)    IO.saveProject(true);
+		// M6: _isClearing flag aktifken save yapma — btnClear tek seferinde kendisi save eder
+		if (engine.sysState === SysState.IDLE && !IO?._isClearing) IO?.saveProject(true);
 	});
 	pipelineStore.on('selection:change', () => {
 		UI.refreshCanvas();
@@ -448,9 +464,7 @@ function bindStoreSubscriptions() {
 		UI.refreshCanvas();
 		UI.renderProps();
 		if (chart._lastData) chart.draw(chart._lastData);
-		// M5: _tempC yerine SystemConfig.get('T_in_C')
 		DOM.tempLabel.textContent = Units.temp(SystemConfig.get('T_in_C') ?? 20);
-		// HU1: birim değişince HUD volume'ü yeniden göster
 		hudUpdater.redrawVolume();
 	});
 }
@@ -460,7 +474,6 @@ function bindEngineCallbacks() {
 		animator.update(pipelineStore.layout, snap);
 
 		// M1/CH6: Raw Pa gönder — chart ve Units.pressureVal(Pa) dönüşümü yapar
-		// Önceki kod: n.P_in / 1e5 burada yapıyordu — KALDIRILDI
 		chart.draw({
 			results: snap.nodes.map(n => ({
 				P_in:     n.P_in,        // Pa
@@ -468,10 +481,10 @@ function bindEngineCallbacks() {
 				v:        n.v,           // m/s
 				dP_major: n.dP_major,    // Pa
 				dP_minor: n.dP_minor,    // Pa
-				Q_m3s:    snap.Q_m3s,    // m³/s — M2 fix (tüm node'lara kopyala)
+				Q_m3s:    snap.Q_m3s,    // m³/s — M2: tüm node'lara kopyala
 			})),
 			components:  pipelineStore.components,
-			selectedIdx: pipelineStore.selectedId != null    // M3 fix: falsy 0 koruması
+			selectedIdx: pipelineStore.selectedId != null   // M3: falsy 0 koruması
 				? pipelineStore.components.findIndex(c => c.id === pipelineStore.selectedId)
 				: null,
 		});
@@ -519,7 +532,6 @@ const Interactions = {
 // </editor-fold>
 
 // <editor-fold desc="INIT">
-// M5: _fluidId/_tempC yerine SystemConfig'ten oku
 function setupInitialState() {
 	const fluidId = SystemConfig.get('fluid_id') ?? 'water';
 	const tempC   = SystemConfig.get('T_in_C')   ?? 20;
@@ -546,12 +558,12 @@ const CatalogManager = createCatalogManager({
 		Actions,
 		DOM,
 		tooltip,
+		zoom,           // IO5: zoom inject edildi
 		setupInitialState,
 		SysState,
 		pipelineStore,
 		SystemConfig,
 		createComponent,
-		// M5: _fluidId/_tempC global'leri yok — SystemConfig üzerinden set et
 		onSyncFluid: (fluidId, tempC) => {
 			SystemConfig.set('fluid_id', fluidId);
 			SystemConfig.set('T_in_C',   tempC);
@@ -566,11 +578,13 @@ const CatalogManager = createCatalogManager({
 		],
 	});
 
+	// KB3: catBody inject edildi — Space tuşu sadece catalog focus'undayken çalışır
 	keyboard = createKeyboardController({
 		CatalogManager,
 		Actions,
 		pipelineStore,
 		createComponent,
+		catBody: DOM.catBody,
 	});
 
 	if (localStorage.getItem('pf-theme') === 'light')

@@ -1,10 +1,10 @@
 'use strict';
 
 /**
- * createHudUpdater({ DOM, Units })
- * Döndürür: { update(snapshot) }
+ * createHudUpdater({ DOM, Units, pipelineStore })
+ * Döndürür: { update(snapshot), redrawVolume() }
  */
-export function createHudUpdater({ DOM, Units }) {
+export function createHudUpdater({ DOM, Units, pipelineStore }) {
 
 	// <editor-fold desc="update">
 	function update(snapshot) {
@@ -25,8 +25,6 @@ export function createHudUpdater({ DOM, Units }) {
 	// </editor-fold>
 
 	// <editor-fold desc="_updateVolume">
-	// Units.volume(m3) — metric: L / m³, imperial: gal / kgal
-	// Units.onChange ile birim değişince otomatik yeniden çizilir (bindStoreSubscriptions'ta)
 	let _lastVolume_m3 = null;
 
 	function _updateVolume(vol_m3) {
@@ -48,20 +46,31 @@ export function createHudUpdater({ DOM, Units }) {
 
 	// <editor-fold desc="_updatePRV">
 	function _updatePRV(nodes) {
+		// HU5: Sadece seçili component PRV ise prop panel'i güncelle.
+		// SVG circle her PRV için güncellenir (id bazlı — çakışma yok).
+		const selectedId   = pipelineStore.selectedId;
+		const selectedComp = pipelineStore.selectedComp;
+		const selectedIsPRV = selectedComp?.type === 'valve' && selectedComp?.subtype === 'prv';
+
 		nodes.filter(n => n.subtype === 'prv').forEach(n => {
-			const isActive = n.prvState === 'active';
-			const ratio    = (isFinite(n.P_in) && n.P_set_Pa > 0)
+			// SVG circle — id bazlı, her PRV'nin kendi circle'ı, güncelleme güvenli
+			const ratio = (isFinite(n.P_in) && n.P_set_Pa > 0)
 				? Math.min(1, n.P_in / n.P_set_Pa)
 				: 0;
 
 			const fill = !isFinite(n.P_in) ? 'var(--text-dim)'
-				: ratio < 0.8               ? 'var(--green)'
-					: ratio < 1.0               ? 'var(--accent)'
-						:                             'var(--red)';
+				: ratio < 0.8              ? 'var(--green)'
+					: ratio < 1.0              ? 'var(--accent)'
+						:                            'var(--red)';
 
 			DOM.svgCanvas
 				.querySelector(`[data-prv-circle="${n.id}"]`)
 				?.setAttribute('fill', fill);
+
+			// Prop panel live alanları — sadece seçili PRV'ye yaz
+			if (!selectedIsPRV || n.id !== selectedId) return;
+
+			const isActive = n.prvState === 'active';
 
 			DOM.propBody.querySelectorAll('[data-live="prv_status"]').forEach(el => {
 				el.textContent = isActive ? 'ACTIVE' : 'INACTIVE';
@@ -70,7 +79,6 @@ export function createHudUpdater({ DOM, Units }) {
 
 			DOM.propBody.querySelectorAll('[data-live="prv_p_in"]').forEach(el => {
 				el.textContent = isFinite(n.P_in)
-					// P_in Pa cinsinden gelir, Units.pressure bar bekler
 					? Units.pressure(n.P_in / 1e5)
 					: '—';
 			});
@@ -78,5 +86,8 @@ export function createHudUpdater({ DOM, Units }) {
 	}
 	// </editor-fold>
 
-	return { update, redrawVolume: () => { if (_lastVolume_m3 != null) DOM.hudVol.textContent = Units.volume(_lastVolume_m3); } };
+	return {
+		update,
+		redrawVolume: () => { if (_lastVolume_m3 != null) DOM.hudVol.textContent = Units.volume(_lastVolume_m3); },
+	};
 }

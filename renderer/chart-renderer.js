@@ -16,13 +16,11 @@ const BUFFER_SIZE = 600;   // 60 saniye @ 100ms tick
 const SPLIT      = 0.38;   // sol panel genişlik oranı
 const GAP        = 1;      // iki panel arası boşluk (px)
 
-const PAD = { top: 28, right: 14, bottom: 48, left: 48 };
-// Sağ panel için ayrı left padding (eksen etiketi için)
+const PAD   = { top: 28, right: 14, bottom: 48, left: 48 };
 const PAD_R = { top: 28, right: 14, bottom: 48, left: 44 };
 
 const FONT_SM  = "9px 'IBM Plex Mono', monospace";
 const FONT_XS  = "8px 'IBM Plex Mono', monospace";
-const FONT_LBL = "10px 'IBM Plex Mono', monospace";
 
 // Eleman tipi → CSS token adı
 const TYPE_TOKEN = {
@@ -54,18 +52,15 @@ function compColor(type, subtype) {
 }
 
 function hexToRgba(hex, alpha) {
-	// CSS token'ı zaten rgb/rgba ise direkt döndür, hex ise dönüştür
 	if (!hex) return `rgba(100,120,160,${alpha})`;
 	const c = hex.trim();
 	if (c.startsWith('rgba') || c.startsWith('rgb')) {
-		// alpha override
 		return c.replace(/rgba?\(([^)]+)\)/, (_, inner) => {
 			const parts = inner.split(',').map(s => s.trim());
 			if (parts.length >= 3) return `rgba(${parts[0]},${parts[1]},${parts[2]},${alpha})`;
 			return `rgba(${inner},${alpha})`;
 		});
 	}
-	// hex → rgba
 	let h = c.replace('#', '');
 	if (h.length === 3) h = h.split('').map(x => x + x).join('');
 	const num = parseInt(h, 16);
@@ -84,8 +79,8 @@ export class ChartRenderer {
 
 		this.emptyPlaceholder = document.getElementById('chart-empty');
 
-		this._metric  = 'dP';       // aktif metrik
-		this._buffer  = [];         // { ts, nodes, components } dizisi — max BUFFER_SIZE
+		this._metric  = 'dP';
+		this._buffer  = [];
 		this._lastData = null;
 
 		this._ro = new ResizeObserver(() => this._resize());
@@ -101,15 +96,9 @@ export class ChartRenderer {
 		if (this._lastData) this.draw(this._lastData);
 	}
 
-	/**
-	 * Ana çizim — main.js signature DEĞİŞMEDİ
-	 * @param {{ results, components, selectedIdx }} data
-	 *   results[i] = { P_in, P_out, v, dP_major, dP_minor, Q_m3s? }  (bar/m/s)
-	 */
 	draw(data) {
 		this._lastData = data;
 
-		// Buffer'a ekle
 		if (data.results && data.results.length) {
 			this._buffer.push({
 				ts:         Date.now(),
@@ -128,7 +117,6 @@ export class ChartRenderer {
 		const ctx = this.ctx;
 		const W = this._cw, H = this._ch;
 
-		// Arka plan
 		ctx.clearRect(0, 0, W, H);
 		ctx.fillStyle = cssVar('--bg-surface');
 		ctx.fillRect(0, 0, W, H);
@@ -139,13 +127,11 @@ export class ChartRenderer {
 		const rightX = leftW + GAP;
 		const rightW = W - rightX;
 
-		// Clip + çiz
 		ctx.save();
 		ctx.beginPath(); ctx.rect(0, 0, leftW, H); ctx.clip();
 		this._drawStackedBar(ctx, data, 0, leftW, H);
 		ctx.restore();
 
-		// Dikey ayırıcı
 		ctx.fillStyle = cssVar('--border-mid');
 		ctx.fillRect(leftW, 0, GAP, H);
 
@@ -177,14 +163,14 @@ export class ChartRenderer {
 		this.canvas.height = h * dpr;
 		this.canvas.style.width  = w + 'px';
 		this.canvas.style.height = h + 'px';
-		this.ctx.scale(dpr, dpr);
+		// CH2: scale yerine setTransform — birikim olmaz
+		this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 		this._cw = w;
 		this._ch = h;
 		if (this._lastData) this.draw(this._lastData);
 	}
 
 	// ── Sol Panel: Tek Sütun Stacked Bar ──────────────────────────────────────
-	// Tüm elemanlar tek bar içinde üst üste renkli dilimler
 
 	_drawStackedBar(ctx, data, ox, W, H) {
 		const { results, components, selectedIdx } = data;
@@ -197,25 +183,20 @@ export class ChartRenderer {
 		const cAxis = cssVar('--border-hi');
 		const cText = cssVar('--text-dim');
 
-		// Değerleri çıkar
 		const values = results.map((r, i) => this._metricValue(r, i, components, metric));
 		const validValues = values.filter(isFinite).filter(v => v >= 0);
 
-		// Toplam & scale
 		const total  = validValues.reduce((s, v) => s + v, 0);
 		const maxVal = Math.max(1e-6, total) * 1.1;
 
-		// Sabit bar genişliği — sol panelin ortasında
 		const barW = Math.min(64, (W - pl - pr) * 0.55);
 		const barX = ox + pl + (W - pl - pr) / 2 - barW / 2;
 
-		// Panel başlığı
 		ctx.fillStyle = cText;
 		ctx.font      = FONT_SM;
 		ctx.textAlign = 'center';
 		ctx.fillText(METRICS[metric].label + ' distribution', ox + W / 2, pt - 12);
 
-		// Grid yatay çizgiler
 		ctx.strokeStyle = cGrid;
 		ctx.lineWidth   = 1;
 		for (let i = 0; i <= 4; i++) {
@@ -226,7 +207,6 @@ export class ChartRenderer {
 			ctx.stroke();
 		}
 
-		// Sol eksen
 		ctx.strokeStyle = cAxis;
 		ctx.lineWidth   = 1;
 		ctx.beginPath();
@@ -236,7 +216,6 @@ export class ChartRenderer {
 		ctx.lineTo(ox + W - PAD.right, pt + gh);
 		ctx.stroke();
 
-		// Y eksen etiketleri
 		ctx.fillStyle = cText;
 		ctx.font      = FONT_SM;
 		ctx.textAlign = 'right';
@@ -246,36 +225,31 @@ export class ChartRenderer {
 			ctx.fillText(this._fmtAxisVal(val, metric), ox + PAD.left - 4, y + 3);
 		}
 
-		// Birim etiketi
 		ctx.fillStyle = cText;
 		ctx.font      = FONT_XS;
 		ctx.textAlign = 'left';
 		ctx.fillText('[' + this._metricUnit(metric) + ']', ox + PAD.left + 2, pt - 6);
 
-		// Bar arka planı (tam yükseklik, soluk)
 		ctx.fillStyle = cssVar('--bg-raised');
 		ctx.fillRect(barX, pt, barW, gh);
 
-		// Stacked dilimler — alttan yukarı
-		let curY = pt + gh;  // çizim yukarı doğru gider
+		let curY = pt + gh;
 
 		components.forEach((comp, i) => {
 			const val = values[i];
 			if (!isFinite(val) || val <= 0) return;
 
-			const sliceH    = Math.max(1, (val / maxVal) * gh);
-			const sliceY    = curY - sliceH;
-			const color     = compColor(comp.type, comp.subtype);
+			const sliceH     = Math.max(1, (val / maxVal) * gh);
+			const sliceY     = curY - sliceH;
+			const color      = compColor(comp.type, comp.subtype);
 			const isSelected = selectedIdx === i;
 
-			// Dilim dolgusu
 			const grad = ctx.createLinearGradient(barX, sliceY, barX + barW, sliceY);
 			grad.addColorStop(0, hexToRgba(color, isSelected ? 1.0 : 0.75));
 			grad.addColorStop(1, hexToRgba(color, isSelected ? 0.85 : 0.55));
 			ctx.fillStyle = grad;
 			ctx.fillRect(barX, sliceY, barW, sliceH);
 
-			// Dilim üst sınır çizgisi (ayırıcı)
 			if (i > 0) {
 				ctx.strokeStyle = cssVar('--bg-surface');
 				ctx.lineWidth   = 1.5;
@@ -285,7 +259,6 @@ export class ChartRenderer {
 				ctx.stroke();
 			}
 
-			// Seçili vurgu — sol kenar çizgisi
 			if (isSelected) {
 				ctx.strokeStyle = color;
 				ctx.lineWidth   = 2;
@@ -295,7 +268,6 @@ export class ChartRenderer {
 				ctx.stroke();
 			}
 
-			// Dilim içi etiket — yeterince yüksekse göster
 			if (sliceH >= 16) {
 				const pct = total > 0 ? ((val / total) * 100).toFixed(0) + '%' : '';
 				ctx.fillStyle = 'rgba(255,255,255,0.85)';
@@ -307,19 +279,16 @@ export class ChartRenderer {
 			curY = sliceY;
 		});
 
-		// Bar dış çerçeve
 		ctx.strokeStyle = cAxis;
 		ctx.lineWidth   = 1;
 		ctx.strokeRect(barX, pt, barW, gh);
 
-		// Toplam değer — bar üstünde
 		ctx.fillStyle = cssVar('--text-mid');
 		ctx.font      = FONT_SM;
 		ctx.textAlign = 'center';
 		ctx.fillText(this._fmtBarVal(total, metric), barX + barW / 2, pt - 2);
 
-		// ── Legend — bar sağında eleman listesi ───────────────────────────────
-		const legendX = barX + barW + 10;
+		const legendX    = barX + barW + 10;
 		const legendMaxW = ox + W - PAD.right - legendX;
 
 		if (legendMaxW > 30) {
@@ -327,16 +296,14 @@ export class ChartRenderer {
 			const lineH = Math.min(18, gh / Math.max(1, components.length));
 
 			components.forEach((comp, i) => {
-				const val   = values[i];
-				const color = compColor(comp.type, comp.subtype);
-				const pct   = (isFinite(val) && total > 0) ? ((val / total) * 100).toFixed(0) + '%' : '—';
+				const val        = values[i];
+				const color      = compColor(comp.type, comp.subtype);
+				const pct        = (isFinite(val) && total > 0) ? ((val / total) * 100).toFixed(0) + '%' : '—';
 				const isSelected = selectedIdx === i;
 
-				// Renk kutusu
 				ctx.fillStyle = hexToRgba(color, isSelected ? 1 : 0.75);
 				ctx.fillRect(legendX, legendY - 6, 8, 8);
 
-				// Eleman adı + yüzde
 				ctx.fillStyle = isSelected ? cssVar('--text') : cText;
 				ctx.font      = isSelected ? `bold ${FONT_XS}` : FONT_XS;
 				ctx.textAlign = 'left';
@@ -352,7 +319,6 @@ export class ChartRenderer {
 
 	_drawTimeline(ctx, ox, W, H) {
 		if (this._buffer.length < 2) {
-			// Yeterli veri yok
 			ctx.fillStyle = cssVar('--text-dim');
 			ctx.font      = FONT_SM;
 			ctx.textAlign = 'center';
@@ -369,16 +335,13 @@ export class ChartRenderer {
 		const cAxis = cssVar('--border-hi');
 		const cText = cssVar('--text-dim');
 
-		// Zaman penceresi
 		const now      = this._buffer.at(-1).ts;
 		const windowMs = 60_000;
 		const tMin     = now - windowMs;
 
-		// Görünür buffer
 		const visible = this._buffer.filter(s => s.ts >= tMin);
 		if (visible.length < 2) return;
 
-		// Tüm değerleri topla — scale için
 		const allVals = visible.flatMap(snap =>
 			snap.nodes.map((r, i) => this._metricValue(r, i, snap.components, metric))
 		).filter(isFinite);
@@ -394,17 +357,14 @@ export class ChartRenderer {
 		const toX = ts => ox + pl + ((ts - tMin) / windowMs) * gw;
 		const toY = v  => pt + gh - ((v - yMin) / (yMax - yMin)) * gh;
 
-		// Arka plan
 		ctx.fillStyle = cssVar('--bg-surface');
 		ctx.fillRect(ox, 0, W, H);
 
-		// Panel başlığı
 		ctx.fillStyle = cText;
 		ctx.font      = FONT_SM;
 		ctx.textAlign = 'center';
 		ctx.fillText('60s trend — ' + METRICS[metric].label, ox + W / 2, pt - 12);
 
-		// Grid
 		ctx.strokeStyle = cGrid;
 		ctx.lineWidth   = 1;
 		for (let i = 0; i <= 4; i++) {
@@ -414,7 +374,6 @@ export class ChartRenderer {
 			ctx.lineTo(ox + pl + gw, y);
 			ctx.stroke();
 		}
-		// Dikey grid (10s aralıklarla)
 		for (let s = 0; s <= 60; s += 10) {
 			const x = ox + pl + (s / 60) * gw;
 			ctx.beginPath();
@@ -423,7 +382,6 @@ export class ChartRenderer {
 			ctx.stroke();
 		}
 
-		// Eksenler
 		ctx.strokeStyle = cAxis;
 		ctx.lineWidth   = 1;
 		ctx.beginPath();
@@ -433,7 +391,6 @@ export class ChartRenderer {
 		ctx.lineTo(ox + pl + gw, pt + gh);
 		ctx.stroke();
 
-		// Y eksen etiketleri
 		ctx.fillStyle = cText;
 		ctx.font      = FONT_SM;
 		ctx.textAlign = 'right';
@@ -443,7 +400,6 @@ export class ChartRenderer {
 			ctx.fillText(this._fmtAxisVal(val, metric), ox + pl - 4, y + 3);
 		}
 
-		// X eksen zaman etiketleri
 		ctx.textAlign = 'center';
 		for (let s = 0; s <= 60; s += 10) {
 			const x     = ox + pl + (s / 60) * gw;
@@ -451,13 +407,11 @@ export class ChartRenderer {
 			ctx.fillText(label, x, pt + gh + 13);
 		}
 
-		// Birim etiketi
 		ctx.fillStyle = cText;
 		ctx.font      = FONT_XS;
 		ctx.textAlign = 'left';
 		ctx.fillText('[' + this._metricUnit(metric) + ']', ox + pl + 2, pt - 6);
 
-		// Sıfır çizgisi (pressure modunda)
 		if (metric === 'pressure' && yMin < 0) {
 			const y0 = toY(0);
 			ctx.strokeStyle = hexToRgba(cssVar('--red'), 0.3);
@@ -469,13 +423,11 @@ export class ChartRenderer {
 			ctx.setLineDash([]);
 		}
 
-		// Her eleman için çizgi — components'ı son snapshot'tan al
 		const lastComponents = visible.at(-1).components;
 
 		lastComponents.forEach((comp, compIdx) => {
 			const color = compColor(comp.type, comp.subtype);
 
-			// Bu eleman için zaman serisi
 			const points = visible
 				.map(snap => {
 					if (!snap.nodes[compIdx]) return null;
@@ -487,7 +439,6 @@ export class ChartRenderer {
 
 			if (points.length < 2) return;
 
-			// Alan dolgusu
 			ctx.save();
 			ctx.beginPath();
 			ctx.moveTo(points[0].x, points[0].y);
@@ -499,7 +450,6 @@ export class ChartRenderer {
 			ctx.fill();
 			ctx.restore();
 
-			// Çizgi
 			ctx.strokeStyle = hexToRgba(color, 0.8);
 			ctx.lineWidth   = 1.5;
 			ctx.lineJoin    = 'round';
@@ -509,7 +459,6 @@ export class ChartRenderer {
 			points.forEach(p => ctx.lineTo(p.x, p.y));
 			ctx.stroke();
 
-			// Son nokta
 			const last = points.at(-1);
 			ctx.fillStyle = hexToRgba(color, 1);
 			ctx.beginPath();
@@ -517,7 +466,6 @@ export class ChartRenderer {
 			ctx.fill();
 		});
 
-		// Sağ kenar "şimdi" etiketi — son değerler
 		ctx.font      = FONT_XS;
 		ctx.textAlign = 'left';
 		const lastSnap = visible.at(-1);
@@ -527,7 +475,6 @@ export class ChartRenderer {
 			if (!isFinite(val)) return;
 			const color = compColor(comp.type, comp.subtype);
 			const y     = toY(val);
-			// Yalnızca görünür alanda
 			if (y < pt + 6 || y > pt + gh - 4) return;
 			ctx.fillStyle = hexToRgba(color, 0.9);
 			ctx.fillText(this._fmtBarVal(val, metric), ox + pl + gw + 3, y + 3);
@@ -535,7 +482,6 @@ export class ChartRenderer {
 	}
 
 	// ── Metrik Hesabı ──────────────────────────────────────────────────────────
-	// Değerler SI'dan alınır, Units dönüşümü burada yapılır — görüntüleme katmanı
 
 	_metricValue(node, idx, components, metric) {
 		switch (metric) {
@@ -546,7 +492,7 @@ export class ChartRenderer {
 			case 'velocity':
 				return Units.velocityVal(node.v ?? 0);
 			case 'flow': {
-				const Q_lpm = (node.Q_m3s ?? 0) * 1000 * 60;  // m3/s -> L/min
+				const Q_lpm = (node.Q_m3s ?? 0) * 1000 * 60;
 				return Units.flowVal(Q_lpm);
 			}
 			default:
@@ -587,11 +533,8 @@ export class ChartRenderer {
 	}
 
 	_compLabel(comp) {
-		const map = {
-			pump: 'PMP', pipe: 'PIP', valve: 'VLV',
-			transition: 'TRN', elbow: 'ELB', prv: 'PRV',
-		};
 		if (comp.type === 'valve' && comp.subtype === 'prv') return 'PRV';
+		const map = { pump: 'PMP', pipe: 'PIP', valve: 'VLV', transition: 'TRN', elbow: 'ELB' };
 		return map[comp.type] ?? comp.type.slice(0, 3).toUpperCase();
 	}
 }

@@ -1,11 +1,11 @@
 'use strict';
 
 /**
- * createKeyboardController({ CatalogManager, Actions, pipelineStore, createComponent })
+ * createKeyboardController({ CatalogManager, Actions, pipelineStore, createComponent, catBody })
  * main.js'ten çağrılır, instance inject edilir.
  * Döndürür: { bind() }
  */
-export function createKeyboardController({ CatalogManager, Actions, pipelineStore, createComponent }) {
+export function createKeyboardController({ CatalogManager, Actions, pipelineStore, createComponent, catBody }) {
 
 	// <editor-fold desc="_stepInput">
 	function _stepInput(el, dir) {
@@ -64,7 +64,15 @@ export function createKeyboardController({ CatalogManager, Actions, pipelineStor
 			case 'ArrowUp':   e.preventDefault(); CatalogManager.navigateUp();          break;
 			case 'ArrowDown': e.preventDefault(); CatalogManager.navigateDown();        break;
 			case 'Enter':     e.preventDefault(); CatalogManager.toggleExpandFocused(); break;
-			case ' ':         e.preventDefault(); CatalogManager.addDirect();           break;
+
+			case ' ': {
+				e.preventDefault();
+				// KB3: Space sadece catalog focus'undayken component eklesin
+				const active = document.activeElement;
+				if (!catBody || !catBody.contains(active)) break;
+				CatalogManager.addDirect();
+				break;
+			}
 
 			case 'ArrowLeft': {
 				e.preventDefault();
