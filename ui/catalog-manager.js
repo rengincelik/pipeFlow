@@ -283,7 +283,7 @@ export function createCatalogManager({ catBody, showToast }) {
 		toggleExpandFocused,
 		closeExpanded,
 		getExpandedKey,
-		getTemplate,                              // keyboard-controller için
+		getTemplate: _getTemplate,                              // keyboard-controller için
 		get focusedGi() { return _focusedGi; },
 		get focusedIi() { return _focusedIi; },
 	};

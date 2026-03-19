@@ -22,7 +22,6 @@ import { createProjectIO }             from './state/project-io.js';
 import { createDropdownManager }       from './ui/dropdown-manager.js';
 import { createHudUpdater }            from './ui/hud-updater.js';
 import { createZoomController }        from './ui/zoom-controller.js';
-
 // </editor-fold>
 
 // <editor-fold desc="DOM">
