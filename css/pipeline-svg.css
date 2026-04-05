@@ -13,7 +13,7 @@
 .component.labels-on .lbl { display: block; }
 
 .lbl {
-	font-family: var(--font-mono);
+	font-family: var(--font-mono), serif;
 	font-size: 13px;
 	pointer-events: none;
 	user-select: none;
@@ -25,7 +25,7 @@
 
 .lbl-head { fill: var(--c-pump);    font-weight: bold; }
 
-/* Seçili */
+/* Chosen */
 .component.selected .pipe-centerline,
 .component.selected .elbow-path,
 .component.selected .valve-stem,
@@ -60,7 +60,7 @@
 .valve-tri  {
 	stroke: var(--c-valve);
 	fill: color-mix(in srgb, var(--c-valve) 10%, transparent);
-	stroke-width: 1.5px;
+	stroke-width: 2px;
 }
 
 /* Transition */
@@ -99,5 +99,25 @@
 	stroke: var(--red);
 	opacity: 1;
 }
+/* Nodes — A/B inlet-outlet */
+.pipeline-node circle {
+	stroke: var(--border);
+	stroke-width: 1.5;
+}
+.pipeline-node text {
+	font-family: var(--font-mono), serif;
+	font-size: 11px;
+	font-weight: 600;
+	pointer-events: none;
+	user-select: none;
+}
+.node-inlet{
+	fill: var(--c-node-in);
+}
+.node-outlet{
+	fill: var(--c-node-out);
+}
+
+
 
 /* endregion */

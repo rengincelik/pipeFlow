@@ -76,7 +76,6 @@
 }
 
 /* ─── Light tema ─────────────────────────────────────────── */
-/* ─── Light tema ─────────────────────────────────────────── */
 [data-theme="light"] {
 	--c-fluid: #3b82f6;
 	--bg-base:      #f5f0e8;
@@ -115,6 +114,8 @@
 	--c-lbl-dim:    #9a9080;
 	--c-lbl-mid:    #7a7060;
 }
+
+
 .no-transition *,
 .no-transition *::before,
 .no-transition *::after { transition: none !important; }

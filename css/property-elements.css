@@ -112,6 +112,13 @@
 	text-align: left;
 	background: var(--bg-base);
 }
+.prop-selection:hover {
+	background: var(--bg-hover);
+}
+.prop-selection:active {
+	background: var(--bg-active);
+}
+
 .prop-select:focus { border-color: var(--blue); }
 
 .prop-hint {

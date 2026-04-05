@@ -24,7 +24,7 @@
 	overflow: hidden;
 }
 
-/* Sol kolon */
+/* Sol colon */
 #col-left {
 	width: var(--sidebar-w);
 	min-width: var(--sidebar-w);
@@ -85,7 +85,7 @@
 	color: var(--text);
 }
 
-/* Sağ kolon */
+/* Sağ colon */
 #col-right {
 	flex: 1;
 	display: flex;
@@ -94,7 +94,7 @@
 	min-width: 0;
 }
 
-/* Bottombar */
+/* Bottom bar */
 #bottombar {
 	height: var(--bottombar-h);
 	background: var(--bg-surface);
@@ -113,7 +113,7 @@
 	display: flex;
 	align-items: center;
 	gap: 5px;
-	font-family: var(--font-mono);
+	font-family: var(--font-mono), serif;
 	font-size: var(--text-xs);
 	color: var(--text-dim);
 }
