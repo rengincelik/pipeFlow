@@ -1,5 +1,6 @@
 /* region 1. TOKENS */ /* ─── 1. TOKENS ──────────────────────────────────────────── */
 :root {
+	--c-fluid: #78c8ff;
 	/* Surfaces */
 	--bg-base:      #0d0f12;
 	--bg-surface:   #13161b;
@@ -32,7 +33,7 @@
 	--orange:       #f97316;
 	--purple:       #a855f7;
 
-	/* Pipeline SVG renkleri — renderer tarafından kullanılır, değiştirme */
+	/* Pipeline SVG colors — used by renderer , dont change */
 	--c-pipe:       #4a9eff;
 	--c-trans:      #6e3eff;
 	--c-elbow:      #fbbf24;
@@ -46,9 +47,9 @@
 	--c-lbl-mid:    #6a7480;
 
 	/* SVG stroke widths */
-	--sw-idle:  2.5px;
-	--sw-hover: 3.5px;
-	--sw-sel:   4.5px;
+	--sw-idle:  2px;
+	--sw-hover: 3px;
+	--sw-sel:   4px;
 
 	/* Dimensions */
 	--topbar-h:     44px;
@@ -77,6 +78,7 @@
 /* ─── Light tema ─────────────────────────────────────────── */
 /* ─── Light tema ─────────────────────────────────────────── */
 [data-theme="light"] {
+	--c-fluid: #3b82f6;
 	--bg-base:      #f5f0e8;
 	--bg-surface:   #faf7f2;
 	--bg-raised:    #fffdf8;

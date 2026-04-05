@@ -18,7 +18,7 @@
 }
 
 .prop-empty-text {
-	font-family: var(--font-mono);
+	font-family: var(--font-mono), serif;
 	font-size: 10px;
 	font-weight: 600;
 	letter-spacing: 0.18em;
@@ -32,7 +32,7 @@
 }
 
 .section-title {
-	font-family: var(--font-mono);
+	font-family: var(--font-mono), serif;
 	font-size: 10px;
 	font-weight: 600;
 	letter-spacing: 0.12em;
@@ -51,7 +51,7 @@
 }
 
 .prop-label {
-	font-family: var(--font-mono);
+	font-family: var(--font-mono), serif;
 	font-size: var(--text-xs);
 	color: var(--text-dim);
 	flex-shrink: 0;
@@ -59,7 +59,7 @@
 }
 
 .prop-value {
-	font-family: var(--font-mono);
+	font-family: var(--font-mono), serif;
 	font-size: var(--text-sm);
 	color: var(--text-mono);
 	text-align: right;
@@ -68,7 +68,7 @@
 .prop-value.dim { color: var(--text-dim); }
 
 .prop-unit {
-	font-family: var(--font-mono);
+	font-family: var(--font-mono), serif;
 	font-size: var(--text-xs);
 	color: var(--text-dim);
 }
@@ -81,7 +81,7 @@
 	background: var(--bg-base);
 	color: var(--text);
 	padding: 0 7px;
-	font-family: var(--font-mono);
+	font-family: var(--font-mono), serif;
 	font-size: var(--text-xs);
 	text-align: right;
 	transition: border-color var(--t-fast);
@@ -97,19 +97,25 @@
 	max-width: 160px;
 	border: 1px solid var(--border-mid);
 	border-radius: var(--r-sm);
-	background: var(--bg-base);
+	background: transparent;
 	color: var(--text);
 	padding: 0 6px;
-	font-family: var(--font-mono);
+	font-family: var(--font-mono), serif;
 	font-size: var(--text-xs);
 	cursor: pointer;
 	transition: border-color var(--t-fast);
 }
-
+.prop-selection {
+	font-family: var(--font-mono), serif;
+	font-size: var(--text-xs);
+	color: var(--text-dim);
+	text-align: left;
+	background: var(--bg-base);
+}
 .prop-select:focus { border-color: var(--blue); }
 
 .prop-hint {
-	font-family: var(--font-mono);
+	font-family: var(--font-mono), serif;
 	font-size: 10px;
 	color: var(--text-dim);
 	font-style: italic;
@@ -136,7 +142,7 @@
 }
 
 .prop-slider-value {
-	font-family: var(--font-mono);
+	font-family: var(--font-mono), serif;
 	font-size: var(--text-xs);
 	min-width: 32px;
 	text-align: right;
@@ -147,7 +153,7 @@
 .valve-status-tag {
 	padding: 1px 7px;
 	border-radius: var(--r-sm);
-	font-family: var(--font-mono);
+	font-family: var(--font-mono), serif;
 	font-size: 10px;
 	font-weight: 600;
 }
@@ -162,7 +168,7 @@
 	height: 26px;
 	padding: 0 10px;
 	border-radius: var(--r-sm);
-	font-family: var(--font-mono);
+	font-family: var(--font-mono), serif;
 	font-size: var(--text-xs);
 	font-weight: 600;
 	letter-spacing: 0.06em;
@@ -179,7 +185,7 @@
 
 .valve-toggle.closed:hover { background: rgba(239,68,68,0.15); }
 
-/* Delete butonu */
+/* Delete buton */
 #del-btn, .btn-delete {
 	display: block;
 	width: calc(100% - 24px);
@@ -189,7 +195,7 @@
 	border: 1px solid rgba(239,68,68,0.2);
 	border-radius: var(--r-sm);
 	color: var(--red);
-	font-family: var(--font-mono);
+	font-family: var(--font-mono), serif;
 	font-size: var(--text-xs);
 	font-weight: 600;
 	letter-spacing: 0.08em;

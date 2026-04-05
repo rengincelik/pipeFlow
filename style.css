@@ -1,11 +1,11 @@
 /* ═══════════════════════════════════════════════════════════
    PIPEFLOW — style.css
-   Tüm stiller tek dosyada. Bölümler:
+   All styles are in a single file. Sections:
    1. Tokens
    2. Reset
-   3. Layout (topbar, sidebar, col-right, bottombar)
+   3. Layout (topbar, sidebar, col-right, bottom bar)
    4. Panels (catalog, props, canvas, chart)
-   5. Topbar bileşenleri (tabs, fluid, buttons, dropdowns)
+   5. Topbar elements (tabs, fluid, buttons, dropdowns)
    6. HUD
    7. Catalog items
    8. Property elements
@@ -28,84 +28,3 @@
 @import url("./css/pipeline-svg.css");
 @import url("./css/resize-handler.css");
 @import url("./css/utilities.css");
-
-/* ─────────────────────────────────────────────────────────
-   GRUP 7 CSS EKLEMELERİ
-   Nereye eklenecek:
-     - css/tokens.css  → --c-fluid token (FA2)
-     - css/utilities.css → .flow-tooltip, .warning-tooltip (R2/TT1)
-   ───────────────────────────────────────────────────────── */
-
-
-/* ── FA2: --c-fluid token ─────────────────────────────────
-   tokens.css içindeki :root bloğuna ekle.
-   FlowAnimator parçacık rengi artık bu token'dan okunur.
-   Değer svg-renderer --c-pipe ile benzer ama animasyon için ayrı.
-   ───────────────────────────────────────────────────────── */
-
-/*
-   :root içine ekle:
-   --c-fluid: #78c8ff;
-*/
-
-/*
-   [data-theme="light"] içine ekle:
-   --c-fluid: #3b82f6;
-*/
-
-
-/* ── R2/TT1: Tooltip CSS sınıfları ───────────────────────
-   utilities.css'e ekle.
-   JS'teki inline style.cssText blokları kaldırıldı;
-   tooltip-manager.js ve svg-renderer.js artık sadece class atar.
-   ───────────────────────────────────────────────────────── */
-
-.flow-tooltip {
-	position: fixed;
-	z-index: 9999;
-	pointer-events: none;
-	opacity: 0;
-	transition: opacity 0.12s ease;
-	background: #0e1117;
-	border: 1px solid rgba(255, 255, 255, 0.08);
-	border-radius: 6px;
-	padding: 10px 13px;
-	min-width: 170px;
-	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-	font-family: 'IBM Plex Mono', monospace;
-	font-size: 11px;
-	line-height: 1.7;
-	color: #c8cdd8;
-}
-
-[data-theme="light"] .flow-tooltip {
-	background: #ffffff;
-	border-color: rgba(0, 0, 0, 0.1);
-	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-	color: #374151;
-}
-
-.warning-tooltip {
-	position: fixed;
-	z-index: 9999;
-	pointer-events: none;
-	opacity: 0;
-	transition: opacity 0.12s ease;
-	background: #1a1a2e;
-	border: 1px solid #ef4444;
-	border-radius: 5px;
-	padding: 7px 11px;
-	font-family: 'IBM Plex Mono', monospace;
-	font-size: 11px;
-	color: #fca5a5;
-	max-width: 260px;
-	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
-	white-space: pre-wrap;
-}
-
-[data-theme="light"] .warning-tooltip {
-	background: #fff5f5;
-	border-color: #ef4444;
-	color: #dc2626;
-	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-}

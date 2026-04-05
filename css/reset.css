@@ -6,7 +6,7 @@ html, body {
 	overflow: hidden;
 	background: var(--bg-base);
 	color: var(--text);
-	font-family: var(--font-sans);
+	font-family: var(--font-sans), serif;
 	font-size: var(--text-base);
 	line-height: 1.5;
 	-webkit-font-smoothing: antialiased;
@@ -18,7 +18,7 @@ button {
 }
 
 input, select {
-	font-family: var(--font-mono);
+	font-family: var(--font-mono), serif;
 	font-size: var(--text-base);
 	outline: none;
 	color: var(--text);
