@@ -2,34 +2,34 @@
 
 // ═══════════════════════════════════════════════════════════
 // ZOOM CONTROLLER
-// SVG viewBox üzerinde zoom + pan yönetimi.
+// Manages zoom + pan on SVG viewBox.
 //
-// Strateji:
-//   SVGRenderer._updateViewBox() her render'da "base viewBox"ı yazar.
-//   ZoomController bunu okuyup üstüne zoom/pan offset uygular.
-//   Zoom state: { scale, offsetX, offsetY } — base viewBox koordinatlarında.
+// Strategy:
+//   SVGRenderer._updateViewBox() writes the "base viewBox" on every render.
+//   ZoomController reads this and applies zoom/pan offsets on top.
+//   Zoom state: { scale, offsetX, offsetY } — in base viewBox coordinates.
 //
-// Pan tetikleyicileri:
-//   - Sol tık + sürükle   (threshold: PAN_THRESHOLD px — click korunur)
-//   - Space + sol tık     (anında pan, threshold yok)
-//   - Orta tuş sürükle    (anında pan, threshold yok)
+// Pan Triggers:
+//   - Left click + drag  (threshold: PAN_THRESHOLD px — click is preserved)
+//   - Space + left click (instant pan, no threshold)
+//   - Middle button drag (instant pan, no threshold)
 //
-// Click koruması:
-//   didConsumeDrag() → true ise onCompClick'i yuttur.
-//   Her mousedown'da otomatik sıfırlanır.
+// Click Protection:
+//   didConsumeDrag() → returns true if a drag occurred, swallowing onCompClick.
+//   Automatically reset on every mousedown.
 //
-// Kullanım:
+// Usage:
 //   const zoom = createZoomController(svgEl, flowCanvasEl);
 //   zoom.attach();
-//   zoom.reset();           // zoomToFit sonrası state sıfırla
-//   zoom.didConsumeDrag();  // onCompClick içinde kontrol et
+//   zoom.reset();           // Reset state after zoomToFit
+//   zoom.didConsumeDrag();  // Check inside onCompClick
 //   zoom.detach();
 // ═══════════════════════════════════════════════════════════
 
 const ZOOM_MIN      = 0.2;
 const ZOOM_MAX      = 8;
-const ZOOM_STEP     = 0.12;  // wheel başına oransal değişim
-const PAN_THRESHOLD = 5;     // px — sol tık drag'in pan sayılması için min mesafe
+const ZOOM_STEP     = 0.12;  // Proportional change per wheel event
+const PAN_THRESHOLD = 5;     // px — min distance for left-click drag to be considered a pan
 
 export function createZoomController(svgEl, flowCanvas) {
 
@@ -40,9 +40,9 @@ export function createZoomController(svgEl, flowCanvas) {
 	let _baseVB = null;
 
 	// ─── Pan state ───────────────────────────────────────────
-	let _panning    = false;  // gerçek pan aktif mi
-	let _pendingPan = false;  // mousedown oldu, threshold bekliyor (sol tık)
-	let _didDrag    = false;  // bu mousedown-mouseup döngüsünde drag oldu mu
+	let _panning    = false;  // Is active panning happening
+	let _pendingPan = false;  // Mousedown occurred, waiting for threshold (left click)
+	let _didDrag    = false;  // Did a drag occur in this mousedown-mouseup cycle
 	let _panStartX  = 0;
 	let _panStartY  = 0;
 	let _panVBStart = null;
@@ -89,7 +89,7 @@ export function createZoomController(svgEl, flowCanvas) {
 		return _clientToVBCoordWithScale(cx, cy, scale);
 	}
 
-	/** Pan hareketi hesapla ve uygula. */
+	/** Calculate and apply pan movement. */
 	function _applyPanMove(clientX, clientY) {
 		if (!_baseVB || !_panVBStart) return;
 		const rect   = svgEl.getBoundingClientRect();
@@ -100,7 +100,7 @@ export function createZoomController(svgEl, flowCanvas) {
 		_apply();
 	}
 
-	/** Pan'ı başlat — mevcut cursor pozisyonundan. */
+	/** Start panning — from current cursor position. */
 	function _startPan(clientX, clientY) {
 		_panning    = true;
 		_didDrag    = true;
@@ -109,13 +109,15 @@ export function createZoomController(svgEl, flowCanvas) {
 		_panVBStart = { offsetX, offsetY };
 		svgEl.style.cursor = 'grabbing';
 	}
-	/** HTML5 drag başladığında pan'ı iptal et. */
+
+	/** Cancel pan when HTML5 drag starts. */
 	function cancelPan() {
 		_pendingPan = false;
 		_panning    = false;
 		_didDrag    = false;
 		svgEl.style.cursor = _spaceDown ? 'grab' : '';
 	}
+
 	function _updateZoomLabel() {
 		const label = document.getElementById('zoom-label');
 		if (label) label.textContent = Math.round(scale * 100) + '%';
@@ -134,7 +136,7 @@ export function createZoomController(svgEl, flowCanvas) {
 		if (newScale === scale) return;
 		scale = newScale;
 
-		// İmleç altındaki nokta sabit kalsın
+		// Keep the point under the cursor fixed
 		const ptAfter = _clientToVBCoordWithScale(e.clientX, e.clientY, scale);
 		offsetX += ptBefore.x - ptAfter.x;
 		offsetY += ptBefore.y - ptAfter.y;
@@ -168,11 +170,11 @@ export function createZoomController(svgEl, flowCanvas) {
 		const isMiddle = e.button === 1;
 		const isLeft   = e.button === 0;
 
-		// Her yeni mousedown'da drag flag'i sıfırla
+		// Reset drag flag on every new mousedown
 		_didDrag = false;
 
 		if (isMiddle || (_spaceDown && isLeft)) {
-			// Anında pan — threshold yok
+			// Instant pan — no threshold
 			e.preventDefault();
 			if (!_baseVB) _captureBase();
 			_pendingPan = false;
@@ -181,7 +183,7 @@ export function createZoomController(svgEl, flowCanvas) {
 		}
 
 		if (isLeft) {
-			// Sol tık: threshold geçilene kadar bekle
+			// Left click: wait until threshold is passed
 			if (!_baseVB) _captureBase();
 			_pendingPan = true;
 			_panStartX  = e.clientX;
@@ -198,9 +200,9 @@ export function createZoomController(svgEl, flowCanvas) {
 		if (_pendingPan) {
 			const dist = Math.hypot(e.clientX - _panStartX, e.clientY - _panStartY);
 			if (dist >= PAN_THRESHOLD) {
-				// Threshold geçildi — pan'a geç, mevcut pozisyondan başlat
+				// Threshold passed — switch to pan, start from original mousedown point to avoid jumps
 				_pendingPan = false;
-				_startPan(_panStartX, _panStartY); // orijinal mousedown noktasından — kayma olmaz
+				_startPan(_panStartX, _panStartY);
 				_applyPanMove(e.clientX, e.clientY);
 			}
 		}
@@ -211,33 +213,34 @@ export function createZoomController(svgEl, flowCanvas) {
 		if (!_panning) return;
 		_panning = false;
 		svgEl.style.cursor = _spaceDown ? 'grab' : '';
-		// _didDrag true olarak kaldı — didConsumeDrag() okuyacak
+		// _didDrag remains true — to be read by didConsumeDrag()
 	}
 
 	// ─── Public API ──────────────────────────────────────────
 
 	/**
-	 * Bu mousedown-mouseup döngüsünde pan yapıldı mı?
-	 * main.js'te onCompClick içinde kontrol et:
+	 * Was a pan performed in this mousedown-mouseup cycle?
+	 * Check this inside onCompClick in main.js:
 	 *
-	 *   renderer.onCompClick = (id) => {
-	 *     if (zoom.didConsumeDrag()) return;
-	 *     pipelineStore.select(id);
-	 *   };
+	 * renderer.onCompClick = (id) => {
+	 * if (zoom.didConsumeDrag()) return;
+	 * pipelineStore.select(id);
+	 * };
 	 */
 	function didConsumeDrag() {
 		return _didDrag;
 	}
 
 	/**
-	 * Renderer render() sonrası çağrılır.
-	 * Base viewBox'ı günceller, mevcut zoom/pan'ı korur.
+	 * Called after Renderer render().
+	 * Updates base viewBox while preserving current zoom/pan offsets.
 	 */
 	function onRendererUpdate() {
 		_captureBase();
 		if (scale !== 1 || offsetX !== 0 || offsetY !== 0) _apply();
 	}
-	/** Zoom ve pan'ı sıfırla — zoomToFit() sonrası çağrılır. */
+
+	/** Reset zoom and pan — called after zoomToFit(). */
 	function reset() {
 		scale   = 1;
 		offsetX = 0;

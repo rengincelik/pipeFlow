@@ -4,9 +4,9 @@ const STORAGE_KEY = 'pf-pipeline-v2';
 
 /**
  * createProjectIO({ engine, animator, UI, Actions, DOM, tooltip, zoom,
- *                   setupInitialState, SysState, pipelineStore, SystemConfig,
- *                   createComponent, onSyncFluid })
- * Döndürür: { saveProject, loadProject, newProject, exportJSON, importJSON, STORAGE_KEY }
+ * setupInitialState, SysState, pipelineStore, SystemConfig,
+ * createComponent, onSyncFluid })
+ * Returns: { saveProject, loadProject, newProject, exportJSON, importJSON, STORAGE_KEY }
  */
 export function createProjectIO({
 									engine,
@@ -15,7 +15,7 @@ export function createProjectIO({
 									Actions,
 									DOM,
 									tooltip,
-									zoom,           // IO5: zoom inject edildi
+									zoom,           // IO5: zoom injected
 									setupInitialState,
 									SysState,
 									pipelineStore,
@@ -49,7 +49,7 @@ export function createProjectIO({
 			UI.refreshCanvas();
 			UI.renderProps();
 			tooltip.rebind(DOM.svgCanvas);
-			// IO5: load sonrası zoom sıfırla
+			// IO5: Reset zoom after load
 			zoom.reset();
 			Actions.zoomToFit();
 			UI.showBlockToast('Loaded');
@@ -71,7 +71,7 @@ export function createProjectIO({
 		UI.refreshCanvas();
 		UI.renderProps();
 		tooltip.rebind(DOM.svgCanvas);
-		// IO2: yeni proje açılınca eski proje localStorage'da kalmasın
+		// IO2: Prevent old project from remaining in localStorage when opening a new project
 		saveProject(true);
 	}
 	// </editor-fold>
@@ -108,12 +108,12 @@ export function createProjectIO({
 					_stopIfRunning();
 					pipelineStore.deserialize(data, (type, subtype) => createComponent(type, subtype));
 					_syncFluidUI();
-					// IO1: UI.updateFluid() → Actions.updateFluid() (UI objesinde bu metod yok)
+					// IO1: UI.updateFluid() → Actions.updateFluid() (UI object lacks this method)
 					Actions.updateFluid();
 					UI.refreshCanvas();
 					UI.renderProps();
 					tooltip.rebind(DOM.svgCanvas);
-					// IO5: import sonrası zoom sıfırla
+					// IO5: Reset zoom after import
 					zoom.reset();
 					Actions.zoomToFit();
 					UI.showBlockToast('Imported');

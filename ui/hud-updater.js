@@ -2,7 +2,7 @@
 
 /**
  * createHudUpdater({ DOM, Units, pipelineStore })
- * Döndürür: { update(snapshot), redrawVolume() }
+ * Returns: { update(snapshot), redrawVolume() }
  */
 export function createHudUpdater({ DOM, Units, pipelineStore }) {
 
@@ -19,7 +19,7 @@ export function createHudUpdater({ DOM, Units, pipelineStore }) {
 		_pumpStateEls = null;
 	}
 
-	// Seçim değişince prop panel yeniden render edilir → cache'i sıfırla
+	// Reset cache when selection changes as prop panel is re-rendered
 	pipelineStore.on('selection:change', _invalidatePropCache);
 
 	// <editor-fold desc="update">
@@ -53,7 +53,7 @@ export function createHudUpdater({ DOM, Units, pipelineStore }) {
 	function _updatePump(nodes) {
 		const pumpNode = nodes.find(n => n.type === 'pump');
 
-		// HU3: cache miss'te query yap, sonra cache'e al
+		// HU3: Query on cache miss, then store in cache
 		if (!_pShaftEls) {
 			_pShaftEls = [...DOM.propBody.querySelectorAll('[data-live="P_shaft"]')];
 		}
@@ -67,7 +67,7 @@ export function createHudUpdater({ DOM, Units, pipelineStore }) {
 				: '—';
 		});
 
-		// P3: pump_state prop panelinde göster
+		// P3: Display pump_state in the property panel
 		const stateLabel = {
 			STOPPED:  'IDLE',
 			RAMPING:  'STARTING',
@@ -77,7 +77,7 @@ export function createHudUpdater({ DOM, Units, pipelineStore }) {
 
 		_pumpStateEls.forEach(el => {
 			el.textContent = stateLabel;
-			// Renk: OVERLOAD kırmızı, RUNNING yeşil, diğerleri varsayılan
+			// Color: Red for OVERLOAD, Green for RUNNING, default otherwise
 			el.style.color = pumpNode?.pumpState === 'OVERLOAD' ? 'var(--red)'
 				: pumpNode?.pumpState === 'RUNNING'  ? 'var(--green)'
 					: '';
@@ -87,13 +87,13 @@ export function createHudUpdater({ DOM, Units, pipelineStore }) {
 
 	// <editor-fold desc="_updatePRV">
 	function _updatePRV(nodes) {
-		// HU5: Sadece seçili component PRV ise prop panel'i güncelle.
+		// HU5: Only update prop panel if the selected component is a PRV
 		const selectedId    = pipelineStore.selectedId;
 		const selectedComp  = pipelineStore.selectedComp;
 		const selectedIsPRV = selectedComp?.type === 'valve' && selectedComp?.subtype === 'prv';
 
 		nodes.filter(n => n.subtype === 'prv').forEach(n => {
-			// SVG circle — id bazlı, her PRV'nin kendi circle'ı
+			// SVG circle — ID-based, each PRV has its own unique circle
 			const ratio = (isFinite(n.P_in) && n.P_set_Pa > 0)
 				? Math.min(1, n.P_in / n.P_set_Pa)
 				: 0;
@@ -107,12 +107,12 @@ export function createHudUpdater({ DOM, Units, pipelineStore }) {
 				.querySelector(`[data-prv-circle="${n.id}"]`)
 				?.setAttribute('fill', fill);
 
-			// Prop panel live alanları — sadece seçili PRV'ye yaz
+			// Prop panel live fields — write only to the selected PRV
 			if (!selectedIsPRV || n.id !== selectedId) return;
 
 			const isActive = n.prvState === 'active';
 
-			// HU4: cache miss'te query yap
+			// HU4: Query on cache miss
 			if (!_prvStatusEls) {
 				_prvStatusEls = [...DOM.propBody.querySelectorAll('[data-live="prv_status"]')];
 			}

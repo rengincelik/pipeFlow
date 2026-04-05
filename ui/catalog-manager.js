@@ -12,9 +12,9 @@ export function createCatalogManager({ catBody, showToast }) {
 	let _expandedKey = null;
 	let _lastConfig  = {};
 
-	// ── Yardımcılar ────────────────────────────────────────
+	// ── Helpers ────────────────────────────────────────────
 
-	// CA1: tek filter noktası — pump'ı catalog'dan gizle
+	// CA1: Single filtering point — hide 'pump' from the catalog
 	function _visibleItems(grp) {
 		return grp.items.filter(it => it.type !== 'pump');
 	}
@@ -29,7 +29,7 @@ export function createCatalogManager({ catBody, showToast }) {
 		return _flatItems().findIndex(f => f.gi === _focusedGi && f.ii === _focusedIi);
 	}
 
-	// CA5: private kalır — public API'den çıkarıldı
+	// CA5: Remains private — removed from public API
 	function _getTemplate(gi, ii) {
 		return _visibleItems(CATALOG_DEF[gi])[ii];
 	}
@@ -224,7 +224,7 @@ export function createCatalogManager({ catBody, showToast }) {
 		catBody.querySelector(`.cat-chip[data-gi="${gi}"][data-ii="${ii}"]`)?.focus();
 	}
 
-	// ── Klavye navigasyonu ─────────────────────────────────
+	// ── Keyboard Navigation ────────────────────────────────
 	function navigateUp() {
 		const flat = _flatItems();
 		if (!flat.length) return;
@@ -273,7 +273,7 @@ export function createCatalogManager({ catBody, showToast }) {
 	function getExpandedKey() { return _expandedKey; }
 
 	// ── Public API ─────────────────────────────────────────
-	// CA5: _getTemplate ve _focusedGi/Ii public API'den çıkarıldı
+	// CA5: _getTemplate and _focusedGi/Ii removed from public API
 	return {
 		render,
 		makeComp,
@@ -283,7 +283,7 @@ export function createCatalogManager({ catBody, showToast }) {
 		toggleExpandFocused,
 		closeExpanded,
 		getExpandedKey,
-		getTemplate: _getTemplate,                              // keyboard-controller için
+		getTemplate: _getTemplate,                              // For keyboard-controller
 		get focusedGi() { return _focusedGi; },
 		get focusedIi() { return _focusedIi; },
 	};

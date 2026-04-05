@@ -1,7 +1,7 @@
 // imports.js
 'use strict';
 
-// Sistem ve store
+// System ve store
 import { SystemConfig } from './state/system-config.js';
 import { pipelineStore } from './state/pipeline-store.js';
 
@@ -11,16 +11,16 @@ import { ChartRenderer } from './renderer/chart-renderer.js';
 import { FlowAnimator } from './renderer/flow-animator.js';
 import { TooltipManager } from './renderer/tooltip-manager.js';
 
-// Simülasyon
+// Simulation
 import { SimulationEngine, SysState } from './Simulation/simulation-engine.js';
 
-// Veri ve component yönetimi
+// data ve component management
 import { Units } from './data/unit-system.js';
 import { fluidRegistry } from './data/fluid-model.js';
 import { createComponent } from './components/base.js';
 import { createCatalogManager } from './ui/catalog-manager.js';
 
-// Yan etkili component importları (kayıt için sıra önemli)
+// Side-effect component imports (order matters for registration)
 import './components/pipe.js';
 import './components/transition.js';
 import './components/elbow.js';
@@ -28,7 +28,7 @@ import './components/valve.js';
 import './components/pump.js';
 import './components/prv.js';
 
-// Exportlar (main.js kullanacak)
+// Exports (for main.js )
 export {
 	SystemConfig,
 	pipelineStore,

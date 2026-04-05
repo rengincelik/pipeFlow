@@ -11,33 +11,34 @@ class SystemConfigClass extends EventEmitter {
 			T_in_C:      20,
 			P_in_bar:    2.0,
 
-			// ── Boru / Genel ────────────────────────
+			// ── Boru / General ────────────────────────
 			diameter_mm: 53.1,       // DN50
 			material_id: 'steel_new',
 			eps_mm:      0.046,
 			length_m:    5,
 
-			// ── Pompa ───────────────────────────────
+			// ── Pump ───────────────────────────────
 			// H-Q eğrisi 3 nokta: (0, H_shutoff), (Q_nom, H_nom), (Q_max, 0)
-			H_shutoff_m: 25,     // shutoff head (m) — sıfır debide
+			H_shutoff_m: 25,     // shutoff head (m) — zero debi de
 			head_m:      20,     // nominal head (m)
 			Q_nom_lps:   1.0,    // nominal debi (L/s)
-			Q_max_lps:   2.0,    // max debi (L/s) — sıfır head
+			Q_max_lps:   2.0,    // max debi (L/s) — zero head
 			efficiency:  0.70,
 			pump_type:   'centrifugal',
 
-			// ── Vana ────────────────────────────────
+			// ── Valve ────────────────────────────────
 			opening:     1.0,
 
-			// ── Dirsek ──────────────────────────────
+			// ── elbow ──────────────────────────────
 			K:           0.9,
 
 			// ── Transition ──────────────────────────
-			cone_angle_deg: 10,   // D2/S4: konik açı (yarı açı, derece)
+			cone_angle_deg: 10,   // D2/S4: conic açı (yarı açı, degree)
 
 		};
 		this._values = { ...this._defaults };
-		//TODO: buraya angle eklenebilir.
+		// TODO: Angle support can be added here.
+
 	}
 
 	set(key, value) {
@@ -49,8 +50,8 @@ class SystemConfigClass extends EventEmitter {
 
 	snapshot() { return { ...this._values }; }
 
-	// S3: reset sonrası hem 'reset' hem 'change' (tüm değerler) emit edilir —
-	// dinleyiciler yeniden render için 'change' eventini kullanabilir
+	// S3: After reset, both 'reset' and 'change' (all values) are emitted —
+	// listeners can use the 'change' event for a full re-render.
 	reset() {
 		this._values = { ...this._defaults };
 		this.emit('reset');

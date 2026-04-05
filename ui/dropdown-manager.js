@@ -3,7 +3,7 @@
 /**
  * createDropdownManager({ triggers })
  * triggers: [{ triggerId, dropdownId }]
- * Döndürür: { bind, toggle, closeAll }
+ * returns: { bind, toggle, closeAll }
  */
 export function createDropdownManager({ triggers = [] } = {}) {
 

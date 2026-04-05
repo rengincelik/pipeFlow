@@ -6,7 +6,7 @@ import { computeLayout }  from '../utils/layout.js';
 import { resetIdCounter } from '../components/base.js';
 
 
-// S5: computeLayout artık utils/layout.js'ten — svg-renderer.js'e bağımlılık KALDIRILDI
+// S5: computeLayout now imported from utils/layout.js — dependency on svg-renderer.js REMOVED
 
 export class PipelineStore extends EventEmitter {
 	constructor() {
@@ -14,7 +14,7 @@ export class PipelineStore extends EventEmitter {
 		this._components = [];   // ComponentBase[]
 		this._selectedId  = null;
 
-		// SystemConfig değişince yeniden hesapla
+		// Recalculate when SystemConfig changes
 		SystemConfig.on('change', () => this.emit('components:change'));
 	}
 
@@ -26,7 +26,7 @@ export class PipelineStore extends EventEmitter {
 			const isTransition = comp.subtype === 'reducer' || comp.subtype === 'expander';
 
 			if (isTransition) {
-				// Giriş çapı her zaman öncekinden gelsin
+				// Entry diameter always inherits from the previous component
 				comp._overrides.d_in_mm = prevD;
 			} else if (!comp.hasOverride('diameter_mm')) {
 				comp.override('diameter_mm', prevD);
@@ -57,7 +57,7 @@ export class PipelineStore extends EventEmitter {
 		}
 	}
 
-	// M8: Public wrapper — dışarıdan _propagateDiameter çağrısı yerine bunu kullan
+	// M8: Public wrapper — use this instead of calling _propagateDiameter directly from outside
 	propagateDiameterFrom(comp) {
 		this._propagateDiameter(this._components.indexOf(comp));
 	}
@@ -102,25 +102,25 @@ export class PipelineStore extends EventEmitter {
 
 		const comps = data.components ?? [];
 
-		// S9: İlk eleman pompa olmalı — değilse yüklemeyi iptal et
+		// S9: The first element must be a pump — abort loading otherwise
 		if (comps.length > 0 && comps[0].type !== 'pump') {
-			console.error('[PipelineStore] deserialize: İlk eleman pompa değil, yükleme iptal edildi.');
+			console.error('[PipelineStore] deserialize: First element is not a pump, loading aborted.');
 			this.emit('components:change');
 			return this;
 		}
 
-		// B4: insert() yerine direkt push — her eleman kendi id'sini serialize'dan alır
-		// insert() çağrılsaydı _propagateDiameter her adımda tetiklenirdi (gereksiz)
+		// B4: Direct push instead of insert() — each element retrieves its ID from serialized data
+		// Using insert() would trigger _propagateDiameter at every step (unnecessary)
 		comps.forEach(d => {
 			const comp = componentFactory(d.type, d.subtype);
 			comp.applySerializedData(d);
 			this._components.push(comp);
 		});
 
-		// Tüm elemanlar yerleştikten sonra tek seferde çap propagasyonu
+		// Trigger diameter propagation once after all elements are placed
 		this._propagateDiameter(1);
 
-		// B3: Yüklenen en yüksek id'yi bul, counter'ı hizala
+		// B3: Find the highest loaded ID and align the counter
 		const maxId = this._components.reduce((m, c) => Math.max(m, c.id), 0);
 		resetIdCounter(maxId);
 
@@ -152,7 +152,7 @@ export class PipelineStore extends EventEmitter {
 					next._overrides.d_in_mm != null;
 
 				warnings.push({
-					atIndex:  i,           // i ile i+1 arasındaki bağlantı noktası
+					atIndex:  i,           // Connection point between index i and i+1
 					fromComp: curr,
 					toComp:   next,
 					fromD:    currOut,

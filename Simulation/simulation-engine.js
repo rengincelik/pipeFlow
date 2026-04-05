@@ -1,36 +1,35 @@
 'use strict';
-// Dosya başına ekle:
+
 import { fitHQCurve, evalHQ } from '../utils/hq-math.js';
 
+/**
+ * SIMULATION ENGINE
+ * Dynamic pipeline simulation motor.
+ * Operates independently of PipelineStore — does not mutate components directly.
+ * Runs the chain from start to finish on every tick and generates snapshots.
+ */
 
-
-// SIMULATION ENGINE
-// Boru hattı dinamik simülasyon motoru.
-// PipelineStore'dan bağımsız çalışır — component'lara dokunmaz.
-// Her tick'te zinciri baştan sona koşturur, snapshot üretir.
-
-// ── Sabitler ───────────────────────────────────────────────────────────────
+// ── Constants ──────────────────────────────────────────────────────────────
 const GRAVITY        = 9.81;   // m/s²
-const TICK_MS        = 100;    // ms — UI güncelleme aralığı
-const PHYS_DT        = 0.1;    // s  — her tick'in fiziksel karşılığı
-const RAMP_DURATION  = 2.0;    // s  — pompanın nominal değere ulaşma süresi
-const MAX_ITER_CW    = 50;     // Colebrook-White max iterasyon
-const CW_TOL         = 1e-8;   // Colebrook-White yakınsama toleransı
-const DEADHEAD_WARN  = 5.0;    // s  — deadhead alarm süresi (E1: 1.0→5.0, CLAUDE.md ile hizalı)
+const TICK_MS        = 100;    // ms — UI update interval
+const PHYS_DT        = 0.1;    // s  — physical time step per tick
+const RAMP_DURATION  = 2.0;    // s  — duration for the pump to reach nominal value
+const MAX_ITER_CW    = 50;     // Max iterations for Cole brook-White
+const CW_TOL         = 1e-8;   // Convergence tolerance for Cole brook-White
+const DEADHEAD_WARN  = 5.0;    // s  — deadhead alarm threshold (E1: aligned with CLAUDE.md)
 
-// Çalışma noktası bisection parametreleri
-const MAX_ITER_OP    = 50;     // max iterasyon
-const OP_TOL         = 1e-6;   // m³/s yakınsama toleransı
+// Operating point bisection parameters
+const MAX_ITER_OP    = 50;     // Max iterations
+const OP_TOL         = 1e-6;   // Convergence tolerance for Q (m³/s)
 
-// ── Sistem State ───────────────────────────────────────────────────────────
+// ── System State ───────────────────────────────────────────────────────────
 export const SysState = Object.freeze({
 	IDLE:    'idle',
 	RUNNING: 'running',
 	ALARM:   'alarm',
 });
 
-
-// ── Pompa State ────────────────────────────────────────────────────────────
+// ── Pump State ────────────────────────────────────────────────────────────
 export const PumpState = Object.freeze({
 	STOPPED:  'stopped',
 	RAMPING:  'ramping',
@@ -38,8 +37,7 @@ export const PumpState = Object.freeze({
 	OVERLOAD: 'overload',
 });
 
-
-// ── Eleman State ───────────────────────────────────────────────────────────
+// ── Node State ────────────────────────────────────────────────────────────
 export const NodeState = Object.freeze({
 	DRY:     'dry',
 	FILLING: 'filling',
@@ -47,7 +45,7 @@ export const NodeState = Object.freeze({
 	BLOCKED: 'blocked',
 });
 
-// ── YARDIMCI FONKSİYONLAR ─────────────────────────────────────────────────
+// ── HELPER FUNCTIONS ──────────────────────────────────────────────────────
 
 function frictionFactor(Re, eps, D) {
 	if (Re < 1e-9) return 0;
@@ -105,21 +103,18 @@ function valveK(subtype, opening, K_table) {
 	return baseK * Math.pow(10, 2 * (1 - opening));
 }
 
-
-
-
-// ── ELEMAN HESAP FONKSİYONLARI ────────────────────────────────────────────
+// ── COMPONENT CALCULATION FUNCTIONS ──────────────────────────────────────
 
 /**
- * Pompa: H-Q eğrisinden head üretir.
- * Q dışarıdan verilir (çalışma noktası iterasyonundan).
+ * Pump: Generates head from the H-Q curve.
+ * Q is provided externally (via operating point iteration).
  */
 function calcPump(params, Q_m3s, rampF) {
 	const H_actual = evalHQ(params.hq_coeffs, Q_m3s) * rampF;
 	const P_out    = params.fluid.rho * GRAVITY * H_actual;
 	const v        = velocity(Q_m3s, params.diameter_mm);
 
-	// Şaft gücü: P = rho * g * H * Q / eta
+	// Shaft Power: P = rho * g * H * Q / eta
 	const eta      = Math.max(0.01, params.efficiency);
 	const P_shaft  = (params.fluid.rho * GRAVITY * H_actual * Q_m3s) / eta;
 
@@ -136,9 +131,9 @@ function calcPump(params, Q_m3s, rampF) {
 	};
 }
 
-// E5: Math.max(0, ...) klampları kaldırıldı — gerçek negatif basınç P_out'a yazılır.
-//     _checkAlarms() zaten n.P_out < 0 kontrolü yapıyor, artık görebilir.
-//     negativePressure flag'i FlowAnimator ve ChartRenderer için node'a eklendi.
+// E5: Math.max(0, ...) clamps removed — actual negative pressure is written to P_out.
+//     _checkAlarms() handles n.P_out < 0 checks.
+//     negativePressure flag added for FlowAnimator and ChartRenderer.
 
 function calcPipe(params, P_in, Q_m3s, fluid) {
 	const D  = params.diameter_mm;
@@ -150,7 +145,7 @@ function calcPipe(params, P_in, Q_m3s, fluid) {
 
 	const dP_major   = f * (L / (D / 1000)) * 0.5 * fluid.rho * v * v;
 	const dP_gravity = fluid.rho * GRAVITY * h;
-	const P_out      = P_in - dP_major - dP_gravity;  // E5: klamp kaldırıldı
+	const P_out      = P_in - dP_major - dP_gravity;
 
 	return {
 		P_out,
@@ -158,7 +153,7 @@ function calcPipe(params, P_in, Q_m3s, fluid) {
 		dP_major,
 		dP_minor: 0,
 		v, Re, f,
-		negativePressure: P_out < 0,  // E5: downstream görsel için flag
+		negativePressure: P_out < 0,
 		nodeState: NodeState.FLOWING,
 	};
 }
@@ -168,7 +163,7 @@ function calcElbow(params, P_in, Q_m3s, fluid) {
 	const v  = velocity(Q_m3s, D);
 	const Re = reynolds(v, D, fluid.rho, fluid.mu);
 	const dP = minorLoss(params.K, v, fluid.rho);
-	const P_out = P_in - dP;  // E5: klamp kaldırıldı
+	const P_out = P_in - dP;
 
 	return {
 		P_out,
@@ -176,7 +171,7 @@ function calcElbow(params, P_in, Q_m3s, fluid) {
 		dP_major:  0,
 		dP_minor:  dP,
 		v, Re,
-		negativePressure: P_out < 0,  // E5
+		negativePressure: P_out < 0,
 		nodeState: NodeState.FLOWING,
 	};
 }
@@ -197,7 +192,7 @@ function calcTransition(params, P_in, Q_m3s, fluid) {
 	}
 
 	const dP_bernoulli = 0.5 * fluid.rho * (v_in * v_in - v_out * v_out);
-	const P_out        = P_in + dP_bernoulli - dP_minor;  // E5: klamp kaldırıldı
+	const P_out        = P_in + dP_bernoulli - dP_minor;
 	const Re           = reynolds(v_in, D_in, fluid.rho, fluid.mu);
 
 	return {
@@ -206,7 +201,7 @@ function calcTransition(params, P_in, Q_m3s, fluid) {
 		dP_major: 0,
 		dP_minor,
 		v: v_out, v_in, Re,
-		negativePressure: P_out < 0,  // E5
+		negativePressure: P_out < 0,
 		nodeState: NodeState.FLOWING,
 	};
 }
@@ -218,7 +213,7 @@ function calcValve(params, P_in, Q_m3s, fluid) {
 	const K      = valveK(params.subtype, params.opening, params.K_table);
 	const dP     = minorLoss(K, v, fluid.rho);
 	const blocked = params.opening <= 0;
-	const P_out  = blocked ? P_in : (P_in - dP);  // E5: klamp kaldırıldı
+	const P_out  = blocked ? P_in : (P_in - dP);
 
 	return {
 		P_out,
@@ -228,7 +223,7 @@ function calcValve(params, P_in, Q_m3s, fluid) {
 		v:         blocked ? 0 : v,
 		Re, K,
 		opening:   params.opening,
-		negativePressure: !blocked && P_out < 0,  // E5
+		negativePressure: !blocked && P_out < 0,
 		nodeState: blocked ? NodeState.BLOCKED : NodeState.FLOWING,
 	};
 }
@@ -243,11 +238,11 @@ function calcPRV(params, P_in, Q_m3s, fluid) {
 	let prvState;   // 'active' | 'inactive'
 
 	if (P_in > P_set) {
-		// PRV devrede — çıkışı P_set'e sabitle
+		// PRV active — fix output to P_set
 		P_out    = P_set;
 		prvState = 'active';
 	} else {
-		// PRV etkisiz — geçirgen
+		// PRV inactive — transparent
 		P_out    = P_in;
 		prvState = 'inactive';
 	}
@@ -256,29 +251,20 @@ function calcPRV(params, P_in, Q_m3s, fluid) {
 		P_out,
 		D_out_mm:  D,
 		dP_major:  0,
-		dP_minor:  Math.max(0, P_in - P_out),   // düşürülen basınç kayıp olarak raporlanır
+		dP_minor:  Math.max(0, P_in - P_out),   // Reduced pressure reported as loss
 		v,
 		Re,
 		prvState,
-		negativePressure: P_out < 0,  // E5
+		negativePressure: P_out < 0,
 		nodeState: NodeState.FLOWING,
 	};
 }
 
-
-// ── ÇALIŞMA NOKTASI HESABI ────────────────────────────────────────────────
+// ── OPERATING POINT CALCULATION ──────────────────────────────────────────
 
 /**
- * Verilen Q için zinciri koştur, pompa head'ini ve sistem head'ini döndür.
- * Çalışma noktası: H_pump(Q) = H_system(Q)
- *
- * H_system(Q) = (P_pump_out - P_atm) / (rho*g) + elevation
- * Biz gauge basınç kullandığımız için:
- *   H_system(Q) = toplam basınç kaybı / (rho*g)
- *
- * E4: nodes da döndürülüyor — _tick()'te ikinci evaluateSystem çağrısı kaldırıldı.
- *
- * @returns {{ H_pump, H_system, P_final, nodes, isBlocked }}
+ * Runs the chain for a given Q, returns pump head and system head.
+ * Operating Point: H_pump(Q) = H_system(Q)
  */
 function evaluateSystem(components, pumpParams, Q_m3s, rampF, fluid) {
 	const nodes = [];
@@ -351,7 +337,7 @@ function evaluateSystem(components, pumpParams, Q_m3s, rampF, fluid) {
 			P_shaft:         result.P_shaft,
 			prvState:        result.prvState,
 			nodeState:       result.nodeState,
-			negativePressure: result.negativePressure ?? false,  // E5: downstream için
+			negativePressure: result.negativePressure ?? false,
 			P_set_Pa:        comp.type === 'valve' && comp.subtype === 'prv' ? params.P_set_Pa : undefined,
 		});
 
@@ -359,10 +345,7 @@ function evaluateSystem(components, pumpParams, Q_m3s, rampF, fluid) {
 		D_current = result.D_out_mm;
 	}
 
-	// Pompa head'i: H_pump(Q) * rampF
-	const H_pump = evalHQ(pumpParams.hq_coeffs, Q_m3s) * rampF;
-
-	// Sistem head'i: zincir sonundaki net basınç kaybı / (rho*g)
+	const H_pump   = evalHQ(pumpParams.hq_coeffs, Q_m3s) * rampF;
 	const P_final  = P_current;
 	const H_system = H_pump - P_final / (fluid.rho * GRAVITY);
 
@@ -370,13 +353,8 @@ function evaluateSystem(components, pumpParams, Q_m3s, rampF, fluid) {
 }
 
 /**
- * Bisection ile çalışma noktasını bul.
+ * Find operating point using Bisection method.
  * F(Q) = H_pump(Q) - H_system(Q) = 0
- *
- * E4: nodes da döndürülüyor — son iterasyonun hesap sonuçlarını taşır.
- *     _tick()'te ikinci evaluateSystem çağrısı kaldırılabilir.
- *
- * @returns {{ Q_op, converged, iterations, nodes, isBlocked }}
  */
 function findOperatingPoint(components, pumpParams, rampF, fluid, Q_prev) {
 	const Q_max = pumpParams.hq_coeffs
@@ -394,7 +372,6 @@ function findOperatingPoint(components, pumpParams, rampF, fluid, Q_prev) {
 	const F_lo = F(Q_lo);
 	const F_hi = F(Q_hi);
 
-	// Aynı işaretliyse (hat tamamen kapalı vb.) yakınsama yok
 	if (F_lo * F_hi > 0) {
 		return { Q_op: Q_prev, converged: false, iterations: 0, nodes: null, isBlocked: false };
 	}
@@ -416,17 +393,12 @@ function findOperatingPoint(components, pumpParams, rampF, fluid, Q_prev) {
 	}
 
 	const converged = Math.abs(Q_hi - Q_lo) < OP_TOL * 10;
-
-	// E4: Son Q_mid ile nihai hesabı yaparak nodes'u da döndür
-	const { nodes, isBlocked } = evaluateSystem(
-		components, pumpParams, Q_mid, rampF, fluid
-	);
+	const { nodes, isBlocked } = evaluateSystem(components, pumpParams, Q_mid, rampF, fluid);
 
 	return { Q_op: Q_mid, converged, iterations: iter, nodes, isBlocked };
 }
 
-
-// ── SIMULATION ENGINE ──────────────────────────────────────────────────────
+// ── SIMULATION ENGINE CLASS ────────────────────────────────────────────────
 
 export class SimulationEngine {
 	constructor(pipelineStore, fluid) {
@@ -444,18 +416,14 @@ export class SimulationEngine {
 		this._snapshots      = [];
 		this._alarms         = [];
 
-		// Çalışma noktası — önceki Q başlatıcı tahmin olarak kullanılır
-		this._Q_operating = 0.001;   // m³/s başlangıç tahmini
+		this._Q_operating = 0.001;   // m³/s initial guess
 
 		this._onTick        = null;
 		this._onAlarm       = null;
 		this._onStateChange = null;
 	}
 
-	// ── Public API ────────────────────────────────────────────────────────
-
 	start() {
-		// E7: ALARM state'ten başlatmaya çalışılırsa önce durdur
 		if (this._sysState === SysState.ALARM) this.stop();
 		if (this._sysState === SysState.RUNNING) return;
 
@@ -509,54 +477,40 @@ export class SimulationEngine {
 	get snapshots()      { return this._snapshots; }
 	get lastSnapshot()   { return this._snapshots[this._snapshots.length - 1] ?? null; }
 
-
-	// ── TICK ──────────────────────────────────────────────────────────────
-
 	_tick() {
 		this._t += PHYS_DT;
-
 		const components = this._store.components;
 		if (!components.length) return;
 
 		// ── Fluid guard ──────────────────────────────────────────────────────
-		if (!this._fluid
-			|| !isFinite(this._fluid.rho) || this._fluid.rho <= 0
-			|| !isFinite(this._fluid.mu)  || this._fluid.mu  <= 0) {
-			console.warn('[Engine] Geçersiz fluid — tick atlandı:', this._fluid);
+		if (!this._fluid || !isFinite(this._fluid.rho) || this._fluid.rho <= 0) {
+			console.warn('[Engine] Invalid fluid — skipping tick:', this._fluid);
 			return;
 		}
 
 		const pumpComp   = components[0];
 		const pumpParams = { ...pumpComp.getSafeParams(), fluid: this._fluid };
 
-		// ── pumpParams kritik alan guard ──────────────────────────────────────
+		// ── Pump coefficients guard ─────────────────────────────────────────
 		const c = pumpParams.hq_coeffs;
-		if (!c || !isFinite(c.a0) || !isFinite(c.a1) || !isFinite(c.a2) || c.a2 >= 0) {
-			console.warn('[Engine] Pompa H-Q katsayıları geçersiz — tick atlandı:', c);
+		if (!c || !isFinite(c.a0) || c.a2 >= 0) {
+			console.warn('[Engine] Invalid pump H-Q coefficients — skipping tick:', c);
 			return;
 		}
 
 		const rampF = rampFactor(this._t, RAMP_DURATION);
 
-		// Pompa state güncelle
 		if (this._pumpState === PumpState.RAMPING && rampF >= 1.0) {
 			this._pumpState = PumpState.RUNNING;
 			this._notifyStateChange();
 		}
 
-		// ── Validation uyarılarını önceden topla ─────────────────────────────
-		// V1: sadece gerçek fizik hatalarında (NaN, Infinity, negatif çap) __invalid=true
-		//     olmalı — info seviyesindeki node'lar alarm üretmemeli.
 		const validationWarnings = [];
 		components.forEach(comp => {
 			const p = comp.getSafeParams();
-			// V1: __invalid sadece gerçek fizik hatasında true — bunu burada da kontrol et
 			if (p.__invalid) validationWarnings.push(...(p.__warnings ?? []));
 		});
 
-		// ── Çalışma noktası bul ──────────────────────────────────────────────
-		// E4: findOperatingPoint artık son iterasyonun nodes'unu da döndürüyor.
-		//     Yakınsama başarılıysa bu nodes'u doğrudan kullan — çift evaluateSystem kaldırıldı.
 		const { Q_op, converged, iterations, nodes: opNodes, isBlocked: opBlocked } =
 			findOperatingPoint(components, pumpParams, rampF, this._fluid, this._Q_operating);
 
@@ -568,32 +522,21 @@ export class SimulationEngine {
 		if (converged) {
 			Q_effective       = Q_op;
 			this._Q_operating = Q_op;
-			// E4: yakınsama olduysa findOperatingPoint'in hesapladığı nodes'u kullan
-			nodes     = opNodes;
-			isBlocked = opBlocked;
+			nodes             = opNodes;
+			isBlocked         = opBlocked;
 		} else {
 			Q_effective       = 0;
 			this._Q_operating = 0.001;
-			// E3: convergenceFailed=true yap, info seviyesinde alarm üret
-			//     Hat kapalıysa (vana=0) beklenen durum — 'info' seviyesi yeterli
 			convergenceFailed = true;
-			// Kapalı hat için Q=0 ile nihai zincir hesabını yap
-			const fallback = evaluateSystem(
-				components, pumpParams, 0, rampF, this._fluid
-			);
-			nodes     = fallback.nodes;
-			isBlocked = fallback.isBlocked;
+			const fallback    = evaluateSystem(components, pumpParams, 0, rampF, this._fluid);
+			nodes             = fallback.nodes;
+			isBlocked         = fallback.isBlocked;
 		}
 
-		// ── Hacim güncelle ───────────────────────────────────────────────────
 		this._totalVolume_m3 += Q_effective * PHYS_DT;
 
-		// ── Alarmlar ─────────────────────────────────────────────────────────
-		const alarms = this._checkAlarms(
-			nodes, isBlocked, Q_effective, convergenceFailed, validationWarnings
-		);
+		const alarms = this._checkAlarms(nodes, isBlocked, Q_effective, convergenceFailed, validationWarnings);
 
-		// ── Snapshot ─────────────────────────────────────────────────────────
 		const snapshot = {
 			t:              this._t,
 			pumpState:      this._pumpState,
@@ -612,41 +555,28 @@ export class SimulationEngine {
 		if (this._onTick) this._onTick(snapshot);
 	}
 
-
-	// ── ALARM SİSTEMİ ─────────────────────────────────────────────────────
-
 	_checkAlarms(nodes, isBlocked, Q_effective, convergenceFailed, validationWarnings = []) {
 		const alarms = [];
 
-		// 0. Validation uyarıları
 		validationWarnings.forEach(w => {
-			alarms.push({
-				code:    'VALIDATION_WARNING',
-				level:   'warning',
-				message: w,
-				t:       this._t,
-			});
+			alarms.push({ code: 'VALIDATION_WARNING', level: 'warning', message: w, t: this._t });
 		});
 
-		// 1. Yakınsama başarısız
-		// E3: convergenceFailed artık doğru set ediliyor.
-		//     Hat kapalıysa beklenen durum — 'info' seviyesi yeterli, 'warning' değil.
 		if (convergenceFailed) {
 			alarms.push({
 				code:    'CONVERGENCE_FAILURE',
 				level:   'info',
-				message: 'Çalışma noktası hesaplanamadı — hat kapalı veya pipeline konfigürasyonunu kontrol et',
+				message: 'Could not calculate operating point — check if line is closed or pipeline config',
 				t:       this._t,
 			});
 		}
 
-		// 2. Deadhead
 		if (this._pumpState !== PumpState.STOPPED && Q_effective <= 1e-6) {
 			this._deadheadT += PHYS_DT;
 			alarms.push({
 				code:    'DEADHEAD',
 				level:   this._deadheadT > DEADHEAD_WARN ? 'critical' : 'warning',
-				message: `Pompa deadhead durumunda (${this._deadheadT.toFixed(1)}s)`,
+				message: `Pump in deadhead condition (${this._deadheadT.toFixed(1)}s)`,
 				t:       this._t,
 			});
 			if (this._deadheadT > DEADHEAD_WARN) {
@@ -657,53 +587,40 @@ export class SimulationEngine {
 			this._deadheadT = 0;
 		}
 
-		// 3. Negatif basınç — E5: klamp kaldırıldığı için artık gerçek negatif değerler gelir
 		nodes.forEach(n => {
 			if (n.P_out < 0) {
 				alarms.push({
 					code:    'NEGATIVE_PRESSURE',
 					level:   'warning',
-					message: `${n.name || n.type} çıkışında negatif basınç — kavitasyon riski`,
+					message: `Negative pressure at ${n.name || n.type} outlet — cavitation risk`,
 					nodeId:  n.id,
 					t:       this._t,
 				});
 			}
-		});
-
-		// 4. Yüksek hız
-		nodes.forEach(n => {
 			if (n.type === 'pipe' && n.v > 3.0) {
 				alarms.push({
 					code:    'HIGH_VELOCITY',
 					level:   'info',
-					message: `${n.name || n.type} hızı yüksek: ${n.v.toFixed(2)} m/s`,
+					message: `High velocity in ${n.name || n.type}: ${n.v.toFixed(2)} m/s`,
 					nodeId:  n.id,
 					t:       this._t,
 				});
 			}
-		});
-
-		// 5. PRV aktif — basınç sınırı aşıldı
-		nodes.forEach(n => {
 			if (n.subtype === 'prv' && n.prvState === 'active') {
 				alarms.push({
 					code:    'PRV_ACTIVE',
 					level:   'info',
-					message: `${n.name || 'PRV'} devrede — giriş basıncı set değerini aşıyor`,
+					message: `${n.name || 'PRV'} active — inlet pressure exceeds setpoint`,
 					nodeId:  n.id,
 					t:       this._t,
 				});
 			}
 		});
-
 
 		this._alarms = alarms;
 		if (alarms.length && this._onAlarm) this._onAlarm(alarms);
 		return alarms;
 	}
-
-
-	// ── Yardımcılar ───────────────────────────────────────────────────────
 
 	_setSysState(state) {
 		if (this._sysState === state) return;

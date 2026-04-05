@@ -48,7 +48,7 @@ const DOM = {
 	tempSlider:       document.getElementById('temp-slider'),
 	tempLabel:        document.getElementById('temp-label'),
 
-	// Topbar — butonlar
+	// Topbar — buttons
 	themeBtn:         document.getElementById('theme-btn'),
 	btnUnits:         document.getElementById('btn-units'),
 	btnNew:           document.getElementById('btn-new'),
@@ -82,16 +82,16 @@ const DOM = {
 	hudTime:          document.getElementById('hud-time'),
 	hudVol:           document.getElementById('hud-vol'),
 
-	// Bottombar
+	// Bottom bar
 	statusDot:        document.getElementById('status-dot'),
 	statusText:       document.getElementById('status-text'),
 	statusComponents: document.getElementById('status-components'),
 	statusConfig:     document.getElementById('status-config'),
 };
 
-// M5: _fluidId / _tempC global mutable'ları KALDIRILDI.
-// Okuma: SystemConfig.get('fluid_id') / SystemConfig.get('T_in_C')
-// Yazma: SystemConfig.set(...) — Actions.updateFluid, bindFluidControls, IO.onSyncFluid
+// M5: Global mutable _fluidId / _tempC REMOVED.
+// Read: SystemConfig.get('fluid_id') / SystemConfig.get('T_in_C')
+// Write: SystemConfig.set(...) — Actions.updateFluid, bindFluidControls, IO.onSyncFluid
 // </editor-fold>
 
 // <editor-fold desc="INSTANCES">
@@ -105,15 +105,15 @@ const zoom       = createZoomController(DOM.svgCanvas, DOM.flowCanvas);
 // hudUpdater — pipelineStore inject (HU5)
 const hudUpdater = createHudUpdater({ DOM, Units, pipelineStore });
 
-// IO ve keyboard — CatalogManager ve Actions henüz tanımlı değil,
-// bunlar init()'te bağlanır (aşağı bak).
+// IO and keyboard — CatalogManager and Actions not yet defined,
+// they will be linked in init() below.
 let IO, keyboard, ddManager;
 
 // </editor-fold>
 
 // <editor-fold desc="ACTIONS">
 const Actions = {
-	// M5: _fluidId/_tempC yerine SystemConfig'ten oku
+	// M5: Read from SystemConfig instead of _fluidId/_tempC
 	updateFluid() {
 		const fluidId = SystemConfig.get('fluid_id');
 		const tempC   = SystemConfig.get('T_in_C');
@@ -174,7 +174,7 @@ const Actions = {
 		zoom.reset();
 	},
 
-	// IO delegate'leri — init()'ten sonra kullanılabilir
+	// IO delegates — available after init()
 	saveProject(silent = false) { IO.saveProject(silent); },
 	loadProject()               { IO.loadProject(); },
 	newProject()                { IO.newProject(); },
@@ -225,7 +225,7 @@ const UI = {
 				const prop = el.dataset.prop;
 				const raw  = el.value;
 
-				// Slider label güncelle (opening_pct ve efficiency için)
+				// Update slider label (for opening_pct and efficiency)
 				if (el.type === 'range') {
 					const label = el.nextElementSibling;
 					if (label) label.textContent = raw + '%';
@@ -239,7 +239,7 @@ const UI = {
 					this.renderProps();
 
 				} else if (prop === 'subtype' && comp.type === 'valve') {
-					// C5: valve subtype değişince name ve K güncellenir
+					// C5: Update name and K when valve subtype changes
 					const def = VALVE_DEFS[raw];
 					if (def) {
 						comp.name    = def.name;
@@ -264,7 +264,7 @@ const UI = {
 				} else {
 					const num = parseFloat(raw);
 
-					// M7+C1: material_id değişince eps_mm'i de güncelle
+					// M7+C1: update eps_mm when material_id changes
 					if (prop === 'material_id') {
 						const mat = MATERIALS.find(m => m.id === raw);
 						if (mat) comp.override('eps_mm', mat.eps);
@@ -350,13 +350,13 @@ function bindToolbar() {
 	};
 	DOM.btnUnits.onclick = () => { Units.toggle(); DOM.btnUnits.textContent = Units.isMetric ? 'SI' : 'IMP'; };
 
-	// M6: btnClear çift save önleme — _isClearing flag ile components:change listener'ı geçici sustur
+	// M6: Prevent double save on btnClear — temporarily silence components:change listener using _isClearing flag
 	DOM.btnClear.onclick = () => {
 		IO._isClearing = true;
 		pipelineStore.clear?.();
 		setupInitialState();
 		IO._isClearing = false;
-		IO.saveProject(true);   // tek kayıt
+		IO.saveProject(true);   // single save
 		UI.refreshCanvas();
 	};
 
@@ -454,7 +454,7 @@ function bindStoreSubscriptions() {
 		UI.updateStatusBar();
 		tooltip.rebind(DOM.svgCanvas);
 		if (engine.sysState === SysState.RUNNING) animator.reset();
-		// M6: _isClearing flag aktifken save yapma — btnClear tek seferinde kendisi save eder
+		// M6: Do not save when _isClearing flag is active — btnClear handles its own save
 		if (engine.sysState === SysState.IDLE && !IO?._isClearing) IO?.saveProject(true);
 	});
 	pipelineStore.on('selection:change', () => {
@@ -474,7 +474,7 @@ function bindEngineCallbacks() {
 	engine.onTick((snap) => {
 		animator.update(pipelineStore.layout, snap);
 
-		// M1/CH6: Raw Pa gönder — chart ve Units.pressureVal(Pa) dönüşümü yapar
+		// M1/CH6: Send raw Pa — chart and Units handle pressureVal(Pa) conversion
 		chart.draw({
 			results: snap.nodes.map(n => ({
 				P_in:     n.P_in,
@@ -485,14 +485,14 @@ function bindEngineCallbacks() {
 				Q_m3s:    snap.Q_m3s,
 			})),
 			components:  pipelineStore.components,
-			selectedIdx: pipelineStore.selectedId != null   // M3: falsy 0 koruması
+			selectedIdx: pipelineStore.selectedId != null   // M3: falsy 0 protection
 				? pipelineStore.components.findIndex(c => c.id === pipelineStore.selectedId)
 				: null,
 		});
 
 		UI.updateHUD(snap);
 
-		// M9: data-prv-circle attribute'larını tick'te güncelle
+		// M9: Update data-prv-circle attributes on every tick
 		snap.nodes.forEach(n => {
 			if (n.subtype !== 'prv') return;
 			const el = DOM.svgCanvas.querySelector(`[data-prv-circle="${n.id}"]`);
@@ -587,7 +587,7 @@ const CatalogManager = createCatalogManager({
 		],
 	});
 
-	// KB3: catBody inject edildi — Space tuşu sadece catalog focus'undayken çalışır
+	// KB3: catBody injected — Space key only works when catalog is focused
 	keyboard = createKeyboardController({
 		CatalogManager,
 		Actions,

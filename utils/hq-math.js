@@ -1,15 +1,15 @@
 'use strict';
 
 /**
- * H-Q POLİNOM YARDIMCILARI
- * pump.js ve SimulationEngine.js tarafından paylaşılır.
- * Component → Engine import bağımlılığını keser.
+ * H-Q POLYNOMIAL HELPERS
+ * Shared by pump.js and SimulationEngine.js.
+ * Decouples Component → Engine import dependency.
  */
 
 /**
- * 3 noktadan ikinci dereceden H-Q polinomu fit eder.
- * Noktalar: (0, H_shutoff), (Q_nom, H_nom), (Q_max, 0)
- * H(Q) = a0 + a1·Q + a2·Q²
+ * Fits a second-degree H-Q polynomial using 3 points.
+ * Points: (0, H_shutoff), (Q_nom, H_nom), (Q_max, 0)
+ * Equation: H(Q) = a0 + a1·Q + a2·Q²
  */
 export function fitHQCurve(H_shutoff, Q_nom, H_nom, Q_max) {
 	const a0   = H_shutoff;
@@ -28,8 +28,8 @@ export function fitHQCurve(H_shutoff, Q_nom, H_nom, Q_max) {
 }
 
 /**
- * H-Q polinomunu Q'da değerlendir.
- * Negatif head döndürmez — fiziksel anlamsız.
+ * Evaluates the H-Q polynomial at a given Q.
+ * Never returns negative head — physically invalid.
  */
 export function evalHQ(coeffs, Q) {
 	const H = coeffs.a0 + coeffs.a1 * Q + coeffs.a2 * Q * Q;
