@@ -1,13 +1,13 @@
 'use strict';
 
-/** Temel Sıvı Sınıfı */
+/** Base Fluid Class */
 class FluidBase {
   constructor(meta) { this.meta = meta; }
   get id() { return this.meta.id; }
   get name() { return this.meta.name; }
 }
 
-/** AMPİRİK MODEL (Su dahil tüm sıvılar için katsayı tabanlı) */
+/** Empirical MODEL (Su dahil tüm sıvılar için katsayı tabanlı) */
 /** Sadece newtonian sıvılar için geçerli **/
 class EmpiricalFluidModel extends FluidBase {
   constructor(config) {
@@ -43,7 +43,7 @@ class EmpiricalFluidModel extends FluidBase {
   }
 }
 
-// ── REGISTRY VE VERİLER ───────────────────────────────────────
+// ── REGISTRY VE DATA ───────────────────────────────────────
 
 export const fluidRegistry = new Map();
 

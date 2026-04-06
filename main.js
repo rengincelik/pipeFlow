@@ -16,7 +16,7 @@ import {
 } from './imports.js';
 
 import { MATERIALS }                   from './data/catalogs.js';
-import { VALVE_DEFS }                  from './components/valve.js';  // C5
+import { VALVE_DEFS }                  from './components/valve.js';
 import { createKeyboardController }    from './input/keyboard-controller.js';
 import { createProjectIO }             from './state/project-io.js';
 import { createDropdownManager }       from './ui/dropdown-manager.js';
@@ -89,9 +89,6 @@ const DOM = {
 	statusConfig:     document.getElementById('status-config'),
 };
 
-// M5: Global mutable _fluidId / _tempC REMOVED.
-// Read: SystemConfig.get('fluid_id') / SystemConfig.get('T_in_C')
-// Write: SystemConfig.set(...) — Actions.updateFluid, bindFluidControls, IO.onSyncFluid
 // </editor-fold>
 
 // <editor-fold desc="INSTANCES">
@@ -116,7 +113,6 @@ let IO, keyboard, ddManager;
 
 // <editor-fold desc="ACTIONS">
 const Actions = {
-	// M5: Read from SystemConfig instead of _fluidId/_tempC
 	updateFluid() {
 		const fluidId = SystemConfig.get('fluid_id');
 		const tempC   = SystemConfig.get('T_in_C');
@@ -436,7 +432,7 @@ function bindFluidControls() {
 	};
 }
 
-
+//TODO: properties kısmının handlerı çalışmıyor
 function bindResizeHandlers() {
 	document.querySelectorAll('.resize-handler').forEach(h =>
 		h.onmousedown = (e) => Actions.handleComponentResize(e, h)

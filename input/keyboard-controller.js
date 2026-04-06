@@ -5,7 +5,9 @@
  * main.js'ten çağrılır, instance inject edilir.
  * Döndürür: { bind() }
  */
-export function createKeyboardController({ CatalogManager, Actions, pipelineStore, createComponent, catBody }) {
+export function createKeyboardController(
+	{CatalogManager, Actions, pipelineStore, createComponent, catBody }
+) {
 
 	// KB1: Constraint cache — her _stepInput çağrısında createComponent() alloc önlenir.
 	// renderProps() çağrılınca (eleman değişince) cache sıfırlanır.
