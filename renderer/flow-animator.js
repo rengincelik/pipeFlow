@@ -123,6 +123,20 @@ export class FlowAnimator {
 		this._syncSize();
 	}
 
+	_getCanvasCoords(svgX, svgY) {
+		const svgRect = this._svg.getBoundingClientRect();
+		const vb = this._svg.viewBox.baseVal;
+
+		const scaleX = svgRect.width / (vb.width || svgRect.width);
+		const scaleY = svgRect.height / (vb.height || svgRect.height);
+		const offX = -vb.x * scaleX;
+		const offY = -vb.y * scaleY;
+
+		return {
+			cx: svgX * scaleX + offX,
+			cy: svgY * scaleY + offY
+		};
+	}
 	// <editor-fold desc="Canvas size sync">
 	_syncSize() {
 		const rect = this._svg.getBoundingClientRect();
@@ -259,6 +273,7 @@ export class FlowAnimator {
 		this._rafId = requestAnimationFrame(t => this._loop(t));
 	}
 
+
 	_step(dt) {
 		const ctx = this._ctx;
 		ctx.clearRect(0, 0, this._w, this._h);
@@ -267,67 +282,46 @@ export class FlowAnimator {
 
 		if (!this._path.length || this._totalLen <= 0) return;
 
-		// Pipeline-wide visual speed from first non-blocked segment (for spawn rate)
-		const firstSeg  = this._path.find(s => !s.blocked) ?? this._path[0];
+		const firstSeg = this._path.find(s => !s.blocked) ?? this._path[0];
 		const pipeSpeed = Math.min(MAX_VIS_SPEED, (firstSeg?.v ?? 0) * BASE_SPEED) * this._rampF;
 
-		// Spawn a new particle at the start of the segment after the pump (path[1])
-		// path[0] is always the pump — particles begin at its exit point
 		const spawnPos = this._path[1]?.cumStart ?? 0;
 		if (this._running && pipeSpeed > 0.5) {
 			this._spawnTimer -= dt;
 			if (this._spawnTimer <= 0) {
 				this._particles.push({ pos: spawnPos, alpha: 0, dying: false });
-				// Interval inversely proportional to speed: faster flow → more particles
-				const interval = Math.max(MIN_SPAWN_IVL, SPAWN_BASE_IVL / (pipeSpeed / BASE_SPEED));
-				this._spawnTimer = interval;
+				this._spawnTimer = Math.max(MIN_SPAWN_IVL, SPAWN_BASE_IVL / (pipeSpeed / BASE_SPEED));
 			}
 		}
 
-		// SVG viewBox → canvas coordinate transform
-		const svgRect = this._svg.getBoundingClientRect();
-		const vb      = this._svg.viewBox.baseVal;
-		const scaleX  = svgRect.width  / (vb.width  || svgRect.width);
-		const scaleY  = svgRect.height / (vb.height || svgRect.height);
-		const offX    = -vb.x * scaleX;
-		const offY    = -vb.y * scaleY;
-
-		// Update and draw each particle; keep only those still alive
 		const alive = [];
 		for (const p of this._particles) {
 			const seg = this._segmentAt(p.pos);
 			if (!seg) continue;
 
-			const visSpeed  = seg.blocked
-				? 0
-				: Math.min(MAX_VIS_SPEED, seg.v * BASE_SPEED) * this._rampF;
-			const speedMult = seg.negPressure ? 0.4 : 1.0;
+			const visSpeed = seg.blocked ? 0 : Math.min(MAX_VIS_SPEED, seg.v * BASE_SPEED) * this._rampF;
+			const speedMulti = seg.negPressure ? 0.4 : 1.0;
 
 			if (!p.dying) {
-				p.pos += visSpeed * speedMult * dt;
+				p.pos += visSpeed * speedMulti * dt;
 				if (p.pos >= this._totalLen) {
-					// Reached the end — begin fade-out in place
-					p.pos   = this._totalLen;
+					p.pos = this._totalLen;
 					p.dying = true;
 				}
 			}
 
-			// Fade in while alive, fade out when dying
 			if (p.dying) {
 				p.alpha = Math.max(0, p.alpha - FADE_RATE);
-				if (p.alpha <= 0) continue; // fully faded — drop
+				if (p.alpha <= 0) continue;
 			} else {
 				p.alpha = Math.min(1, p.alpha + FADE_RATE);
 			}
 
 			alive.push(p);
-
 			if (p.alpha < 0.02) continue;
 
-			// Resolve SVG position and transform to canvas coords
-			const { x: svgX, y: svgY } = this._posToPoint(p.pos, seg);
-			const cx = svgX * scaleX + offX;
-			const cy = svgY * scaleY + offY;
+			const svgPt = this._posToPoint(p.pos, seg);
+			const { cx, cy } = this._getCanvasCoords(svgPt.x, svgPt.y);
 
 			const a = (p.alpha * this._rampF * 0.7 + 0.15).toFixed(2);
 
@@ -338,9 +332,9 @@ export class FlowAnimator {
 				: fluidColor(parseFloat(a));
 			ctx.fill();
 		}
-
 		this._particles = alive;
 	}
+
 	// </editor-fold>
 
 	// <editor-fold desc="Path helpers">
@@ -377,12 +371,13 @@ export class FlowAnimator {
 	// </editor-fold>
 
 	// <editor-fold desc="Pump blade animation">
+
 	_stepPump(dt) {
 		if (!this._pumpCenter) return;
 
-		const state       = this._pumpState ?? 'STOPPED';
-		const ramp        = this._rampF ?? 0;
-		const maxOmega    = PUMP_RPM_DEG_S * Math.PI / 180;
+		const state = this._pumpState ?? 'STOPPED';
+		const ramp = this._rampF ?? 0;
+		const maxOmega = PUMP_RPM_DEG_S * Math.PI / 180;
 		const targetOmega = maxOmega * ramp;
 
 		if (state === 'STOPPED' || state === 'OVERLOAD') {
@@ -393,27 +388,17 @@ export class FlowAnimator {
 
 		this._pumpAngle += this._pumpOmega * dt;
 
-		const svgRect = this._svg.getBoundingClientRect();
-		const vb      = this._svg.viewBox.baseVal;
-		const scaleX  = svgRect.width  / (vb.width  || svgRect.width);
-		const scaleY  = svgRect.height / (vb.height || svgRect.height);
-		const offX    = -vb.x * scaleX;
-		const offY    = -vb.y * scaleY;
-
-		const cx = this._pumpCenter.cx * scaleX + offX;
-		const cy = this._pumpCenter.cy * scaleY + offY;
+		const { cx, cy } = this._getCanvasCoords(this._pumpCenter.cx, this._pumpCenter.cy);
 
 		const isOverload = state === 'OVERLOAD';
-		const alpha      = 0.55 + ramp * 0.35;
-		const color      = isOverload
-			? `rgba(255,120,80,${alpha})`
-			: fluidColor(alpha);
+		const alpha = 0.55 + ramp * 0.35;
+		const color = isOverload ? `rgba(255,120,80,${alpha})` : fluidColor(alpha);
 
 		const ctx = this._ctx;
 		ctx.save();
 		ctx.strokeStyle = color;
-		ctx.lineWidth   = BLADE_WIDTH;
-		ctx.lineCap     = 'round';
+		ctx.lineWidth = BLADE_WIDTH;
+		ctx.lineCap = 'round';
 
 		for (let i = 0; i < BLADE_COUNT; i++) {
 			const angle = this._pumpAngle + (i * Math.PI * 2) / BLADE_COUNT;
