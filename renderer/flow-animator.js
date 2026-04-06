@@ -1,38 +1,34 @@
 'use strict';
 
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 // FLOW ANIMATOR
-// Canvas tabanlı, hıza bağlı parçacık animasyonu.
-// SVG koordinatlarını canvas'a dönüştürür.
-// Hat değişiminde sıfırlanır, sıvı sırayla yayılır.
-// ═══════════════════════════════════════════════════════════
+// Canvas-based particle animation along the full pipeline path.
+// Particles spawn at the start of the pipeline and die at the end.
+// Spawn rate is proportional to flow velocity.
+// Elbow segments use quadratic Bézier interpolation (Q cx cy ox oy).
+// Other segments use linear interpolation.
+// ═══════════════════════════════════════════════════════════════
 
-// ── Ayarlar ────────────────────────────────────────────────
-const PARTICLE_R      = 2.8;   // daire yarıçapı (px)
-const PARTICLES_PER_M = 0.4;   // metre başına parçacık sayısı (lenPx / PX_PER_M ile ölçeklenir)
-const MIN_PARTICLES   = 1;
-const MAX_PARTICLES   = 6;
-// FA3: PX_PER_M — SVG renderer ile aynı sabit (svg-renderer.js ORIGIN/PAD sabitleriyle tutarlı)
-// Segment uzunluğu SVG'den gelir; bu sabit sadece parçacık sayısı tahmini için referans.
-const PX_PER_M        = 18;    // svg-renderer.js ile eşleştirilmiş referans ölçeği
-const BASE_SPEED      = 40;    // px/s — v=1m/s referans
-const MAX_VIS_SPEED   = 120;   // px/s üst sınır
-const RAMP_ALPHA_RATE = 0.04;  // fade-in hızı
-const FILL_SPEED_PX_S = 60;    // sıvının boruyu doldurma hızı px/s
-const BLADE_COUNT     = 4;
-const BLADE_LEN       = 7;      // px
-const BLADE_WIDTH     = 2.2;    // px
-const PUMP_RPM_DEG_S  = 360;    // derece/s tam hızda
-const PUMP_R          = 12;     // pump.js shapeSpec ile aynı
-const INERTIA_DECAY   = 2.8;    // rad/s² yavaşlama (stop'ta)
+// <editor-fold desc="Constants">
+const PARTICLE_R       = 2.8;   // particle circle radius (px)
+const BASE_SPEED       = 40;    // px/s at v = 1 m/s reference
+const MAX_VIS_SPEED    = 120;   // px/s upper cap
+const FADE_RATE        = 0.06;  // alpha change per frame (fade in/out)
+const SPAWN_BASE_IVL   = 0.55;  // base spawn interval (s) at reference speed
+const MIN_SPAWN_IVL    = 0.08;  // minimum interval between spawns (s)
+const BLADE_COUNT      = 4;
+const BLADE_WIDTH      = 2.2;   // px
+const PUMP_RPM_DEG_S   = 360;   // deg/s at full speed
+const PUMP_R           = 12;    // must match pump.js shapeSpec
+const INERTIA_DECAY    = 2.8;   // rad/s² deceleration on stop
+// </editor-fold>
 
-// FA2: Parçacık renkleri — CSS token'dan alınır, hardcode değil
+// <editor-fold desc="Color helpers">
 function cssVar(name) {
 	return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || null;
 }
 
 function fluidColor(alpha) {
-	// --c-fluid token yoksa --c-pipe fallback, o da yoksa sabit mavi
 	const raw = cssVar('--c-fluid') ?? cssVar('--c-pipe') ?? '#78c8ff';
 	return applyAlpha(raw, alpha);
 }
@@ -50,40 +46,84 @@ function applyAlpha(color, alpha) {
 	let h = c.replace('#', '');
 	if (h.length === 3) h = h.split('').map(x => x + x).join('');
 	const num = parseInt(h, 16);
-	const r = (num >> 16) & 255;
-	const g = (num >> 8)  & 255;
-	const b = num & 255;
-	return `rgba(${r},${g},${b},${alpha})`;
+	return `rgba(${(num >> 16) & 255},${(num >> 8) & 255},${num & 255},${alpha})`;
 }
+// </editor-fold>
+
+// <editor-fold desc="Quadratic Bézier helpers">
+/**
+ * Point on a quadratic Bézier curve at parameter t ∈ [0, 1].
+ * P(t) = (1-t)² P0 + 2(1-t)t P1 + t² P2
+ */
+function quadBezier(x0, y0, cx, cy, x1, y1, t) {
+	const mt = 1 - t;
+	return {
+		x: mt * mt * x0 + 2 * mt * t * cx + t * t * x1,
+		y: mt * mt * y0 + 2 * mt * t * cy + t * t * y1,
+	};
+}
+
+/**
+ * Approximate arc length of a quadratic Bézier by subdivision.
+ * Used once per segment update to store lenPx accurately.
+ * 16 subdivisions — sufficient for pipe bend radii.
+ */
+function quadBezierLength(x0, y0, cx, cy, x1, y1, steps = 16) {
+	let len = 0;
+	let px = x0, py = y0;
+	for (let i = 1; i <= steps; i++) {
+		const t = i / steps;
+		const { x, y } = quadBezier(x0, y0, cx, cy, x1, y1, t);
+		len += Math.hypot(x - px, y - py);
+		px = x; py = y;
+	}
+	return len;
+}
+// </editor-fold>
 
 export class FlowAnimator {
 	/**
-	 * @param {SVGSVGElement}      svgEl     — koordinat referansı
-	 * @param {HTMLCanvasElement}  canvasEl  — çizim yüzeyi
+	 * @param {SVGSVGElement}     svgEl    — coordinate reference
+	 * @param {HTMLCanvasElement} canvasEl — drawing surface
 	 */
 	constructor(svgEl, canvasEl) {
-		this._svg       = svgEl;
-		this._canvas    = canvasEl;
-		this._ctx       = canvasEl.getContext('2d');
+		this._svg    = svgEl;
+		this._canvas = canvasEl;
+		this._ctx    = canvasEl.getContext('2d');
 
-		this._segments  = [];
-		this._pumpAngle    = 0;   // rad — anlık açı
-		this._pumpOmega   = 0;   // rad/s — anlık açısal hız
-		this._pumpCenter  = null; // { cx, cy } SVG koordinatı
+		// Path: array of segment descriptors built from layout
+		// Each segment: { x1,y1, x2,y2, cx?,cy?, isBezier,
+		//                 lenPx, cumStart, v, blocked, negPressure }
+		this._path     = [];
+		this._totalLen = 0;
+
+		// Active particles — each: { pos, alpha, dying }
+		// pos    : distance from path start (px), 0 → totalLen
+		// alpha  : current opacity 0–1
+		// dying  : true when pos has reached totalLen (fade out phase)
+		this._particles = [];
+
+		// Spawn timer
+		this._spawnTimer = 0;
+
+		// Pump animation state
+		this._pumpAngle  = 0;
+		this._pumpOmega  = 0;
+		this._pumpCenter = null;
 
 		this._running   = false;
 		this._rafId     = null;
 		this._lastTime  = null;
 		this._startTime = null;
 		this._rampF     = 0;
+		this._pumpState = 'STOPPED';
 
-		// Canvas boyutunu SVG ile senkron tut
 		this._ro = new ResizeObserver(() => this._syncSize());
 		this._ro.observe(svgEl);
 		this._syncSize();
 	}
 
-	// ── Boyut senkronu ─────────────────────────────────────────
+	// <editor-fold desc="Canvas size sync">
 	_syncSize() {
 		const rect = this._svg.getBoundingClientRect();
 		if (!rect.width || !rect.height) return;
@@ -92,43 +132,33 @@ export class FlowAnimator {
 		this._canvas.height       = rect.height * dpr;
 		this._canvas.style.width  = rect.width  + 'px';
 		this._canvas.style.height = rect.height + 'px';
-		// CH2: scale birikimini önle — setTransform kullan
 		this._ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 		this._w = rect.width;
 		this._h = rect.height;
 	}
+	// </editor-fold>
 
-	_syncPumpCenter(layouts, snapshot) {
-		// layouts[0] her zaman pompa (pipeline-store kuralı)
-		const l = layouts?.[0];
-		if (!l) { this._pumpCenter = null; return; }
-
-		const mx = l.ix + (l.ox - l.ix) / 2;
-		const my = l.iy + (l.oy - l.iy) / 2;
-		this._pumpCenter = { cx: mx, cy: my };
-	}
-
-	// ── Public API ─────────────────────────────────────────────
-
-	/** Her engine tick'te çağrılır */
+	// <editor-fold desc="Public API">
+	/** Called every engine tick — updates layout and snapshot */
 	update(layouts, snapshot) {
-		this._rampF      = snapshot?.rampFactor ?? 0;
-		this._pumpState  = snapshot?.pumpState  ?? 'STOPPED';
-		this._syncSegments(layouts, snapshot);
-		this._syncPumpCenter(layouts, snapshot);
+		this._rampF     = snapshot?.rampFactor ?? 0;
+		this._pumpState = snapshot?.pumpState  ?? 'STOPPED';
+		this._syncPath(layouts, snapshot);
+		this._syncPumpCenter(layouts);
 	}
 
-	/** Pompa start'ta çağrılır */
+	/** Called when pump starts */
 	start() {
 		if (this._running) return;
-		this._running   = true;
-		this._startTime = performance.now() / 1000;
-		this._lastTime  = null;
-		this._segments  = [];   // temiz başla
-		this._rafId     = requestAnimationFrame(t => this._loop(t));
+		this._running    = true;
+		this._startTime  = performance.now() / 1000;
+		this._lastTime   = null;
+		this._particles  = [];
+		this._spawnTimer = 0;
+		this._rafId = requestAnimationFrame(t => this._loop(t));
 	}
 
-	/** Pompa stop'ta çağrılır */
+	/** Called when pump stops */
 	stop() {
 		this._running   = false;
 		this._pumpState = 'STOPPED';
@@ -137,90 +167,85 @@ export class FlowAnimator {
 			cancelAnimationFrame(this._rafId);
 			this._rafId = null;
 		}
-		this._segments = [];
+		this._particles = [];
 		if (this._ctx) this._ctx.clearRect(0, 0, this._w, this._h);
 	}
 
-	/** Hat değişince çağrılır — segmentleri sıfırla, zamanlayıcıyı koru */
+	/** Called when pipeline components change — reset particles, keep timer */
 	reset() {
-		this._segments = [];
+		this._path       = [];
+		this._totalLen   = 0;
+		this._particles  = [];
+		this._spawnTimer = 0;
 		if (this._ctx) this._ctx.clearRect(0, 0, this._w, this._h);
 	}
 
 	destroy() {
-		this._running = false;
-		this._pumpOmega = 0;  // inertia bekleme — direkt öldür
+		this._running   = false;
+		this._pumpOmega = 0;
 		if (this._rafId) {
 			cancelAnimationFrame(this._rafId);
 			this._rafId = null;
 		}
 		this._ro.disconnect();
 	}
+	// </editor-fold>
 
-	// ── Segment senkronu ───────────────────────────────────────
-
-	_syncSegments(layouts, snapshot) {
+	// <editor-fold desc="Path sync">
+	_syncPath(layouts, snapshot) {
 		const nodes = snapshot?.nodes ?? [];
-		const now   = performance.now() / 1000;
-
-		const newSegs = [];
+		let cumStart = 0;
+		const newPath = [];
 
 		layouts.forEach((l, i) => {
-			const node    = nodes[i];
-			const v       = node?.v ?? 0;
-			const blocked = node?.nodeState === 'blocked' || node?.nodeState === 'dry';
-			// E5: negatif basınç flag'ini segment'e taşı
+			const node        = nodes[i];
+			const v           = node?.v           ?? 0;
+			const blocked     = node?.nodeState === 'blocked' || node?.nodeState === 'dry';
 			const negPressure = node?.negativePressure ?? false;
-			const lenPx   = Math.hypot(l.ox - l.ix, l.oy - l.iy);
 
-			// Mevcut segment varsa koordinatları güncelle, parçacıkları koru
-			const existing = this._segments[i];
-			if (existing) {
-				existing.x1            = l.ix;
-				existing.y1            = l.iy;
-				existing.x2            = l.ox;
-				existing.y2            = l.oy;
-				existing.lenPx         = lenPx;
-				existing.v             = v;
-				existing.blocked       = blocked;
-				existing.negPressure   = negPressure;
-				newSegs.push(existing);
-				return;
-			}
+			// Elbow segments carry cornerX/cornerY — use Bézier arc length
+			const isBezier = (l.cornerX !== undefined && l.cornerY !== undefined);
+			const lenPx    = isBezier
+				? quadBezierLength(l.ix, l.iy, l.cornerX, l.cornerY, l.ox, l.oy)
+				: Math.hypot(l.ox - l.ix, l.oy - l.iy);
 
-			// Yeni segment — arrivalTime zinciri
-			const prev         = newSegs[i - 1] ?? null;
-			const prevArrival  = prev?.arrivalTime ?? this._startTime ?? now;
-			const prevLen      = prev?.lenPx ?? 0;
-			const fillDuration = prevLen / FILL_SPEED_PX_S;
-			const arrivalTime  = i === 0
-				? (this._startTime ?? now)
-				: prevArrival + fillDuration;
-
-			const count = Math.min(MAX_PARTICLES,
-				Math.max(MIN_PARTICLES, Math.round((lenPx / PX_PER_M) * PARTICLES_PER_M)));
-
-			const particles = Array.from({ length: count }, (_, k) => ({
-				t:     k / count,
-				alpha: 0,
-			}));
-
-			newSegs.push({
+			newPath.push({
 				x1: l.ix, y1: l.iy,
 				x2: l.ox, y2: l.oy,
-				lenPx, v, blocked,
+				cx: l.cornerX, cy: l.cornerY,
+				isBezier,
+				lenPx,
+				cumStart,
+				v,
+				blocked,
 				negPressure,
-				count, particles, arrivalTime,
 			});
+
+			cumStart += lenPx;
 		});
 
-		this._segments = newSegs;
+		this._path     = newPath;
+		this._totalLen = cumStart;
+
+		// Clamp existing particle positions to the new total length
+		if (this._particles.length && this._totalLen > 0) {
+			this._particles = this._particles.filter(p => p.pos <= this._totalLen);
+		}
 	}
 
-	// ── Animasyon döngüsü ──────────────────────────────────────
+	_syncPumpCenter(layouts) {
+		const l = layouts?.[0];
+		if (!l) { this._pumpCenter = null; return; }
+		this._pumpCenter = {
+			cx: l.ix + (l.ox - l.ix) / 2,
+			cy: l.iy + (l.oy - l.iy) / 2,
+		};
+	}
+	// </editor-fold>
 
+	// <editor-fold desc="Animation loop">
 	_loop(timestamp) {
-		// running=false ama omega hâlâ varsa devam et (inertia)
+		// Keep looping while pump omega is non-zero even after stop (inertia)
 		if (!this._running && this._pumpOmega < 0.01) {
 			this._rafId = null;
 			this._ctx.clearRect(0, 0, this._w, this._h);
@@ -235,13 +260,31 @@ export class FlowAnimator {
 	}
 
 	_step(dt) {
-		const now = performance.now() / 1000;
 		const ctx = this._ctx;
-
 		ctx.clearRect(0, 0, this._w, this._h);
+
 		this._stepPump(dt);
 
-		// SVG viewBox → Canvas koordinat dönüşümü
+		if (!this._path.length || this._totalLen <= 0) return;
+
+		// Pipeline-wide visual speed from first non-blocked segment (for spawn rate)
+		const firstSeg  = this._path.find(s => !s.blocked) ?? this._path[0];
+		const pipeSpeed = Math.min(MAX_VIS_SPEED, (firstSeg?.v ?? 0) * BASE_SPEED) * this._rampF;
+
+		// Spawn a new particle at the start of the segment after the pump (path[1])
+		// path[0] is always the pump — particles begin at its exit point
+		const spawnPos = this._path[1]?.cumStart ?? 0;
+		if (this._running && pipeSpeed > 0.5) {
+			this._spawnTimer -= dt;
+			if (this._spawnTimer <= 0) {
+				this._particles.push({ pos: spawnPos, alpha: 0, dying: false });
+				// Interval inversely proportional to speed: faster flow → more particles
+				const interval = Math.max(MIN_SPAWN_IVL, SPAWN_BASE_IVL / (pipeSpeed / BASE_SPEED));
+				this._spawnTimer = interval;
+			}
+		}
+
+		// SVG viewBox → canvas coordinate transform
 		const svgRect = this._svg.getBoundingClientRect();
 		const vb      = this._svg.viewBox.baseVal;
 		const scaleX  = svgRect.width  / (vb.width  || svgRect.width);
@@ -249,58 +292,98 @@ export class FlowAnimator {
 		const offX    = -vb.x * scaleX;
 		const offY    = -vb.y * scaleY;
 
-		this._segments.forEach(seg => {
-			if (now < (seg.arrivalTime ?? 0)) return;
+		// Update and draw each particle; keep only those still alive
+		const alive = [];
+		for (const p of this._particles) {
+			const seg = this._segmentAt(p.pos);
+			if (!seg) continue;
 
-			const visSpeed = seg.blocked
+			const visSpeed  = seg.blocked
 				? 0
 				: Math.min(MAX_VIS_SPEED, seg.v * BASE_SPEED) * this._rampF;
-
-			const dt_t = seg.lenPx > 0 ? (visSpeed * dt) / seg.lenPx : 0;
-
-			// E5: negatif basınçta parçacık hızını %40'a düşür (kavitasyon görsel ipucu)
 			const speedMult = seg.negPressure ? 0.4 : 1.0;
 
-			seg.particles.forEach(p => {
-				p.t = (p.t + dt_t * speedMult) % 1;
-
-				p.alpha = seg.blocked
-					? Math.max(0, p.alpha - RAMP_ALPHA_RATE)
-					: Math.min(1, p.alpha + RAMP_ALPHA_RATE);
-
-				if (p.alpha < 0.02) return;
-
-				const svgX = seg.x1 + (seg.x2 - seg.x1) * p.t;
-				const svgY = seg.y1 + (seg.y2 - seg.y1) * p.t;
-				const cx   = svgX * scaleX + offX;
-				const cy   = svgY * scaleY + offY;
-
-				const baseAlpha = p.alpha * this._rampF * 0.7 + 0.15;
-				const a = baseAlpha.toFixed(2);
-
-				ctx.beginPath();
-				ctx.arc(cx, cy, PARTICLE_R, 0, Math.PI * 2);
-
-				// FA2: E5 negatif basınç kırmızı, normal durum cssVar('--c-fluid') token'ından
-				if (seg.negPressure) {
-					ctx.fillStyle = `rgba(239, 68, 68, ${a})`;
-				} else {
-					ctx.fillStyle = fluidColor(parseFloat(a));
+			if (!p.dying) {
+				p.pos += visSpeed * speedMult * dt;
+				if (p.pos >= this._totalLen) {
+					// Reached the end — begin fade-out in place
+					p.pos   = this._totalLen;
+					p.dying = true;
 				}
+			}
 
-				ctx.fill();
-			});
-		});
+			// Fade in while alive, fade out when dying
+			if (p.dying) {
+				p.alpha = Math.max(0, p.alpha - FADE_RATE);
+				if (p.alpha <= 0) continue; // fully faded — drop
+			} else {
+				p.alpha = Math.min(1, p.alpha + FADE_RATE);
+			}
+
+			alive.push(p);
+
+			if (p.alpha < 0.02) continue;
+
+			// Resolve SVG position and transform to canvas coords
+			const { x: svgX, y: svgY } = this._posToPoint(p.pos, seg);
+			const cx = svgX * scaleX + offX;
+			const cy = svgY * scaleY + offY;
+
+			const a = (p.alpha * this._rampF * 0.7 + 0.15).toFixed(2);
+
+			ctx.beginPath();
+			ctx.arc(cx, cy, PARTICLE_R, 0, Math.PI * 2);
+			ctx.fillStyle = seg.negPressure
+				? `rgba(239,68,68,${a})`
+				: fluidColor(parseFloat(a));
+			ctx.fill();
+		}
+
+		this._particles = alive;
+	}
+	// </editor-fold>
+
+	// <editor-fold desc="Path helpers">
+	/**
+	 * Returns the segment that contains the given path position (px from start).
+	 * Linear scan — component count is typically < 20.
+	 */
+	_segmentAt(pos) {
+		const segs = this._path;
+		for (let i = segs.length - 1; i >= 0; i--) {
+			if (pos >= segs[i].cumStart) return segs[i];
+		}
+		return segs[0] ?? null;
 	}
 
+	/**
+	 * Converts a path position (px from start) to an SVG {x, y} point.
+	 * Elbow segments: quadratic Bézier interpolation.
+	 * All others: linear interpolation.
+	 */
+	_posToPoint(pos, seg) {
+		const t = seg.lenPx > 0
+			? Math.min(1, Math.max(0, (pos - seg.cumStart) / seg.lenPx))
+			: 0;
+
+		if (seg.isBezier) {
+			return quadBezier(seg.x1, seg.y1, seg.cx, seg.cy, seg.x2, seg.y2, t);
+		}
+		return {
+			x: seg.x1 + (seg.x2 - seg.x1) * t,
+			y: seg.y1 + (seg.y2 - seg.y1) * t,
+		};
+	}
+	// </editor-fold>
+
+	// <editor-fold desc="Pump blade animation">
 	_stepPump(dt) {
 		if (!this._pumpCenter) return;
 
-		const state   = this._pumpState ?? 'STOPPED';
-		const ramp    = this._rampF ?? 0;
-		const omega   = (PUMP_RPM_DEG_S * Math.PI / 180); // rad/s max
-
-		const targetOmega = omega * ramp;
+		const state       = this._pumpState ?? 'STOPPED';
+		const ramp        = this._rampF ?? 0;
+		const maxOmega    = PUMP_RPM_DEG_S * Math.PI / 180;
+		const targetOmega = maxOmega * ramp;
 
 		if (state === 'STOPPED' || state === 'OVERLOAD') {
 			this._pumpOmega = Math.max(0, this._pumpOmega - INERTIA_DECAY * dt);
@@ -319,13 +402,11 @@ export class FlowAnimator {
 
 		const cx = this._pumpCenter.cx * scaleX + offX;
 		const cy = this._pumpCenter.cy * scaleY + offY;
-		const r  = PUMP_R;
 
 		const isOverload = state === 'OVERLOAD';
 		const alpha      = 0.55 + ramp * 0.35;
-		// FA2: Pompa blade rengi de token'dan — overload kırmızı, normal fluidColor
 		const color      = isOverload
-			? `rgba(255, 120, 80, ${alpha})`
+			? `rgba(255,120,80,${alpha})`
 			: fluidColor(alpha);
 
 		const ctx = this._ctx;
@@ -336,14 +417,9 @@ export class FlowAnimator {
 
 		for (let i = 0; i < BLADE_COUNT; i++) {
 			const angle = this._pumpAngle + (i * Math.PI * 2) / BLADE_COUNT;
-			const x1    = cx + Math.cos(angle) * (r * 0.25);
-			const y1    = cy + Math.sin(angle) * (r * 0.25);
-			const x2    = cx + Math.cos(angle) * (r * 0.82);
-			const y2    = cy + Math.sin(angle) * (r * 0.82);
-
 			ctx.beginPath();
-			ctx.moveTo(x1, y1);
-			ctx.lineTo(x2, y2);
+			ctx.moveTo(cx + Math.cos(angle) * PUMP_R * 0.25, cy + Math.sin(angle) * PUMP_R * 0.25);
+			ctx.lineTo(cx + Math.cos(angle) * PUMP_R * 0.82, cy + Math.sin(angle) * PUMP_R * 0.82);
 			ctx.stroke();
 		}
 
@@ -351,7 +427,7 @@ export class FlowAnimator {
 		ctx.arc(cx, cy, 1.8, 0, Math.PI * 2);
 		ctx.fillStyle = color;
 		ctx.fill();
-
 		ctx.restore();
 	}
+	// </editor-fold>
 }
