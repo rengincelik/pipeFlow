@@ -28,40 +28,40 @@ export const CATALOG_DEF = [
 	{
 		group: 'Elbows',
 		items: [
-			{ type:'elbow', subtype:'rd', icon:'?', desc:'Right → Down' },
-			{ type:'elbow', subtype:'ru', icon:'?', desc:'Right → Up'   },
-			{ type:'elbow', subtype:'ur', icon:'?', desc:'Up → Right'   },
-			{ type:'elbow', subtype:'dr', icon:'?', desc:'Down → Right' },
+			{ type:'elbow', subtype:'rd', icon:'⤵', desc:'Right ? Down' },
+			{ type:'elbow', subtype:'ru', icon:'⤴', desc:'Right ? Up'   },
+			{ type:'elbow', subtype:'ur', icon:'⤴', desc:'Up ? Right'   },
+			{ type:'elbow', subtype:'dr', icon:'⤵', desc:'Down ? Right' },
 		],
 	},
 	{
 		group: 'Pipes',
 		items: [
-			{ type:'pipe', subtype:'pipe', icon:'?', desc:'Straight pipe' },
+			{ type:'pipe', subtype:'pipe', icon:'⟶', desc:'Straight pipe' },
 		]
 	},
 	{
 		group: 'Transition',
 		items:[
-			{ type:'transition', subtype:'reducer', icon:'?', desc:'Diameter reduction' },
-			{ type:'transition', subtype:'expander', icon:'?', desc:'Diameter expansion' },
+			{ type:'transition', subtype:'reducer',  icon:'▷', desc:'Diameter reduction' },
+			{ type:'transition', subtype:'expander',  icon:'◁', desc:'Diameter expansion' },
 		],
 	},
 	{
 		group: 'Valves',
 		items: [
-			{ type:'valve', subtype:'gate', icon:'?', desc:'Gate / K=0.20' },
-			{ type:'valve', subtype:'prv', icon:'?', desc:'Pressure Reducing Valve' },
+			{ type:'valve', subtype:'gate', icon:'⊠', desc:'Gate / K=0.20' },
+			{ type:'valve', subtype:'prv',  icon:'⊕', desc:'Pressure Reducing Valve' },
 		],
 	},
 	{
 		group: 'Pump',
 		items: [
-			{ type:'pump', subtype:'centrifugal', icon:'?', desc:'Gate / K=0.20' },
+			{ type:'pump', subtype:'centrifugal', icon:'⟳', desc:'Gate / K=0.20' },
 		],
 	},
-
 ];
+
 // TODO: We need to add a K table for valves
 // TODO: We need to add angle (cone angle) for transitions
 

@@ -20,7 +20,7 @@ import { fluidRegistry } from './data/fluid-model.js';
 import { createComponent } from './components/base.js';
 import { createCatalogManager } from './ui/catalog-manager.js';
 
-// Side-effect component imports (order matters for registration)
+// Side effect component imports (order matters for registration)
 import './components/pipe.js';
 import './components/transition.js';
 import './components/elbow.js';

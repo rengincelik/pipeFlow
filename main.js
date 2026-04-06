@@ -98,7 +98,10 @@ const DOM = {
 const renderer   = new SVGRenderer(DOM.svgCanvas);
 const chart      = new ChartRenderer(DOM.chartCanvas);
 const engine     = new SimulationEngine(pipelineStore, { rho: 1000, mu: 0.001 });
-const animator   = new FlowAnimator(DOM.svgCanvas, DOM.flowCanvas);
+const animator = new FlowAnimator(
+	/** @type {SVGSVGElement} */ (DOM.svgCanvas),
+	/** @type {HTMLCanvasElement} */ (DOM.flowCanvas)
+);
 const tooltip    = new TooltipManager(DOM.svgCanvas, engine, pipelineStore);
 const zoom       = createZoomController(DOM.svgCanvas, DOM.flowCanvas);
 
@@ -217,6 +220,16 @@ const UI = {
 		if (!isPump) DOM.propBody.querySelector('#del-btn').onclick = Actions.deleteComponent;
 		this.bindPropInputs(comp);
 	},
+
+	populateFluidSelect() {
+	DOM.selectFluid.innerHTML = '';
+	for (const [id, model] of fluidRegistry) {
+		const opt = document.createElement('option');
+		opt.value = String(id);
+		opt.textContent = model.name;
+		DOM.selectFluid.appendChild(opt);
+	}
+},
 
 	bindPropInputs(comp) {
 		DOM.propBody.querySelectorAll('[data-prop]').forEach(el => {
@@ -423,6 +436,7 @@ function bindFluidControls() {
 	};
 }
 
+
 function bindResizeHandlers() {
 	document.querySelectorAll('.resize-handler').forEach(h =>
 		h.onmousedown = (e) => Actions.handleComponentResize(e, h)
@@ -599,6 +613,7 @@ const CatalogManager = createCatalogManager({
 	if (localStorage.getItem('pf-theme') === 'light')
 		document.documentElement.dataset.theme = 'light';
 
+	UI.populateFluidSelect();
 	CatalogManager.render();
 	bindEvents();
 

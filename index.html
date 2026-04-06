@@ -31,14 +31,12 @@
 			</div>
 			<!-- </editor-fold> -->
 			
-			<!-- <editor-fold desc="Fluid kontrol"> -->
+			<!-- <editor-fold desc="Fluid control"> -->
 			<div id="fluid-type">
-				<span class="label">FLUID</span>
-				<select id="select-fluid">
-					<option value="water">Water</option>
-					<option value="eg50">EG 50%</option>
-				</select>
+				<label for="select-fluid">FLUID TYPE</label>
+				<select id="select-fluid"></select>
 				<div id="fluid-temp">
+					<label for="temp-slider">Temperature:</label>
 					<input type="range" id="temp-slider" min="5" max="90" value="20" step="1">
 					<span id="temp-label">20°C</span>
 				</div>

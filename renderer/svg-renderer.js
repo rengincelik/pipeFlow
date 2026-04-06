@@ -14,31 +14,6 @@ const ORIGIN_X = 80;   // px — ilk elemanın X başlangıcı
 const ORIGIN_Y = 200;  // px — ilk elemanın Y başlangıcı
 const PAD      = 80;   // px — viewBox kenar boşluğu
 
-export function computeLayout(components) {
-	if (!components.length) return [];
-	const result  = [];
-	let cx = ORIGIN_X, cy = ORIGIN_Y;
-	let curDir = 'right';
-
-	for (const comp of components) {
-		if (comp.type !== 'elbow') {
-			comp.entryDir = curDir;
-			comp.exitDir  = curDir;
-		}
-
-		const ix   = cx, iy = cy;
-		const exit = comp.computeExit(ix, iy);
-		const { ox, oy, exitDir, ...extra } = exit;
-
-		result.push({ comp, ix, iy, ox, oy, entryDir: comp.entryDir, exitDir, lenPx: comp._lenPx ?? 54, ...extra });
-
-		cx     = ox;
-		cy     = oy;
-		curDir = exitDir;
-	}
-	return result;
-}
-
 export class SVGRenderer {
 	constructor(svgRoot) {
 		this.svg      = svgRoot;
