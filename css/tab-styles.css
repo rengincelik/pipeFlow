@@ -1,0 +1,112 @@
+/* ── TAB BAR ────────────────────────────────────────────────
+   Tab bar flex container zaten mevcut. Aşağıdakiler eksik
+   veya değişmesi gereken kurallar.
+   ────────────────────────────────────────────────────────── */
+
+#tab-bar {
+    display: flex;
+    align-items: stretch;
+    flex: 1;
+    min-width: 0;          /* flex shrink için kritik */
+    overflow: hidden;
+    gap: 2px;
+}
+
+/* Her tab — genişlik JS tarafından inline style ile set ediliyor
+   (tab-manager._applyFluidTabWidths). min/max burada da korunuyor. */
+.tab {
+    display: flex;
+    align-items: center;
+    min-width: 80px;
+    max-width: 200px;
+    height: 100%;
+    padding: 0 8px 0 12px;
+    gap: 6px;
+    cursor: pointer;
+    border-radius: 4px 4px 0 0;
+    background: var(--bg-tab-inactive, transparent);
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    white-space: nowrap;
+    overflow: hidden;
+    transition: background 0.15s, color 0.15s;
+    flex-shrink: 0;        /* JS width hesabı yapıyor, CSS shrink etmesin */
+}
+
+.tab:hover {
+    background: var(--bg-tab-hover, var(--bg-2));
+    color: var(--text-primary);
+}
+
+.tab.active {
+    background: var(--bg-tab-active, var(--bg-2));
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.tab-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tab-close {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    font-size: 14px;
+    line-height: 1;
+    color: var(--text-tertiary);
+    opacity: 0;
+    transition: opacity 0.1s, background 0.1s, color 0.1s;
+}
+
+.tab:hover .tab-close,
+.tab.active .tab-close {
+    opacity: 1;
+}
+
+.tab-close:hover {
+    background: var(--bg-3);
+    color: var(--text-primary);
+}
+
+/* Rename input — dblclick ile açılır */
+.tab-rename-input {
+    flex: 1;
+    min-width: 0;
+    background: var(--bg-input, var(--bg-3));
+    border: 1px solid var(--accent);
+    border-radius: 3px;
+    color: var(--text-primary);
+    font-size: var(--text-sm);
+    font-family: inherit;
+    padding: 1px 4px;
+    outline: none;
+}
+
+/* + butonu */
+.tab-add {
+    flex-shrink: 0;
+    width: 32px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 18px;
+    border-radius: 4px 4px 0 0;
+    transition: background 0.15s, color 0.15s;
+}
+
+.tab-add:hover {
+    background: var(--bg-tab-hover, var(--bg-2));
+    color: var(--text-primary);
+}

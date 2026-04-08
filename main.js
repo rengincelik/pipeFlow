@@ -22,6 +22,8 @@ import { createProjectIO }             from './state/project-io.js';
 import { createDropdownManager }       from './ui/dropdown-manager.js';
 import { createHudUpdater }            from './ui/hud-updater.js';
 import { createZoomController }        from './ui/zoom-controller.js';
+
+import { createTabManager } from './state/tab-manager.js';
 // </editor-fold>
 
 // <editor-fold desc="DOM">
@@ -99,7 +101,7 @@ const hudUpdater = createHudUpdater({ DOM, Units, pipelineStore });
 
 // IO and keyboard — CatalogManager and Actions not yet defined,
 // they will be linked in init() below.
-let IO, keyboard, ddManager;
+let IO, keyboard, ddManager, tabManager;
 
 // </editor-fold>
 
@@ -167,8 +169,8 @@ const Actions = {
 
 	// IO delegates — available after init()
 	saveProject(silent = false) { IO.saveProject(silent); },
-	loadProject()               { IO.loadProject(); },
-	newProject()                { IO.newProject(); },
+//	loadProject()               { IO.loadProject(); },
+//	newProject()                { IO.newProject(); },
 	exportJSON()                { IO.exportJSON(); },
 	importJSON()                { IO.importJSON(); },
 
@@ -373,9 +375,14 @@ function bindToolbar() {
 
 	DOM.btnImportJson.onclick = () => Actions.importJSON();
 
-	DOM.btnTabAdd.onclick = () => { ddManager.closeAll(); Actions.newProject(); };
+//	DOM.btnTabAdd.onclick = () => { ddManager.closeAll(); Actions.newProject(); };
 	//todo: buna yeni tab oluşturma eklenmesi lazım
-	DOM.btnTabClose=()=> {};
+	DOM.btnTabAdd.onclick = () => {
+		ddManager.closeAll();
+		tabManager.addTab();           // yeni tab = yeni proje
+	};
+
+//	DOM.btnTabClose=()=> {};
 	//todo: bu kısma da tab kapama silme vs eklenmesi lazım
 
 	document.querySelectorAll('[data-chart-metric]').forEach(btn => {
@@ -576,7 +583,21 @@ const CatalogManager = createCatalogManager({
 			console.warn('[PipeFlow] Missing DOM elements:', missing);
 		}
 	})();
-
+	// 5a. tabManager oluştur — IO'dan ÖNCE
+	tabManager = createTabManager({
+		tabBar:    DOM.tabBar,
+		showToast: (msg) => UI.showBlockToast(msg),
+		onSwitch: (id, isNew, previousId) => {
+			if (!isNew && previousId) {
+				// Eski tab'ın key'ine kaydet
+				const prevKey = `pf-tab-${previousId}`;
+				try {
+					localStorage.setItem(prevKey, JSON.stringify(pipelineStore.serialize()));
+				} catch(e) { /* sessiz */ }
+			}
+			IO.switchTabProject(isNew);
+		},
+	});
 	IO = createProjectIO({
 		engine,
 		animator,
@@ -590,11 +611,15 @@ const CatalogManager = createCatalogManager({
 		pipelineStore,
 		SystemConfig,
 		createComponent,
+		getStorageKey: () => tabManager.getStorageKey(),
 		onSyncFluid: (fluidId, tempC) => {
 			SystemConfig.set('fluid_id', fluidId);
 			SystemConfig.set('T_in_C',   tempC);
 		},
 	});
+	// 5c. tabManager.init() — tab listesini yükler, render eder
+	// İlk switch/load IO var olduktan sonra olmalı
+	tabManager.init();   // render() + ilk aktif tab'ı belirler
 
 	ddManager = createDropdownManager({
 		triggers: [
@@ -617,6 +642,10 @@ const CatalogManager = createCatalogManager({
 	CatalogManager.render();
 	bindEvents();
 
+
+	// 5d. İlk yükleme — tabManager.init() aktif tab'ı belirledi,
+	// storage key artık doğru. Eski loadProject/setupInitialState koşulu:
+	const activeKey = tabManager.getStorageKey();
 	if (localStorage.getItem(IO.STORAGE_KEY)) IO.loadProject();
 	else { setupInitialState(); Actions.updateFluid(); }
 
