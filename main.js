@@ -51,24 +51,17 @@ const DOM = {
 	// Topbar — buttons
 	themeBtn:         document.getElementById('theme-btn'),
 	btnUnits:         document.getElementById('btn-units'),
-	btnNew:           document.getElementById('btn-new'),
-	btnNewTab:        document.getElementById('btn-new-tab'),
-	btnSave:          document.getElementById('btn-save'),
-	btnLoad:          document.getElementById('btn-load'),
 	btnExportJson:    document.getElementById('btn-export-json'),
 	btnImportJson:    document.getElementById('btn-import-json'),
+	btnTabAdd:        document.getElementById('btn-tab-add'),
+	btnTabClose:     document.getElementById('btn-tab-close'),
 
 	// Dropdown triggers
-	ddNew:            document.getElementById('dd-new'),
-	ddNewTrigger:     document.getElementById('dd-new-trigger'),
 	ddExport:         document.getElementById('dd-export'),
 	ddExportTrigger:  document.getElementById('dd-export-trigger'),
-	ddImport:         document.getElementById('dd-import'),
-	ddImportTrigger:  document.getElementById('dd-import-trigger'),
 
 	// Tab bar
 	tabBar:           document.getElementById('tab-bar'),
-	btnTabAdd:        document.getElementById('btn-tab-add'),
 
 	// Canvas toolbar
 	btnLabel:         document.getElementById('btn-label'),
@@ -102,7 +95,6 @@ const animator = new FlowAnimator(
 const tooltip    = new TooltipManager(DOM.svgCanvas, engine, pipelineStore);
 const zoom       = createZoomController(DOM.svgCanvas, DOM.flowCanvas);
 
-// hudUpdater — pipelineStore inject (HU5)
 const hudUpdater = createHudUpdater({ DOM, Units, pipelineStore });
 
 // IO and keyboard — CatalogManager and Actions not yet defined,
@@ -180,6 +172,7 @@ const Actions = {
 	exportJSON()                { IO.exportJSON(); },
 	importJSON()                { IO.importJSON(); },
 
+	//todo: bunu kontrol et
 	toggleSidebar() {
 		const collapsed = DOM.colLeft.classList.toggle('collapsed');
 		DOM.sidebarToggle.textContent = collapsed ? '›' : '‹';
@@ -248,7 +241,6 @@ const UI = {
 					this.renderProps();
 
 				} else if (prop === 'subtype' && comp.type === 'valve') {
-					// C5: Update name and K when valve subtype changes
 					const def = VALVE_DEFS[raw];
 					if (def) {
 						comp.name    = def.name;
@@ -273,7 +265,6 @@ const UI = {
 				} else {
 					const num = parseFloat(raw);
 
-					// M7+C1: update eps_mm when material_id changes
 					if (prop === 'material_id') {
 						const mat = MATERIALS.find(m => m.id === raw);
 						if (mat) comp.override('eps_mm', mat.eps);
@@ -357,30 +348,35 @@ function bindToolbar() {
 		document.documentElement.dataset.theme = isLight ? '' : 'light';
 		localStorage.setItem('pf-theme', isLight ? '' : 'light');
 	};
-	DOM.btnUnits.onclick = () => { Units.toggle(); DOM.btnUnits.textContent = Units.isMetric ? 'SI' : 'IMP'; };
+	DOM.btnUnits.onclick = () => {
+		Units.toggle();
+		DOM.btnUnits.textContent = Units.isMetric ? 'SI' : 'IMP';
+	};
 
-	// M6: Prevent double save on btnClear — temporarily silence components:change listener using _isClearing flag
+
 	DOM.btnClear.onclick = () => {
 		IO._isClearing = true;
 		pipelineStore.clear?.();
 		setupInitialState();
 		IO._isClearing = false;
-		IO.saveProject(true);   // single save
+		IO.saveProject(true);
 		UI.refreshCanvas();
 	};
-
 	DOM.btnFit.onclick      = Actions.zoomToFit;
 
 	DOM.btnLabel.onclick = () => UI.showBlockToast('Label toggle coming in V1');
+	//TODO: uı kısmına toggle label diye method ekle.
+
 	DOM.hudStartBtn.onclick = Actions.toggleSimulation;
 
-	DOM.btnNew.onclick        = () => { ddManager.closeAll(); Actions.newProject(); };
-	DOM.btnSave.onclick       = () => { ddManager.closeAll(); Actions.saveProject(); };
-	DOM.btnLoad.onclick       = () => { ddManager.closeAll(); Actions.loadProject(); };
 	DOM.btnExportJson.onclick = () => { ddManager.closeAll(); Actions.exportJSON(); };
-	DOM.btnImportJson.onclick = () => { ddManager.closeAll(); Actions.importJSON(); };
 
-	DOM.btnTabAdd.onclick = () => UI.showBlockToast('Multi-tab coming soon');
+	DOM.btnImportJson.onclick = () => Actions.importJSON();
+
+	DOM.btnTabAdd.onclick = () => { ddManager.closeAll(); Actions.newProject(); };
+	//todo: buna yeni tab oluşturma eklenmesi lazım
+	DOM.btnTabClose=()=> {};
+	//todo: bu kısma da tab kapama silme vs eklenmesi lazım
 
 	document.querySelectorAll('[data-chart-metric]').forEach(btn => {
 		btn.addEventListener('click', () => {
@@ -550,6 +546,7 @@ const Interactions = {
 
 // </editor-fold>
 
+
 // <editor-fold desc="INIT">
 function setupInitialState() {
 	const fluidId = SystemConfig.get('fluid_id') ?? 'water';
@@ -570,6 +567,16 @@ const CatalogManager = createCatalogManager({
 });
 
 (function init() {
+	// DOM Sanity Check — init() içine ekle, bootstrap'ın hemen başına
+	(function checkDOM() {
+		const missing = Object.entries(DOM)
+			.filter(([, el]) => el == null)
+			.map(([key]) => key);
+		if (missing.length > 0) {
+			console.warn('[PipeFlow] Missing DOM elements:', missing);
+		}
+	})();
+
 	IO = createProjectIO({
 		engine,
 		animator,
@@ -591,13 +598,10 @@ const CatalogManager = createCatalogManager({
 
 	ddManager = createDropdownManager({
 		triggers: [
-			{ triggerId: 'dd-new-trigger',    dropdownId: 'dd-new' },
 			{ triggerId: 'dd-export-trigger', dropdownId: 'dd-export' },
-			{ triggerId: 'dd-import-trigger', dropdownId: 'dd-import' },
 		],
 	});
 
-	// KB3: catBody injected — Space key only works when catalog is focused
 	keyboard = createKeyboardController({
 		CatalogManager,
 		Actions,

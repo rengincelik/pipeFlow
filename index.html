@@ -25,7 +25,7 @@
 			<div id="tab-bar">
 				<div class="tab active" data-tab-id="1">
 					<span class="tab-name">Project 1</span>
-					<span class="tab-close" title="Close">×</span>
+					<span class="tab-close" id="btn-tab-close" title="Close">×</span>
 				</div>
 				<div class="tab-add" id="btn-tab-add" title="New tab">+</div>
 			</div>
@@ -46,23 +46,6 @@
 			<!-- <editor-fold desc="Sağ group"> -->
 			<div class="topbar-right">
 				
-				<!-- <editor-fold desc="New dropdown"> -->
-				<div class="tb-dropdown" id="dd-new">
-					<button class="tb-btn" id="dd-new-trigger">
-						<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-							<rect x="2" y="2" width="12" height="12" rx="1.5"/>
-							<line x1="8" y1="5" x2="8" y2="11"/>
-							<line x1="5" y1="8" x2="11" y2="8"/>
-						</svg>
-						New
-					</button>
-					<div class="tb-dropdown-menu">
-						<div class="tb-dropdown-item" id="btn-new">New Project</div>
-						<div class="tb-dropdown-item" id="btn-new-tab">New Tab</div>
-					</div>
-				</div>
-				<!-- </editor-fold> -->
-				
 				<!-- <editor-fold desc="Export dropdown"> -->
 				<div class="tb-dropdown" id="dd-export">
 					<button class="tb-btn" id="dd-export-trigger">
@@ -73,15 +56,18 @@
 						Export
 					</button>
 					<div class="tb-dropdown-menu">
-						<div class="tb-dropdown-item" id="btn-save">Save to Browser</div>
-						<div class="tb-dropdown-sep"></div>
 						<div class="tb-dropdown-item" id="btn-export-json">Export JSON</div>
+						<div class="tb-dropdown-sep"></div>
 						<div class="tb-dropdown-item disabled">
-							Export PDF
+							Export Report JSON
 							<span class="item-badge">soon</span>
 						</div>
 						<div class="tb-dropdown-item disabled">
-							Export CSV
+							Export Report PDF
+							<span class="item-badge">soon</span>
+						</div>
+						<div class="tb-dropdown-item disabled">
+							Export Report CSV
 							<span class="item-badge">soon</span>
 						</div>
 					</div>
@@ -90,26 +76,13 @@
 				
 				<!-- <editor-fold desc="Import dropdown"> -->
 				<div class="tb-dropdown" id="dd-import">
-					<button class="tb-btn" id="dd-import-trigger">
+					<button class="tb-btn" id="btn-import-json">
 						<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-							<path d="M8 2v7M5 6l3 3 3-3"/>
+							<path d="M8 14v-7M5 10l3-3 3 3"/>
 							<path d="M3 11v2h10v-2"/>
 						</svg>
 						Import
 					</button>
-					<div class="tb-dropdown-menu">
-						<div class="tb-dropdown-item" id="btn-load">Load from Browser</div>
-						<div class="tb-dropdown-sep"></div>
-						<div class="tb-dropdown-item" id="btn-import-json">Import JSON</div>
-						<div class="tb-dropdown-item disabled">
-							Import PDF
-							<span class="item-badge">soon</span>
-						</div>
-						<div class="tb-dropdown-item disabled">
-							Import CSV
-							<span class="item-badge">soon</span>
-						</div>
-					</div>
 				</div>
 				<!-- </editor-fold> -->
 				
@@ -280,9 +253,9 @@
 				<div class="status-dot ok" id="status-dot"></div>
 				<span id="status-text">Ready</span>
 			</div>
-			<div class="status-sep"></div>
+			<div class="toolbar-sep"></div>
 			<div class="status-item" id="status-components">0 components</div>
-			<div class="status-sep"></div>
+			<div class="toolbar-sep"></div>
 			<div class="status-item" id="status-config">—</div>
 		</footer>
 	</body>

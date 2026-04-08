@@ -118,7 +118,7 @@
 
 
 #fluid-type .label {
-	font-family: var(--font-mono);
+	font-family: var(--font-mono), serif;
 	font-size: 10px;
 	font-weight: 600;
 	color: var(--text-dim);
@@ -131,8 +131,8 @@
 	font-size: var(--text-xs);
 	color: var(--text);
 	cursor: pointer;
-	background: transparent;
-	font-family: var(--font-mono);
+	background: var(--bg-active);
+	font-family: var(--font-mono), serif;
 }
 
 #fluid-temp {
@@ -226,7 +226,7 @@
 	gap: 8px;
 	padding: 6px 10px;
 	border-radius: var(--r-sm);
-	font-family: var(--font-mono);
+	font-family: var(--font-mono), serif;
 	font-size: var(--text-xs);
 	color: var(--text-mid);
 	cursor: pointer;

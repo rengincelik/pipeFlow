@@ -4,7 +4,7 @@
 .zoom-label {
   font-size:   var(--text-xs);
   font-family: 'IBM Plex Mono', monospace;
-  color:       var(--fg-muted);
+  color:       var(--bg-active);
   min-width:   36px;
   text-align:  center;
   user-select: none;
