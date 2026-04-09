@@ -19,6 +19,7 @@ thumbs.db
 # Projeye Özel İstemediğin Dosyalar
 CLAUDE.md
 FIXES.md
+ROADMAP.md
 
 # Ortam Değişkenleri (Hassas bilgiler içerir, asla commitlenmemeli)
 .env

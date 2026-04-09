@@ -14,8 +14,7 @@ V1 code review tamamlandı (Gruplar 1–8). Kod tabanı stabil.
 ## V1 — Şu An
 
 - [ ] CSS güncellemesi — mevcut eksikler ve tutarsızlıklar
-- [ ] Label toggle — `toggleLabels()` implement, `btn-label` bağla
-- [ ] Tab sistemi — detay netleşecek
+- [ ] Label toggle — `toggleLabels()` implement, `btn-label` bağla 
 - [ ] Bilgi — props panelinde badge, kayıp dağılımı, öneri motoru
 - [ ] Rapor — sistem özet tablosu, export
 
