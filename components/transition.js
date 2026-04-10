@@ -10,10 +10,20 @@ const TAPER = 4;
 
 const DEFAULT_D_IN_REDUCER  = 53.1;
 const DEFAULT_D_OUT_REDUCER = 26.9;
+const DEFAULT_CONE_ANGLE    = 10;   // degrees — ASME B16.5 typical
 
 
 export class TransitionComponent extends ComponentBase {
 
+	// <editor-fold desc="CONSTRAINTS">
+	static get CONSTRAINTS() {
+		return {
+			cone_angle_deg: { min: 3, max: 60, step: 1, unit: '°' },
+		};
+	}
+	// </editor-fold>
+
+	// <editor-fold desc="constructor">
 	constructor(subtype = 'reducer') {
 		super('transition', subtype);
 		this.isReducer = subtype === 'reducer';
@@ -27,8 +37,12 @@ export class TransitionComponent extends ComponentBase {
 			this.override('d_in_mm',  DEFAULT_D_OUT_REDUCER);
 			this.override('d_out_mm', DEFAULT_D_IN_REDUCER);
 		}
+		// Cone angle: sistem default'u, kullanıcı override edebilir
+		this.override('cone_angle_deg', DEFAULT_CONE_ANGLE, false);
 	}
+	// </editor-fold>
 
+	// <editor-fold desc="override hook">
 	override(key, val, isUser) {
 		const result = ComponentBase.prototype.override.call(this, key, val, isUser);
 
@@ -46,29 +60,41 @@ export class TransitionComponent extends ComponentBase {
 
 		return result;
 	}
+	// </editor-fold>
 
+	// <editor-fold desc="getters">
 	get d_in_mm()        { return this._overrides.d_in_mm; }
 	get d_out_mm()       { return this._overrides.d_out_mm; }
 	get outDiameter_mm() { return this.d_out_mm; }
 
-	get length_m() {
-		const dIn       = this.d_in_mm  / 1000;
-		const dOut      = this.d_out_mm / 1000;
-		if (dIn === dOut) return 0;
-		const angleDeg  = this.resolve('cone_angle_deg') ?? SystemConfig.get('cone_angle_deg') ?? 10;
-		const theta     = angleDeg * Math.PI / 180;
-		return Math.abs(dIn - dOut) / (2 * Math.tan(theta));
+	get cone_angle_deg() {
+		return this.resolve('cone_angle_deg')
+			?? SystemConfig.get('cone_angle_deg')
+			?? DEFAULT_CONE_ANGLE;
 	}
 
+	get length_m() {
+		const dIn  = this.d_in_mm  / 1000;
+		const dOut = this.d_out_mm / 1000;
+		if (dIn === dOut) return 0;
+		const theta = this.cone_angle_deg * Math.PI / 180;
+		return Math.abs(dIn - dOut) / (2 * Math.tan(theta / 2));
+	}
+	// </editor-fold>
+
+	// <editor-fold desc="getParams">
 	getParams() {
 		return {
-			type:     'transition',
-			subtype:  this.subtype,
-			d_in_mm:  this.d_in_mm,
-			d_out_mm: this.d_out_mm,
+			type:           'transition',
+			subtype:        this.subtype,
+			d_in_mm:        this.d_in_mm,
+			d_out_mm:       this.d_out_mm,
+			cone_angle_deg: this.cone_angle_deg,
 		};
 	}
+	// </editor-fold>
 
+	// <editor-fold desc="shapeSpec">
 	shapeSpec(layout) {
 		const { ix, iy } = layout;
 		const mx   = ix + FIT_W / 2;
@@ -88,23 +114,22 @@ export class TransitionComponent extends ComponentBase {
 			orientation: this.entryDir,
 		};
 	}
+	// </editor-fold>
 
+	// <editor-fold desc="renderPropsHTML">
 	renderPropsHTML() {
 		const allPairs = this.isReducer ? TRANSITION_PAIRS : EXPANDER_PAIRS;
 		const pairs    = allPairs.filter(p => p.d_in === this.d_in_mm);
 
-		// C7: override() çağrısı buradan KALDIRILDI.
-		// Bu mantık zaten override() hook'unda çalışıyor —
-		// d_in değiştiğinde otomatik d_out güncellenir.
-		// renderPropsHTML render için okunur, state değiştirmez.
-
 		const curVal = `${this.d_in_mm}|${this.d_out_mm}`;
-
-		const opts = pairs.map(p =>
+		const opts   = pairs.map(p =>
 			`<option value="${p.d_in}|${p.d_out}" ${`${p.d_in}|${p.d_out}` === curVal ? 'selected' : ''}>
 				${p.label}
 			</option>`
 		).join('');
+
+		const angle  = this.cone_angle_deg;
+		const len    = this.length_m;
 
 		return [
 			this.row('Fitting',
@@ -118,19 +143,29 @@ export class TransitionComponent extends ComponentBase {
 				this.dimValue(`${this.d_out_mm} mm`) +
 				this.hint(this.d_out_mm, v => Units.diameter(v))),
 
+			// Cone angle: kullanıcı bu değeri doğrudan edit eder → length otomatik değişir
+			this.row('Cone Angle',
+				this.input('cone_angle_deg', angle) +
+				this.slider('cone_angle_deg', angle), '°'),
+
+			// Length: türetilmiş, readonly (cone angle + diameters'dan hesaplanır)
 			this.row('Length',
-				this.dimValue(`${this.length_m.toFixed(3)} m`) +
-				this.hint(this.length_m, v => Units.length(v)), 'm'),
+				this.dimValue(`${len.toFixed(3)} m`) +
+				this.hint(len, v => Units.length(v)), 'm'),
 		].join('');
 	}
+	// </editor-fold>
 
+	// <editor-fold desc="serialize">
 	serialize() {
 		return {
 			...super.serialize(),
-			d_in_mm:  this.d_in_mm,
-			d_out_mm: this.d_out_mm,
+			d_in_mm:        this.d_in_mm,
+			d_out_mm:       this.d_out_mm,
+			cone_angle_deg: this.cone_angle_deg,
 		};
 	}
+	// </editor-fold>
 }
 
 registerComponentType('transition', 'reducer',  () => new TransitionComponent('reducer'));
