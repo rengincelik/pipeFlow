@@ -106,7 +106,6 @@ export class PumpComponent extends ComponentBase {
 
 			this.row('Nominal Flow',
 				this.input('Q_nom_lps', Q_nom_lps), 'L/s'),
-			//TODO: burada birim değişmiyor. incelenebilir.
 
 			this.row('Max Flow',
 				this.input('Q_max_lps', Q_max_lps), 'L/s'),

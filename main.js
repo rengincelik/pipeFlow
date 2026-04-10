@@ -87,7 +87,6 @@ const DOM = {
 
 // <editor-fold desc="INSTANCES">
 
-const fluidRegistry = initializeFluidRegistry(FLUID_DATA);
 
 const renderer   = new SVGRenderer(DOM.svgCanvas);
 const chart      = new ChartRenderer(DOM.chartCanvas);
@@ -104,7 +103,7 @@ const hudUpdater = createHudUpdater({ DOM, Units, pipelineStore });
 
 // IO and keyboard — CatalogManager and Actions not yet defined,
 // they will be linked in init() below.
-let IO, keyboard, ddManager, tabManager;
+let fluidRegistry, IO, keyboard, ddManager, tabManager;
 
 // </editor-fold>
 
@@ -172,8 +171,6 @@ const Actions = {
 
 	// IO delegates — available after init()
 	saveProject(silent = false) { IO.saveProject(silent); },
-//	loadProject()               { IO.loadProject(); },
-//	newProject()                { IO.newProject(); },
 	exportJSON()                { IO.exportJSON(); },
 	importJSON()                { IO.importJSON(); },
 
@@ -183,6 +180,30 @@ const Actions = {
 		DOM.sidebarToggle.textContent = collapsed ? '›' : '‹';
 		DOM.sidebarToggle.title = collapsed ? 'Show sidebar' : 'Hide sidebar';
 	},
+	initializeFluidRegistry(data) {
+	const registry = new Map();
+
+	data.forEach(item => {
+		const config = {
+			meta: {
+				id: item.id,
+				name: item.name,
+				valid_range: {
+					T_min_C: item.range.min,
+					T_max_C: item.range.max
+				}
+			},
+			coeffs: item.coeffs
+		};
+
+		const model = new EmpiricalFluidModel(config);
+		registry.set(model.id, model);
+	});
+
+	return registry;
+}
+
+
 };
 
 // </editor-fold>
@@ -232,7 +253,6 @@ const UI = {
 				const prop = el.dataset.prop;
 				const raw  = el.value;
 
-				// Update slider label (for opening_pct and efficiency)
 				if (el.type === 'range') {
 					const label = el.nextElementSibling;
 					if (label) label.textContent = raw + '%';
@@ -373,7 +393,6 @@ function bindToolbar() {
 
 	DOM.btnImportJson.onclick = () => Actions.importJSON();
 
-//	DOM.btnTabAdd.onclick = () => { ddManager.closeAll(); Actions.newProject(); };
 
 	DOM.btnTabAdd.onclick = () => {
 		ddManager.closeAll();
@@ -463,7 +482,6 @@ function bindStoreSubscriptions() {
 		UI.updateStatusBar();
 		tooltip.rebind(DOM.svgCanvas);
 		if (engine.sysState === SysState.RUNNING) animator.reset();
-		// M6: Do not save when _isClearing flag is active — btnClear handles its own save
 		if (engine.sysState === SysState.IDLE && !IO?._isClearing) IO?.saveProject(true);
 	});
 	pipelineStore.on('selection:change', () => {
@@ -483,7 +501,6 @@ function bindEngineCallbacks() {
 	engine.onTick((snap) => {
 		animator.update(pipelineStore.layout, snap);
 
-		// M1/CH6: Send raw Pa — chart and Units handle pressureVal(Pa) conversion
 		chart.draw({
 			results: snap.nodes.map(n => ({
 				P_in:     n.P_in,
@@ -494,14 +511,13 @@ function bindEngineCallbacks() {
 				Q_m3s:    snap.Q_m3s,
 			})),
 			components:  pipelineStore.components,
-			selectedIdx: pipelineStore.selectedId != null   // M3: falsy 0 protection
+			selectedIdx: pipelineStore.selectedId != null
 				? pipelineStore.components.findIndex(c => c.id === pipelineStore.selectedId)
 				: null,
 		});
 
 		UI.updateHUD(snap);
 
-		// M9: Update data-prv-circle attributes on every tick
 		snap.nodes.forEach(n => {
 			if (n.subtype !== 'prv') return;
 			const el = DOM.svgCanvas.querySelector(`[data-prv-circle="${n.id}"]`);
@@ -552,30 +568,6 @@ const Interactions = {
 
 // <editor-fold desc="INIT">
 
-function initializeFluidRegistry(data) {
-	const registry = new Map();
-
-	data.forEach(item => {
-		// Veri yapısını sınıfın beklediği formata (valid_range ve T_min/max) dönüştürüyoruz
-		const config = {
-			meta: {
-				id: item.id,
-				name: item.name,
-				valid_range: {
-					T_min_C: item.range.min,
-					T_max_C: item.range.max
-				}
-			},
-			coeffs: item.coeffs
-		};
-
-		const model = new EmpiricalFluidModel(config);
-		registry.set(model.id, model);
-	});
-
-	console.log(`${registry.size} akışkan modeli hazır.`);
-	return registry;
-}
 
 function setupInitialState() {
 	const fluidId = SystemConfig.get('fluid_id') ?? 'water';
@@ -596,6 +588,8 @@ const CatalogManager = createCatalogManager({
 });
 
 (function init() {
+	fluidRegistry = Actions.initializeFluidRegistry(FLUID_DATA);
+
 	// DOM Sanity Check — init() içine ekle, bootstrap'ın hemen başına
 	(function checkDOM() {
 		const missing = Object.entries(DOM)
