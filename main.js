@@ -66,7 +66,6 @@ const DOM = {
 	tabBar:           document.getElementById('tab-bar'),
 
 	// Canvas toolbar
-	btnLabel:         document.getElementById('btn-label'),
 	btnFit:           document.getElementById('btn-fit'),
 	btnClear:         document.getElementById('btn-clear'),
 
@@ -366,9 +365,6 @@ function bindToolbar() {
 	};
 	DOM.btnFit.onclick      = Actions.zoomToFit;
 
-	DOM.btnLabel.onclick = () => UI.showBlockToast('Label toggle coming in V1');
-	//TODO: uı kısmına toggle label diye method ekle.
-
 	DOM.hudStartBtn.onclick = Actions.toggleSimulation;
 
 	DOM.btnExportJson.onclick = () => { ddManager.closeAll(); Actions.exportJSON(); };
@@ -376,7 +372,7 @@ function bindToolbar() {
 	DOM.btnImportJson.onclick = () => Actions.importJSON();
 
 //	DOM.btnTabAdd.onclick = () => { ddManager.closeAll(); Actions.newProject(); };
-	//todo: buna yeni tab oluşturma eklenmesi lazım
+	//TODO: buna yeni tab oluşturma eklenmesi lazım
 	DOM.btnTabAdd.onclick = () => {
 		ddManager.closeAll();
 		tabManager.addTab();           // yeni tab = yeni proje
@@ -646,8 +642,15 @@ const CatalogManager = createCatalogManager({
 	// 5d. İlk yükleme — tabManager.init() aktif tab'ı belirledi,
 	// storage key artık doğru. Eski loadProject/setupInitialState koşulu:
 	const activeKey = tabManager.getStorageKey();
-	if (localStorage.getItem(IO.STORAGE_KEY)) IO.loadProject();
-	else { setupInitialState(); Actions.updateFluid(); }
+	if (localStorage.getItem(activeKey)) {
+		IO.loadProject();
+	} else if (localStorage.getItem(IO.STORAGE_KEY)) {
+		// Migration: eski tek-tab kaydı varsa onu yükle, yeni key'e taşı
+		IO.loadProject();  // loadProject zaten LEGACY_KEY'e fallback yapıyor
+	} else {
+		setupInitialState();
+		Actions.updateFluid();
+	}
 
 	UI.updateStatusBar();
 	tooltip.rebind(DOM.svgCanvas);
