@@ -245,7 +245,6 @@ const UI = {
 					const def = VALVE_DEFS[raw];
 					if (def) {
 						comp.name    = def.name;
-						comp.K       = def.K;
 						comp.subtype = raw;
 					}
 					pipelineStore.emit('components:change');
@@ -254,11 +253,7 @@ const UI = {
 				} else if (prop === 'opening_pct') {
 					const val = parseInt(raw);
 					comp.override('opening_pct', val, true);
-					const tag = DOM.propBody.querySelector('.valve-status-tag');
-					if (tag) {
-						tag.textContent = val > 0 ? 'OPEN' : 'CLOSED';
-						tag.className   = `valve-status-tag ${val > 0 ? 'on' : 'off'}`;
-					}
+					this.renderProps();
 
 				} else if (prop === 'efficiency') {
 					comp.override('efficiency', parseInt(raw) / 100, true);
@@ -275,7 +270,10 @@ const UI = {
 
 					if (['diameter_mm', 'd_out_mm'].includes(prop))
 						pipelineStore.propagateDiameterFrom(comp);
+					if (prop === 'cone_angle_deg')
+						this.renderProps();
 				}
+
 
 				pipelineStore.emit('components:change');
 			};
@@ -372,14 +370,12 @@ function bindToolbar() {
 	DOM.btnImportJson.onclick = () => Actions.importJSON();
 
 //	DOM.btnTabAdd.onclick = () => { ddManager.closeAll(); Actions.newProject(); };
-	//TODO: buna yeni tab oluşturma eklenmesi lazım
+
 	DOM.btnTabAdd.onclick = () => {
 		ddManager.closeAll();
-		tabManager.addTab();           // yeni tab = yeni proje
+		tabManager.addTab();
 	};
 
-//	DOM.btnTabClose=()=> {};
-	//todo: bu kısma da tab kapama silme vs eklenmesi lazım
 
 	document.querySelectorAll('[data-chart-metric]').forEach(btn => {
 		btn.addEventListener('click', () => {
