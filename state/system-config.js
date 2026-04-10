@@ -19,8 +19,8 @@ class SystemConfigClass extends EventEmitter {
 
 			// ── Pump ───────────────────────────────
 			// H-Q eğrisi 3 nokta: (0, H_shutoff), (Q_nom, H_nom), (Q_max, 0)
-			H_shutoff_m: 25,     // shutoff head (m) — zero debi de
-			head_m:      20,     // nominal head (m)
+			H_shutoff_m: 50,     // shutoff head (m) — zero debi de
+			head_m:      40,     // nominal head (m)
 			Q_nom_lps:   1.0,    // nominal debi (L/s)
 			Q_max_lps:   2.0,    // max debi (L/s) — zero head
 			efficiency:  0.70,
@@ -29,15 +29,9 @@ class SystemConfigClass extends EventEmitter {
 			// ── Valve ────────────────────────────────
 			opening:     1.0,
 
-			// ── elbow ──────────────────────────────
-			K:           0.9,
-
-			// ── Transition ──────────────────────────
-			cone_angle_deg: 10,   // D2/S4: conic açı (yarı açı, degree)
 
 		};
 		this._values = { ...this._defaults };
-		// TODO: Angle support can be added here.
 
 	}
 

@@ -37,9 +37,9 @@ export class ComponentBase extends EventEmitter {
 	// ── Static CONSTRAINTS — alt sınıf override eder ──────────
 	/**
 	 * Format:
-	 * {
-	 *   prop_name: { min, max, step, unit? }
-	 * }
+	 *
+	 *   prop_name:  min, max, step, unit?
+	 *
 	 * "unit" opsiyonel — renderPropsHTML'de görüntülenecekse
 	 */
 	static get CONSTRAINTS() { return {}; }

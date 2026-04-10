@@ -46,6 +46,7 @@ export const NodeState = Object.freeze({
 });
 
 // ── HELPER FUNCTIONS ──────────────────────────────────────────────────────
+//todo : helperı ayrı file a taşı
 
 function frictionFactor(Re, eps, D) {
 	if (Re < 1e-9) return 0;
@@ -118,6 +119,19 @@ function calcPump(params, Q_m3s, rampF) {
 	const eta      = Math.max(0.01, params.efficiency);
 	const P_shaft  = (params.fluid.rho * GRAVITY * H_actual * Q_m3s) / eta;
 
+	if (rampF > 0 && rampF < 0.1) {
+		console.log(`[İLK ÇALIŞMA] Pompa Basıncı: ${(P_out / 1000).toFixed(2)} kPa`);
+
+		// ... P_shaft hesaplamasından sonra
+		console.log(`--- POMPA VERİLERİ (${params.subtype}) ---`);
+		console.log(`Debi (Q): ${(Q_m3s * 1000).toFixed(2)} L/s`);
+		console.log(`Basma Yüksekliği (H): ${H_actual.toFixed(2)} m`);
+		console.log(`Üretilen Basınç (P_out): ${(P_out / 1000).toFixed(2)} kPa`);
+		console.log(`Harcanan Mil Gücü (P_shaft): ${P_shaft.toFixed(0)} Watt`);
+		console.log(`Akış Hızı (v): ${v.toFixed(2)} m/s`);
+		console.log('---------------------------------------');
+	}
+
 	return {
 		P_out,
 		D_out_mm:  params.diameter_mm,
@@ -131,9 +145,6 @@ function calcPump(params, Q_m3s, rampF) {
 	};
 }
 
-// E5: Math.max(0, ...) clamps removed — actual negative pressure is written to P_out.
-//     _checkAlarms() handles n.P_out < 0 checks.
-//     negativePressure flag added for FlowAnimator and ChartRenderer.
 
 function calcPipe(params, P_in, Q_m3s, fluid) {
 	const D  = params.diameter_mm;

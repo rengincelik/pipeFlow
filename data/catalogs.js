@@ -1,5 +1,47 @@
 'use strict';
 
+export const FLUID_DATA = [
+	{
+		id: 'water',
+		name: 'Water (H2O)',
+		range: { min: 0, max: 150 },
+		coeffs: {
+			rho: [999.84, 0.067, -0.0089, 0.000035],
+			mu_vogel: [0.0241, 514.4, 133.5],
+			cp: [4.18, 0.0001]
+		}
+	},
+	{
+		id: 'eg50',
+		name: 'Etilen Glikol %50',
+		range: { min: -30, max: 120 },
+		coeffs: {
+			rho: [1085.1, -0.523, -0.0018],
+			mu_vogel: [0.0125, 1205.5, 155.2],
+			cp: [3.3, 0.005]
+		}
+	},
+	{
+		id: 'glycerin',
+		name: 'Gliserin',
+		range: { min: 0, max: 100 },
+		coeffs: {
+			rho: [1273.3, -0.612, 0],
+			mu_vogel: [0.0012, 2450.5, 120.2],
+			cp: [2.26, 0.0055]
+		}
+	},
+	{
+		id: 'oil_sae30',
+		name: 'Motor Yağı (SAE 30)',
+		range: { min: 0, max: 120 },
+		coeffs: {
+			rho: [895.2, -0.63, 0],
+			mu_vogel: [0.035, 1450.0, 110.0],
+			cp: [1.8, 0.004]
+		}
+	}
+];
 // CATALOG DATA → DN list, material table, component definitions
 
 export const DN_LIST = [

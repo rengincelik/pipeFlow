@@ -10,12 +10,12 @@ import {
 	SimulationEngine,
 	SysState,
 	Units,
-	fluidRegistry,
+	EmpiricalFluidModel,
 	createComponent,
-	createCatalogManager
+	createCatalogManager,
 } from './imports.js';
 
-import { MATERIALS }                   from './data/catalogs.js';
+import { MATERIALS , FLUID_DATA}                   from './data/catalogs.js';
 import { VALVE_DEFS }                  from './components/valve.js';
 import { createKeyboardController }    from './input/keyboard-controller.js';
 import { createProjectIO }             from './state/project-io.js';
@@ -86,6 +86,9 @@ const DOM = {
 // </editor-fold>
 
 // <editor-fold desc="INSTANCES">
+
+const fluidRegistry = initializeFluidRegistry(FLUID_DATA);
+
 const renderer   = new SVGRenderer(DOM.svgCanvas);
 const chart      = new ChartRenderer(DOM.chartCanvas);
 const engine     = new SimulationEngine(pipelineStore, { rho: 1000, mu: 0.001 });
@@ -97,6 +100,7 @@ const tooltip    = new TooltipManager(DOM.svgCanvas, engine, pipelineStore);
 const zoom       = createZoomController(DOM.svgCanvas, DOM.flowCanvas);
 
 const hudUpdater = createHudUpdater({ DOM, Units, pipelineStore });
+
 
 // IO and keyboard — CatalogManager and Actions not yet defined,
 // they will be linked in init() below.
@@ -213,7 +217,7 @@ const UI = {
 
 	populateFluidSelect() {
 	DOM.selectFluid.innerHTML = '';
-	for (const [id, model] of fluidRegistry) {
+	for (const [id, model] of fluidRegistry ) {
 		const opt = document.createElement('option');
 		opt.value = String(id);
 		opt.textContent = model.name;
@@ -547,6 +551,32 @@ const Interactions = {
 
 
 // <editor-fold desc="INIT">
+
+function initializeFluidRegistry(data) {
+	const registry = new Map();
+
+	data.forEach(item => {
+		// Veri yapısını sınıfın beklediği formata (valid_range ve T_min/max) dönüştürüyoruz
+		const config = {
+			meta: {
+				id: item.id,
+				name: item.name,
+				valid_range: {
+					T_min_C: item.range.min,
+					T_max_C: item.range.max
+				}
+			},
+			coeffs: item.coeffs
+		};
+
+		const model = new EmpiricalFluidModel(config);
+		registry.set(model.id, model);
+	});
+
+	console.log(`${registry.size} akışkan modeli hazır.`);
+	return registry;
+}
+
 function setupInitialState() {
 	const fluidId = SystemConfig.get('fluid_id') ?? 'water';
 	const tempC   = SystemConfig.get('T_in_C')   ?? 20;

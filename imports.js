@@ -16,7 +16,7 @@ import { SimulationEngine, SysState } from './Simulation/simulation-engine.js';
 
 // data ve component management
 import { Units } from './data/unit-system.js';
-import { fluidRegistry } from './data/fluid-model.js';
+import { EmpiricalFluidModel } from './data/fluid-model.js';
 import { createComponent } from './components/base.js';
 import { createCatalogManager } from './ui/catalog-manager.js';
 
@@ -39,7 +39,7 @@ export {
 	SimulationEngine,
 	SysState,
 	Units,
-	fluidRegistry,
+	EmpiricalFluidModel,
 	createComponent,
 	createCatalogManager
 };

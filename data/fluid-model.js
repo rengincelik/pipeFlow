@@ -1,19 +1,22 @@
 'use strict';
 
 /** Base Fluid Class */
-class FluidBase {
-  constructor(meta) { this.meta = meta; }
-  get id() { return this.meta.id; }
-  get name() { return this.meta.name; }
+export class FluidBase {
+	constructor(config) {
+		// Eğer config.meta varsa onu kullan, yoksa config'in kendisini meta kabul et
+		this.meta = config.meta || config;
+	}
+	get id() { return this.meta.id; }
+	get name() { return this.meta.name; }
 }
 
 /** Empirical MODEL (Su dahil tüm sıvılar için katsayı tabanlı) */
 /** Sadece newtonian sıvılar için geçerli **/
-class EmpiricalFluidModel extends FluidBase {
-  constructor(config) {
-    super(config.meta);
-    this.coeffs = config.coeffs;
-  }
+export class EmpiricalFluidModel extends FluidBase {
+	constructor(config) {
+		super(config);
+		this.coeffs = config.coeffs;
+	}
 
   getProps(T_C) {
     const warnings = [];
@@ -42,51 +45,3 @@ class EmpiricalFluidModel extends FluidBase {
     };
   }
 }
-
-// ── REGISTRY VE DATA ───────────────────────────────────────
-
-export const fluidRegistry = new Map();
-
-// 1. SAF SU (0-150°C arası çok yüksek hassasiyetli katsayılar)
-fluidRegistry.set('water', new EmpiricalFluidModel({
-  meta: { id: 'water', name: 'Water (H2O)', valid_range: { T_min_C: 0, T_max_C: 150 } },
-  coeffs: {
-    // rho için IAPWS-95'e yakınsadılmış polinom katsayıları
-    rho: [999.84, 0.067, -0.0089, 0.000035],
-    // mu için Vogel katsayıları
-    mu_vogel: [0.0241, 514.4, 133.5],
-    cp: [4.18, 0.0001]
-  }
-}));
-
-// 2. ETİLEN GLİKOL %50
-fluidRegistry.set('eg50', new EmpiricalFluidModel({
-  meta: { id: 'eg50', name: 'Etilen Glikol %50', valid_range: { T_min_C: -30, T_max_C: 120 } },
-  coeffs: {
-    rho: [1085.1, -0.523, -0.0018],
-    mu_vogel: [0.0125, 1205.5, 155.2],
-    cp: [3.3, 0.005]
-  }
-}));
-
-// 3. SAF GLİSERİN (C3H8O3)
-fluidRegistry.set('glycerin', new EmpiricalFluidModel({
-	meta: { id: 'glycerin', name: 'Gliserin', valid_range: { T_min_C: 0, T_max_C: 100 } },
-	coeffs: {
-		// rho = 1273.3 - 0.612 * T
-		rho: [1273.3, -0.612, 0],
-		// mu_vogel (Gliserin için viskozite çok yüksektir)
-		mu_vogel: [0.0012, 2450.5, 120.2],
-		cp: [2.26, 0.0055]
-	}
-}));
-
-// 4. MOTOR YAĞI (SAE 30)
-fluidRegistry.set('oil_sae30', new EmpiricalFluidModel({
-	meta: { id: 'oil_sae30', name: 'Motor Yağı (SAE 30)', valid_range: { T_min_C: 0, T_max_C: 120 } },
-	coeffs: {
-		rho: [895.2, -0.63, 0],
-		mu_vogel: [0.035, 1450.0, 110.0],
-		cp: [1.8, 0.004]
-	}
-}));
