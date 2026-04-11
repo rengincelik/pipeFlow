@@ -124,11 +124,17 @@ export class PumpComponent extends ComponentBase {
 			// P3: isRunning instance property'si kaldırıldı — status data-live ile tick'te güncellenir.
 			// hud-updater.js'teki _updatePump pump_state'i yazarsa burada görünür.
 			// Şu an engine snapshot'ta pumpState string olarak var (STOPPED/RAMPING/RUNNING/OVERLOAD).
-			this.row('Status',
-				`<span class="prop-value" data-live="pump_state">—</span>`),
 
+
+			`<div class="prop-section-label">Operating Point</div>`,
+			this.row('Flow',
+				`<span class="prop-value" data-live="op_Q">—</span>`, 'L/s'),
+			this.row('Head',
+				`<span class="prop-value" data-live="op_H">—</span>`, 'm'),
+			this.row('Velocity',
+				`<span class="prop-value" data-live="op_v">—</span>`),
 			this.row('Shaft Power',
-				`<span class="prop-value" data-live="P_shaft">—</span>`, 'W'),
+				`<span class="prop-value" data-live="P_shaft">—</span>`, 'kW'),
 		].join('');
 	}
 	// </editor-fold>

@@ -6,17 +6,23 @@
  */
 export function createHudUpdater({ DOM, Units, pipelineStore }) {
 
-	// HU3/HU4: DOM query cache
+// HU3/HU4: DOM query cache
 	let _pShaftEls    = null;
 	let _pumpStateEls = null;
 	let _prvStatusEls = null;
 	let _prvPInEls    = null;
+	let _opQEls       = null;
+	let _opHEls       = null;
+	let _opVEls       = null;
 
 	function _invalidatePropCache() {
 		_pShaftEls    = null;
 		_prvStatusEls = null;
 		_prvPInEls    = null;
 		_pumpStateEls = null;
+		_opQEls       = null;
+		_opHEls       = null;
+		_opVEls       = null;
 	}
 
 	// Reset cache when selection changes as prop panel is re-rendered
@@ -26,7 +32,7 @@ export function createHudUpdater({ DOM, Units, pipelineStore }) {
 	function update(snapshot) {
 		_updateTime(snapshot.t);
 		_updateVolume(snapshot.totalVolume_m3);
-		_updatePump(snapshot.nodes);
+		_updatePump(snapshot.nodes, snapshot);
 		_updatePRV(snapshot.nodes);
 	}
 	// </editor-fold>
@@ -50,37 +56,64 @@ export function createHudUpdater({ DOM, Units, pipelineStore }) {
 	// </editor-fold>
 
 	// <editor-fold desc="_updatePump">
-	function _updatePump(nodes) {
+	function _updatePump(nodes, snapshot) {
 		const pumpNode = nodes.find(n => n.type === 'pump');
 
-		// HU3: Query on cache miss, then store in cache
-		if (!_pShaftEls) {
-			_pShaftEls = [...DOM.propBody.querySelectorAll('[data-live="P_shaft"]')];
-		}
-		if (!_pumpStateEls) {
-			_pumpStateEls = [...DOM.propBody.querySelectorAll('[data-live="pump_state"]')];
-		}
+		if (!_pShaftEls)   _pShaftEls   = [...DOM.propBody.querySelectorAll('[data-live="P_shaft"]')];
+		if (!_pumpStateEls)_pumpStateEls = [...DOM.propBody.querySelectorAll('[data-live="pump_state"]')];
+		if (!_opQEls)      _opQEls      = [...DOM.propBody.querySelectorAll('[data-live="op_Q"]')];
+		if (!_opHEls)      _opHEls      = [...DOM.propBody.querySelectorAll('[data-live="op_H"]')];
+		if (!_opVEls)      _opVEls      = [...DOM.propBody.querySelectorAll('[data-live="op_v"]')];
 
+		// P_shaft
 		_pShaftEls.forEach(el => {
 			el.textContent = isFinite(pumpNode?.P_shaft)
 				? `${Math.round(pumpNode.P_shaft)} W`
 				: '—';
 		});
 
-		// P3: Display pump_state in the property panel
+		// pump_state
 		const stateLabel = {
 			STOPPED:  'IDLE',
 			RAMPING:  'STARTING',
 			RUNNING:  'RUNNING',
 			OVERLOAD: 'OVERLOAD',
 		}[pumpNode?.pumpState] ?? '—';
-
 		_pumpStateEls.forEach(el => {
 			el.textContent = stateLabel;
-			// Color: Red for OVERLOAD, Green for RUNNING, default otherwise
 			el.style.color = pumpNode?.pumpState === 'OVERLOAD' ? 'var(--red)'
 				: pumpNode?.pumpState === 'RUNNING'  ? 'var(--green)'
 					: '';
+		});
+
+		// Operating point — Q, H, velocity
+		const Q_m3s = snapshot?.Q_m3s;
+		const Q_lps = isFinite(Q_m3s) ? Q_m3s * 1000 : null;
+
+		// H: polinom değerlendirmesi — pumpNode'da H_op varsa kullan, yoksa pumpNode'daki deltaP'den hesapla
+
+		const H_op = isFinite(pumpNode?.H_actual) ? pumpNode.H_actual : null;
+		// Velocity: pumpNode downstream pipe'ın hızı — nodes[1] varsa
+		const pipeNode = nodes.find(n => n.type === 'pipe');
+		const v_ms     = isFinite(pipeNode?.v) ? pipeNode.v : null;
+
+		_opQEls.forEach(el => {
+			el.textContent = Q_lps !== null ? `${Q_lps.toFixed(2)} L/s` : '—';
+		});
+
+		_opHEls.forEach(el => {
+			el.textContent = H_op !== null ? `${H_op.toFixed(1)} m` : '—';
+		});
+
+		_opVEls.forEach(el => {
+			if (v_ms === null) { el.textContent = '—'; el.style.color = ''; return; }
+			const txt   = `${v_ms.toFixed(2)} m/s`;
+			const color = v_ms > 3.5 ? 'var(--red)'
+				: v_ms > 2.5 ? 'var(--yellow)'
+					: v_ms < 0.5 ? 'var(--text-dim)'
+						: 'var(--green)';
+			el.textContent = txt;
+			el.style.color  = color;
 		});
 	}
 	// </editor-fold>

@@ -9,27 +9,26 @@ import { fitHQCurve, evalHQ } from '../utils/hq-math.js';
  * Runs the chain from start to finish on every tick and generates snapshots.
  */
 
-// ── Constants ──────────────────────────────────────────────────────────────
-const GRAVITY        = 9.81;   // m/s²
-const TICK_MS        = 100;    // ms — UI update interval
-const PHYS_DT        = 0.1;    // s  — physical time step per tick
-const RAMP_DURATION  = 2.0;    // s  — duration for the pump to reach nominal value
-const MAX_ITER_CW    = 50;     // Max iterations for Cole brook-White
-const CW_TOL         = 1e-8;   // Convergence tolerance for Cole brook-White
-const DEADHEAD_WARN  = 5.0;    // s  — deadhead alarm threshold (E1: aligned with CLAUDE.md)
+// <editor-fold desc="Constants">
+const GRAVITY       = 9.81;  // m/s²
+const TICK_MS       = 100;   // ms — UI update interval
+const PHYS_DT       = 0.1;   // s  — physical time step per tick
+const RAMP_DURATION = 2.0;   // s  — duration for the pump to reach nominal value
+const MAX_ITER_CW   = 50;    // Max iterations for Colebrook-White
+const CW_TOL        = 1e-8;  // Convergence tolerance for Colebrook-White
+const DEADHEAD_WARN = 5.0;   // s  — deadhead alarm threshold
+const MAX_ITER_OP   = 50;    // Bisection max iterations
+const OP_TOL        = 1e-6;  // Convergence tolerance for Q (m³/s)
+const P_ATM         = 101325; // Pa — atmospheric reference (open discharge baseline)
+// </editor-fold>
 
-// Operating point bisection parameters
-const MAX_ITER_OP    = 50;     // Max iterations
-const OP_TOL         = 1e-6;   // Convergence tolerance for Q (m³/s)
-
-// ── System State ───────────────────────────────────────────────────────────
+// <editor-fold desc="State enums">
 export const SysState = Object.freeze({
 	IDLE:    'idle',
 	RUNNING: 'running',
 	ALARM:   'alarm',
 });
 
-// ── Pump State ────────────────────────────────────────────────────────────
 export const PumpState = Object.freeze({
 	STOPPED:  'stopped',
 	RAMPING:  'ramping',
@@ -37,17 +36,15 @@ export const PumpState = Object.freeze({
 	OVERLOAD: 'overload',
 });
 
-// ── Node State ────────────────────────────────────────────────────────────
 export const NodeState = Object.freeze({
 	DRY:     'dry',
 	FILLING: 'filling',
 	FLOWING: 'flowing',
 	BLOCKED: 'blocked',
 });
+// </editor-fold>
 
-// ── HELPER FUNCTIONS ──────────────────────────────────────────────────────
-//todo : helperı ayrı file a taşı
-
+// <editor-fold desc="Helper functions">
 function frictionFactor(Re, eps, D) {
 	if (Re < 1e-9) return 0;
 	if (Re < 2300) return 64 / Re;
@@ -103,40 +100,21 @@ function valveK(subtype, opening, K_table) {
 	const baseK = fallback[subtype] ?? 1.0;
 	return baseK * Math.pow(10, 2 * (1 - opening));
 }
+// </editor-fold>
 
-// ── COMPONENT CALCULATION FUNCTIONS ──────────────────────────────────────
-
-/**
- * Pump: Generates head from the H-Q curve.
- * Q is provided externally (via operating point iteration).
- */
-function calcPump(params, Q_m3s, rampF) {
+// <editor-fold desc="Component calculation functions">
+function calcPump(params, P_in, Q_m3s, rampF) {
 	const H_actual = evalHQ(params.hq_coeffs, Q_m3s) * rampF;
-	const P_out    = params.fluid.rho * GRAVITY * H_actual;
+	const P_out    = P_in + params.fluid.rho * GRAVITY * H_actual;
 	const v        = velocity(Q_m3s, params.diameter_mm);
-
-	// Shaft Power: P = rho * g * H * Q / eta
 	const eta      = Math.max(0.01, params.efficiency);
 	const P_shaft  = (params.fluid.rho * GRAVITY * H_actual * Q_m3s) / eta;
 
-	if (rampF > 0 && rampF < 0.1) {
-		console.log(`[İLK ÇALIŞMA] Pompa Basıncı: ${(P_out / 1000).toFixed(2)} kPa`);
-
-		// ... P_shaft hesaplamasından sonra
-		console.log(`--- POMPA VERİLERİ (${params.subtype}) ---`);
-		console.log(`Debi (Q): ${(Q_m3s * 1000).toFixed(2)} L/s`);
-		console.log(`Basma Yüksekliği (H): ${H_actual.toFixed(2)} m`);
-		console.log(`Üretilen Basınç (P_out): ${(P_out / 1000).toFixed(2)} kPa`);
-		console.log(`Harcanan Mil Gücü (P_shaft): ${P_shaft.toFixed(0)} Watt`);
-		console.log(`Akış Hızı (v): ${v.toFixed(2)} m/s`);
-		console.log('---------------------------------------');
-	}
-
 	return {
 		P_out,
-		D_out_mm:  params.diameter_mm,
-		dP_major:  0,
-		dP_minor:  0,
+		D_out_mm: params.diameter_mm,
+		dP_major: 0,
+		dP_minor: 0,
 		v,
 		Re: reynolds(v, params.diameter_mm, params.fluid.rho, params.fluid.mu),
 		H_actual,
@@ -144,7 +122,6 @@ function calcPump(params, Q_m3s, rampF) {
 		nodeState: NodeState.FLOWING,
 	};
 }
-
 
 function calcPipe(params, P_in, Q_m3s, fluid) {
 	const D  = params.diameter_mm;
@@ -170,17 +147,17 @@ function calcPipe(params, P_in, Q_m3s, fluid) {
 }
 
 function calcElbow(params, P_in, Q_m3s, fluid) {
-	const D  = params.diameter_mm;
-	const v  = velocity(Q_m3s, D);
-	const Re = reynolds(v, D, fluid.rho, fluid.mu);
-	const dP = minorLoss(params.K, v, fluid.rho);
+	const D   = params.diameter_mm;
+	const v   = velocity(Q_m3s, D);
+	const Re  = reynolds(v, D, fluid.rho, fluid.mu);
+	const dP  = minorLoss(params.K, v, fluid.rho);
 	const P_out = P_in - dP;
 
 	return {
 		P_out,
-		D_out_mm:  D,
-		dP_major:  0,
-		dP_minor:  dP,
+		D_out_mm: D,
+		dP_major: 0,
+		dP_minor: dP,
 		v, Re,
 		negativePressure: P_out < 0,
 		nodeState: NodeState.FLOWING,
@@ -218,22 +195,22 @@ function calcTransition(params, P_in, Q_m3s, fluid) {
 }
 
 function calcValve(params, P_in, Q_m3s, fluid) {
-	const D      = params.diameter_mm;
-	const v      = velocity(Q_m3s, D);
-	const Re     = reynolds(v, D, fluid.rho, fluid.mu);
-	const K      = valveK(params.subtype, params.opening, params.K_table);
-	const dP     = minorLoss(K, v, fluid.rho);
+	const D       = params.diameter_mm;
+	const v       = velocity(Q_m3s, D);
+	const Re      = reynolds(v, D, fluid.rho, fluid.mu);
+	const K       = valveK(params.subtype, params.opening, params.K_table);
+	const dP      = minorLoss(K, v, fluid.rho);
 	const blocked = params.opening <= 0;
-	const P_out  = blocked ? P_in : (P_in - dP);
+	const P_out   = blocked ? P_in : (P_in - dP);
 
 	return {
 		P_out,
-		D_out_mm:  D,
-		dP_major:  0,
-		dP_minor:  dP,
-		v:         blocked ? 0 : v,
+		D_out_mm: D,
+		dP_major: 0,
+		dP_minor: dP,
+		v:        blocked ? 0 : v,
 		Re, K,
-		opening:   params.opening,
+		opening:  params.opening,
 		negativePressure: !blocked && P_out < 0,
 		nodeState: blocked ? NodeState.BLOCKED : NodeState.FLOWING,
 	};
@@ -245,41 +222,33 @@ function calcPRV(params, P_in, Q_m3s, fluid) {
 	const Re    = reynolds(v, D, fluid.rho, fluid.mu);
 	const P_set = params.P_set_Pa;
 
-	let P_out;
-	let prvState;   // 'active' | 'inactive'
-
-	if (P_in > P_set) {
-		// PRV active — fix output to P_set
-		P_out    = P_set;
-		prvState = 'active';
-	} else {
-		// PRV inactive — transparent
-		P_out    = P_in;
-		prvState = 'inactive';
-	}
+	const active = P_in > P_set;
+	const P_out  = active ? P_set : P_in;
 
 	return {
 		P_out,
-		D_out_mm:  D,
-		dP_major:  0,
-		dP_minor:  Math.max(0, P_in - P_out),   // Reduced pressure reported as loss
-		v,
-		Re,
-		prvState,
+		D_out_mm: D,
+		dP_major: 0,
+		dP_minor: Math.max(0, P_in - P_out),
+		v, Re,
+		prvState: active ? 'active' : 'inactive',
 		negativePressure: P_out < 0,
 		nodeState: NodeState.FLOWING,
 	};
 }
+// </editor-fold>
 
-// ── OPERATING POINT CALCULATION ──────────────────────────────────────────
+// <editor-fold desc="Operating point calculation">
 
 /**
- * Runs the chain for a given Q, returns pump head and system head.
- * Operating Point: H_pump(Q) = H_system(Q)
+ * Runs the full component chain for a given Q.
+ * P_current starts at P_ATM (open suction baseline).
+ * Pump adds ρgH on top of inlet pressure.
+ * Returns P_final at discharge end.
  */
 function evaluateSystem(components, pumpParams, Q_m3s, rampF, fluid) {
 	const nodes = [];
-	let P_current = 0;
+	let P_current = P_ATM; // TODO: SystemConfig'ten P_inlet_Pa okuyacak
 	let D_current = pumpParams.diameter_mm;
 	let isBlocked = false;
 
@@ -298,7 +267,7 @@ function evaluateSystem(components, pumpParams, Q_m3s, rampF, fluid) {
 		} else {
 			switch (comp.type) {
 				case 'pump':
-					result = calcPump(params, Q_m3s, rampF);
+					result = calcPump(params, P_current, Q_m3s, rampF);
 					break;
 				case 'pipe':
 					result = calcPipe(params, P_current, Q_m3s, fluid);
@@ -314,9 +283,7 @@ function evaluateSystem(components, pumpParams, Q_m3s, rampF, fluid) {
 						result = calcPRV(params, P_current, Q_m3s, fluid);
 					} else {
 						result = calcValve(params, P_current, Q_m3s, fluid);
-						if (result.nodeState === NodeState.BLOCKED) {
-							isBlocked = true;
-						}
+						if (result.nodeState === NodeState.BLOCKED) isBlocked = true;
 					}
 					break;
 				default:
@@ -356,16 +323,12 @@ function evaluateSystem(components, pumpParams, Q_m3s, rampF, fluid) {
 		D_current = result.D_out_mm;
 	}
 
-	const H_pump   = evalHQ(pumpParams.hq_coeffs, Q_m3s) * rampF;
-	const P_final  = P_current;
-	const H_system = H_pump - P_final / (fluid.rho * GRAVITY);
-
-	return { H_pump, H_system, P_final, nodes, isBlocked };
+	return { P_final: P_current, nodes, isBlocked };
 }
 
 /**
- * Find operating point using Bisection method.
- * F(Q) = H_pump(Q) - H_system(Q) = 0
+ * Bisection: F(Q) = P_final(Q) - P_ATM = 0
+ * Open discharge assumption — system balances when outlet reaches atmospheric pressure.
  */
 function findOperatingPoint(components, pumpParams, rampF, fluid, Q_prev) {
 	const Q_max = pumpParams.hq_coeffs
@@ -377,7 +340,7 @@ function findOperatingPoint(components, pumpParams, rampF, fluid, Q_prev) {
 
 	const F = (Q) => {
 		const { P_final } = evaluateSystem(components, pumpParams, Q, rampF, fluid);
-		return P_final;
+		return P_final - P_ATM;
 	};
 
 	const F_lo = F(Q_lo);
@@ -387,8 +350,8 @@ function findOperatingPoint(components, pumpParams, rampF, fluid, Q_prev) {
 		return { Q_op: Q_prev, converged: false, iterations: 0, nodes: null, isBlocked: false };
 	}
 
-	let Q_mid;
-	let iter = 0;
+	let Q_mid = Q_lo;
+	let iter  = 0;
 
 	for (iter = 0; iter < MAX_ITER_OP; iter++) {
 		Q_mid = (Q_lo + Q_hi) / 2;
@@ -403,14 +366,14 @@ function findOperatingPoint(components, pumpParams, rampF, fluid, Q_prev) {
 		}
 	}
 
-	const converged = Math.abs(Q_hi - Q_lo) < OP_TOL * 10;
+	const converged        = Math.abs(Q_hi - Q_lo) < OP_TOL * 10;
 	const { nodes, isBlocked } = evaluateSystem(components, pumpParams, Q_mid, rampF, fluid);
 
 	return { Q_op: Q_mid, converged, iterations: iter, nodes, isBlocked };
 }
+// </editor-fold>
 
-// ── SIMULATION ENGINE CLASS ────────────────────────────────────────────────
-
+// <editor-fold desc="SimulationEngine class">
 export class SimulationEngine {
 	constructor(pipelineStore, fluid) {
 		this._store   = pipelineStore;
@@ -427,13 +390,14 @@ export class SimulationEngine {
 		this._snapshots      = [];
 		this._alarms         = [];
 
-		this._Q_operating = 0.001;   // m³/s initial guess
+		this._Q_operating = 0.001; // m³/s initial guess
 
 		this._onTick        = null;
 		this._onAlarm       = null;
 		this._onStateChange = null;
 	}
 
+	// <editor-fold desc="Public API">
 	start() {
 		if (this._sysState === SysState.ALARM) this.stop();
 		if (this._sysState === SysState.RUNNING) return;
@@ -470,9 +434,7 @@ export class SimulationEngine {
 	setComponentProp(componentId, prop, value) {
 		const comp = this._store.components.find(c => c.id === componentId);
 		if (!comp) return;
-		if (typeof comp.override === 'function') {
-			comp.override(prop, value, true);
-		}
+		if (typeof comp.override === 'function') comp.override(prop, value, true);
 	}
 
 	setFluid(fluid) { this._fluid = fluid; }
@@ -487,13 +449,14 @@ export class SimulationEngine {
 	get totalVolume_m3() { return this._totalVolume_m3; }
 	get snapshots()      { return this._snapshots; }
 	get lastSnapshot()   { return this._snapshots[this._snapshots.length - 1] ?? null; }
+	// </editor-fold>
 
+	// <editor-fold desc="_tick">
 	_tick() {
 		this._t += PHYS_DT;
 		const components = this._store.components;
 		if (!components.length) return;
 
-		// ── Fluid guard ──────────────────────────────────────────────────────
 		if (!this._fluid || !isFinite(this._fluid.rho) || this._fluid.rho <= 0) {
 			console.warn('[Engine] Invalid fluid — skipping tick:', this._fluid);
 			return;
@@ -502,7 +465,6 @@ export class SimulationEngine {
 		const pumpComp   = components[0];
 		const pumpParams = { ...pumpComp.getSafeParams(), fluid: this._fluid };
 
-		// ── Pump coefficients guard ─────────────────────────────────────────
 		const c = pumpParams.hq_coeffs;
 		if (!c || !isFinite(c.a0) || c.a2 >= 0) {
 			console.warn('[Engine] Invalid pump H-Q coefficients — skipping tick:', c);
@@ -565,7 +527,9 @@ export class SimulationEngine {
 
 		if (this._onTick) this._onTick(snapshot);
 	}
+	// </editor-fold>
 
+	// <editor-fold desc="_checkAlarms">
 	_checkAlarms(nodes, isBlocked, Q_effective, convergenceFailed, validationWarnings = []) {
 		const alarms = [];
 
@@ -632,7 +596,9 @@ export class SimulationEngine {
 		if (alarms.length && this._onAlarm) this._onAlarm(alarms);
 		return alarms;
 	}
+	// </editor-fold>
 
+	// <editor-fold desc="State management">
 	_setSysState(state) {
 		if (this._sysState === state) return;
 		this._sysState = state;
@@ -640,8 +606,8 @@ export class SimulationEngine {
 	}
 
 	_notifyStateChange() {
-		if (this._onStateChange) {
-			this._onStateChange(this._sysState, this._pumpState);
-		}
+		if (this._onStateChange) this._onStateChange(this._sysState, this._pumpState);
 	}
+	// </editor-fold>
 }
+// </editor-fold>
