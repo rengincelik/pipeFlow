@@ -24,6 +24,8 @@ import { createHudUpdater }            from './ui/hud-updater.js';
 import { createZoomController }        from './ui/zoom-controller.js';
 
 import { createTabManager } from './state/tab-manager.js';
+import { DiagnosticEngine  } from './diagnostics/diagnostic-engine.js';
+import { DiagnosticsPanel  } from './diagnostics/diagnostic-panel.js';
 // </editor-fold>
 
 // <editor-fold desc="DOM">
@@ -91,11 +93,15 @@ const DOM = {
 const renderer   = new SVGRenderer(DOM.svgCanvas);
 const chart      = new ChartRenderer(DOM.chartCanvas);
 const engine     = new SimulationEngine(pipelineStore, { rho: 1000, mu: 0.001 });
+
+const diagnosticEngine = new DiagnosticEngine(pipelineStore);
+
+const tooltip = new TooltipManager(DOM.svgCanvas, engine, pipelineStore, diagnosticEngine);
+
 const animator = new FlowAnimator(
 	/** @type {SVGSVGElement} */ (DOM.svgCanvas),
 	/** @type {HTMLCanvasElement} */ (DOM.flowCanvas)
 );
-const tooltip    = new TooltipManager(DOM.svgCanvas, engine, pipelineStore);
 const zoom       = createZoomController(DOM.svgCanvas, DOM.flowCanvas);
 
 const hudUpdater = createHudUpdater({ DOM, Units, pipelineStore });
@@ -328,6 +334,19 @@ const UI = {
 		const fluidName = DOM.selectFluid.options[DOM.selectFluid.selectedIndex]?.text ?? '—';
 		const tempC     = SystemConfig.get('T_in_C') ?? 20;
 		DOM.statusConfig.textContent = `${fluidName} · ${tempC}°C`;
+
+		const { critical, warning, info } = diagnosticEngine?.getSummary() ?? { critical: 0, warning: 0, info: 0 };
+		const diagText = critical > 0
+			? `${critical} critical · ${warning} warning`
+			: warning > 0
+				? `${warning} warning`
+				: info > 0
+					? `${info} info`
+					: '';
+
+		if (diagText) {
+			DOM.statusConfig.textContent += ` · ${diagText}`;
+		}
 	},
 
 	showBlockToast(msg) {
@@ -633,6 +652,7 @@ const CatalogManager = createCatalogManager({
 			SystemConfig.set('T_in_C',   tempC);
 		},
 	});
+
 	// 5c. tabManager.init() — tab listesini yükler, render eder
 	// İlk switch/load IO var olduktan sonra olmalı
 	tabManager.init();   // render() + ilk aktif tab'ı belirler
@@ -657,7 +677,23 @@ const CatalogManager = createCatalogManager({
 	UI.populateFluidSelect();
 	CatalogManager.render();
 	bindEvents();
+// 7. Diagnostics
+	engine.setDiagnosticEngine(diagnosticEngine);
+	const diagnosticsPanel = new DiagnosticsPanel(diagnosticEngine);
 
+	diagnosticEngine.onChange(results => {
+		diagnosticsPanel.render(results);
+		UI.updateStatusBar();
+	});
+
+	pipelineStore.on('components:change', () => {
+		diagnosticEngine.evaluate(null);
+	});
+
+// Evaluate on store change (no snapshot — config rules only)
+	pipelineStore.on('components:change', () => {
+		diagnosticEngine.evaluate(null);
+	});
 
 	// 5d. İlk yükleme — tabManager.init() aktif tab'ı belirledi,
 	// storage key artık doğru. Eski loadProject/setupInitialState koşulu:

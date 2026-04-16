@@ -10,12 +10,14 @@ import { Units } from '../data/unit-system.js';
 const _boundMap = new WeakMap();
 
 export class TooltipManager {
-	constructor(svgEl, engine, pipelineStore) {
+	constructor(svgEl, engine, pipelineStore, diagnosticEngine = null) {
 		this._svg    = svgEl;
 		this._engine = engine;
 		this._store  = pipelineStore;
 		this._el     = this._createEl();
 		this._hideTimer = null;
+		this._diagnosticEngine = diagnosticEngine;
+
 		document.body.appendChild(this._el);
 	}
 
@@ -139,24 +141,29 @@ export class TooltipManager {
 			extra = this._row('K', K);
 		}
 
+		const diagResults = this._diagnosticEngine?.getResultsFor(compId) ?? [];
+		const diagSection = diagResults.length ? this._buildDiagSection(diagResults) : '';
+
 		return `
-      <div style="color:#94a3b8;font-size:10px;margin-bottom:6px;letter-spacing:0.05em;">
-        ${comp.type.toUpperCase()}${comp.subtype ? ' · ' + comp.subtype : ''}
-      </div>
-      <div style="color:#f1f5f9;font-weight:600;font-size:12px;margin-bottom:8px;">
-        ${comp.name || comp.type}
-      </div>
-      <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:7px;">
-        ${this._row('P in',   P_in)}
-        ${this._row('P out',  P_out)}
-        ${this._row('v',      vel)}
-        ${this._row('Q',      Q)}
-        ${this._row('Re',     `${(node.Re > 0) ? this._row('Re', `${Re} · ${regime}`) : ''}`)}
-        ${this._row('ΔP maj', dPmaj, '#f87171')}
-        ${this._row('ΔP min', dPmin, '#fbbf24')}
-        ${extra}
-        ${this._row('State',  state, this._stateColor(state))}
-      </div>`;
+		  <div style="color:#94a3b8;font-size:10px;margin-bottom:6px;letter-spacing:0.05em;">
+			${comp.type.toUpperCase()}${comp.subtype ? ' · ' + comp.subtype : ''}
+		  </div>
+		  <div style="color:#f1f5f9;font-weight:600;font-size:12px;margin-bottom:8px;">
+			${comp.name || comp.type}
+		  </div>
+		  <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:7px;">
+			${this._row('P in',   P_in)}
+			${this._row('P out',  P_out)}
+			${this._row('v',      vel)}
+			${this._row('Q',      Q)}
+			${this._row('Re',     `${(node.Re > 0) ? this._row('Re', `${Re} · ${regime}`) : ''}`)}
+			${this._row('ΔP maj', dPmaj, '#f87171')}
+			${this._row('ΔP min', dPmin, '#fbbf24')}
+			${extra}
+			${this._row('State',  state, this._stateColor(state))}
+		  </div>
+		  ${diagSection}`;
+
 	}
 
 	// ── Yardımcılar ────────────────────────────────────────────
@@ -208,4 +215,20 @@ export class TooltipManager {
 	}
 
 	destroy() { this._el.remove(); }
+	_buildDiagSection(results) {
+		const COLORS = { critical: '#f87171', warning: '#fbbf24', info: '#94a3b8' };
+		const rows = results.map(r => {
+			const color = COLORS[r.severity] ?? '#94a3b8';
+			return `<div style="display:flex;gap:6px;align-items:baseline;padding:2px 0;">
+      <span style="color:${color};font-size:9px;font-family:var(--font-mono);white-space:nowrap;">${r.id}</span>
+      <span style="color:#cbd5e1;font-size:10px;">${r.message}</span>
+    </div>`;
+		}).join('');
+
+		return `
+    <div style="border-top:1px solid rgba(255,255,255,0.06);margin-top:6px;padding-top:6px;">
+      <div style="color:#64748b;font-size:9px;letter-spacing:0.05em;margin-bottom:3px;">DIAGNOSTICS</div>
+      ${rows}
+    </div>`;
+	}
 }

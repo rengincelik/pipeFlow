@@ -83,6 +83,7 @@ function rampFactor(t, rampDuration) {
 }
 
 function valveK(subtype, opening, K_table) {
+	if (opening > 1) opening = opening / 100;
 	if (opening <= 0) return 1e9;
 	if (K_table && K_table.length >= 2) {
 		const sorted = [...K_table].sort((a, b) => a.opening - b.opening);
@@ -395,8 +396,14 @@ export class SimulationEngine {
 		this._onTick        = null;
 		this._onAlarm       = null;
 		this._onStateChange = null;
+
+		this._diagnosticEngine = null;
 	}
 
+	/** @param {import('../diagnostics/diagnostic-engine.js').DiagnosticEngine} de */
+	setDiagnosticEngine(de) {
+		this._diagnosticEngine = de;
+	}
 	// <editor-fold desc="Public API">
 	start() {
 		if (this._sysState === SysState.ALARM) this.stop();
@@ -524,6 +531,8 @@ export class SimulationEngine {
 
 		this._snapshots.push(snapshot);
 		if (this._snapshots.length > 600) this._snapshots.shift();
+
+		this._diagnosticEngine?.evaluate(snapshot);
 
 		if (this._onTick) this._onTick(snapshot);
 	}

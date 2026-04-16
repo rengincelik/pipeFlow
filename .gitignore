@@ -20,6 +20,8 @@ thumbs.db
 CLAUDE.md
 FIXES.md
 ROADMAP.md
+DIAGNOSTICS.md
+
 
 # Ortam Değişkenleri (Hassas bilgiler içerir, asla commitlenmemeli)
 .env
