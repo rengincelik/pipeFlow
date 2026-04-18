@@ -171,10 +171,6 @@ export function validateParams(params) {
     case 'elbow': {
       safe.diameter_mm = sanitizeField('diameter_mm', params.diameter_mm,
         FALLBACKS.diameter_mm, warnings, compLabel);
-      safe.K           = sanitizeField('K',           params.K,
-        FALLBACKS.K,           warnings, compLabel);
-      // K=0 geçerli (ideal dirsek) — negatif değil
-      if (safe.K < 0) { safe.K = FALLBACKS.K; warnings.push(`${compLabel}.K negatif → fallback`); }
       break;
     }
 

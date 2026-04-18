@@ -1,8 +1,5 @@
 'use strict';
-
-// ═══════════════════════════════════════════════════════════
-// PRV — Pressure Reducing Valve
-// ═══════════════════════════════════════════════════════════
+ // PRV — Pressure Reducing Valve
 
 import { ComponentBase, registerComponentType } from './base.js';
 import { Units }                                from '../data/unit-system.js';

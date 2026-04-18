@@ -136,8 +136,8 @@ export class TooltipManager {
 		}
 
 		if (comp.type === 'elbow') {
-			// TT3: comp.resolve('K') — override mixin üzerinden
-			const K = this._fmt(comp.resolve('K'), v => v.toFixed(2));
+			// comp.resolve yerine engine sonucundan (node) oku
+			const K = this._fmt(node.K, v => v.toFixed(2));
 			extra = this._row('K', K);
 		}
 

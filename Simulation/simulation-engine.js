@@ -101,6 +101,14 @@ function valveK(subtype, opening, K_table) {
 	const baseK = fallback[subtype] ?? 1.0;
 	return baseK * Math.pow(10, 2 * (1 - opening));
 }
+
+/**
+ * Endüstriyel Dinamik K Hesaplama
+ * K = f_t * (L/D)_eq
+ */
+// simulation-engine.js içinde
+
+
 // </editor-fold>
 
 // <editor-fold desc="Component calculation functions">
@@ -147,20 +155,24 @@ function calcPipe(params, P_in, Q_m3s, fluid) {
 	};
 }
 
+
 function calcElbow(params, P_in, Q_m3s, fluid) {
-	const D   = params.diameter_mm;
-	const v   = velocity(Q_m3s, D);
-	const Re  = reynolds(v, D, fluid.rho, fluid.mu);
-	const dP  = minorLoss(params.K, v, fluid.rho);
+	const D_mm = params.diameter_mm;
+	const v = velocity(Q_m3s, D_mm);
+
+	const dynamicK = params.K;
+
+	const dP = minorLoss(dynamicK, v, fluid.rho);
 	const P_out = P_in - dP;
 
 	return {
 		P_out,
-		D_out_mm: D,
+		D_out_mm: D_mm,
 		dP_major: 0,
 		dP_minor: dP,
-		v, Re,
-		negativePressure: P_out < 0,
+		v,
+		Re: reynolds(v, D_mm, fluid.rho, fluid.mu),
+		K: dynamicK,
 		nodeState: NodeState.FLOWING,
 	};
 }
