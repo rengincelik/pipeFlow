@@ -294,7 +294,6 @@ export class ComponentBase extends EventEmitter {
       </div>`;
 	}
 
-	// B8: unit parametresi artık body'de de kullanılıyor
 	value(val, unit = '') {
 		return `<span class="prop-value">${val}${unit ? ' ' + unit : ''}</span>`;
 	}

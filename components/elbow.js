@@ -132,7 +132,6 @@ export class ElbowComponent extends ComponentBase {
 				this.value(dVal) +
 				this.hint(dVal, v => Units.diameter(v)), 'mm'),
 
-			// Engine tarafından hesaplanan dinamik K değerini gösterir
 			this.row('K Factor',
 				this.value(this.K > 0 ? this.K.toFixed(3) : '---'),
 				'<small>Dynamic (Crane)</small>')

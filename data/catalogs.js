@@ -70,8 +70,8 @@ export const CATALOG_DEF = [
 	{
 		group: 'Elbows',
 		items: [
-			{ type:'elbow', subtype:'rd', icon:'⤵', desc:'Right ? Down' },
-			{ type:'elbow', subtype:'ru', icon:'⤴', desc:'Right ? Up'   },
+			{ type:'elbow', subtype:'rd', icon:'⤵', desc:'Right Down' },
+			{ type:'elbow', subtype:'ru', icon:'⤴', desc:'Right Up'   },
 			{ type:'elbow', subtype:'ur', icon:'⤴', desc:'Up ? Right'   },
 			{ type:'elbow', subtype:'dr', icon:'⤵', desc:'Down ? Right' },
 		],
@@ -99,13 +99,11 @@ export const CATALOG_DEF = [
 	{
 		group: 'Pump',
 		items: [
-			{ type:'pump', subtype:'centrifugal', icon:'⟳', desc:'Gate / K=0.20' },
+			{ type:'pump', subtype:'centrifugal', icon:'⟳', desc:'pump' },
 		],
 	},
 ];
 
-// TODO: We need to add a K table for valves
-// TODO: We need to add angle (cone angle) for transitions
 
 
 // Automatically generate all valid reducer pairs from DN_LIST
@@ -132,9 +130,3 @@ export const EXPANDER_PAIRS = TRANSITION_PAIRS.map(p => ({
 export const CATALOG_MAP = new Map(
 	CATALOG_DEF.flatMap(g => g.items.map(item => [`${item.type}:${item.subtype}`, item]))
 );
-
-
-// NOTE:
-// D1: cone_angle_deg is defined in SystemConfig.defaults (10°)
-// TRANSITION_PAIRS and EXPANDER_PAIRS store DN mappings here;
-// the conical length calculation is handled inside TransitionComponent.length_m getter.
