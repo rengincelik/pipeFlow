@@ -568,19 +568,29 @@ export class SimulationEngine {
 		}
 
 		if (this._pumpState !== PumpState.STOPPED && Q_effective <= 1e-6) {
-			this._deadheadT += PHYS_DT;
-			alarms.push({
-				code:    'DEADHEAD',
-				level:   this._deadheadT > DEADHEAD_WARN ? 'critical' : 'warning',
-				message: `Pump in deadhead condition (${this._deadheadT.toFixed(1)}s)`,
-				t:       this._t,
-			});
-			if (this._deadheadT > DEADHEAD_WARN) {
-				this._pumpState = PumpState.OVERLOAD;
-				this._setSysState(SysState.ALARM);
+// ÖNCE: PRV aktif mi?
+			const prvActive = nodes.some(n => n.subtype === 'prv' && n.prvState === 'active');
+
+			if (this._pumpState !== PumpState.STOPPED && Q_effective <= 1e-6) {
+				if (prvActive) {
+					// PRV regüle ediyor — deadhead sayacını sıfırla, alarm basma
+					this._deadheadT = 0;
+				} else {
+					this._deadheadT += PHYS_DT;
+					alarms.push({
+						code:    'DEADHEAD',
+						level:   this._deadheadT > DEADHEAD_WARN ? 'critical' : 'warning',
+						message: `Pump in deadhead condition (${this._deadheadT.toFixed(1)}s)`,
+						t:       this._t,
+					});
+					if (this._deadheadT > DEADHEAD_WARN) {
+						this._pumpState = PumpState.OVERLOAD;
+						this._setSysState(SysState.ALARM);
+					}
+				}
+			} else {
+				this._deadheadT = 0;
 			}
-		} else {
-			this._deadheadT = 0;
 		}
 
 		nodes.forEach(n => {
