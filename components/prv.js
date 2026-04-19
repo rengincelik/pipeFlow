@@ -88,21 +88,19 @@ export class PRVComponent extends ComponentBase {
 	renderPropsHTML() {
 		const dVal    = this.diameter_mm;
 		const psetVal = this.P_set_bar;
-
 		return [
 			this.row('Diameter',
 				this.value(dVal) +
 				this.hint(dVal, v => Units.diameter(v)), 'mm'),
-
 			this.row('Set Pressure',
 				this.input('P_set_bar', psetVal) +
 				this.hint(psetVal, () => `${(psetVal * 14.504).toFixed(1)} psi`), 'bar'),
-
 			this.row('Status',
 				`<span class="prop-value" data-live="prv_status">—</span>`),
-
 			this.row('Inlet P',
 				`<span class="prop-value" data-live="prv_p_in">—</span>`),
+			this.row('Loss Coeff K',
+				`<span class="prop-value" data-live="prv_K">—</span>`),
 		].join('');
 	}
 

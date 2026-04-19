@@ -2,24 +2,22 @@
 
 import { fitHQCurve, evalHQ } from '../utils/hq-math.js';
 
-/**
- * SIMULATION ENGINE
- * Dynamic pipeline simulation motor.
- * Operates independently of PipelineStore — does not mutate components directly.
- * Runs the chain from start to finish on every tick and generates snapshots.
- */
-
 // <editor-fold desc="Constants">
-const GRAVITY       = 9.81;  // m/s²
-const TICK_MS       = 100;   // ms — UI update interval
-const PHYS_DT       = 0.1;   // s  — physical time step per tick
-const RAMP_DURATION = 2.0;   // s  — duration for the pump to reach nominal value
-const MAX_ITER_CW   = 50;    // Max iterations for Colebrook-White
-const CW_TOL        = 1e-8;  // Convergence tolerance for Colebrook-White
-const DEADHEAD_WARN = 5.0;   // s  — deadhead alarm threshold
-const MAX_ITER_OP   = 50;    // Bisection max iterations
-const OP_TOL        = 1e-6;  // Convergence tolerance for Q (m³/s)
-const P_ATM         = 101325; // Pa — atmospheric reference (open discharge baseline)
+const GRAVITY       = 9.81;
+const TICK_MS       = 100;
+const PHYS_DT       = 0.1;
+const RAMP_DURATION = 2.0;
+const MAX_ITER_CW   = 50;
+const CW_TOL        = 1e-8;
+const DEADHEAD_WARN = 5.0;
+const MAX_ITER_OP   = 50;
+const OP_TOL        = 1e-6;
+const P_ATM         = 101325;
+
+const MAX_PRV_ITER  = 6;
+const PRV_TOL       = 1e-4;   // m³/s
+const PRV_K_MAX     = 1000;
+const PRV_V_MIN     = 0.01;   // sıfır bölme koruması
 // </editor-fold>
 
 // <editor-fold desc="State enums">
@@ -101,14 +99,6 @@ function valveK(subtype, opening, K_table) {
 	const baseK = fallback[subtype] ?? 1.0;
 	return baseK * Math.pow(10, 2 * (1 - opening));
 }
-
-/**
- * Endüstriyel Dinamik K Hesaplama
- * K = f_t * (L/D)_eq
- */
-// simulation-engine.js içinde
-
-
 // </editor-fold>
 
 // <editor-fold desc="Component calculation functions">
@@ -155,15 +145,12 @@ function calcPipe(params, P_in, Q_m3s, fluid) {
 	};
 }
 
-
 function calcElbow(params, P_in, Q_m3s, fluid) {
-	const D_mm = params.diameter_mm;
-	const v = velocity(Q_m3s, D_mm);
-
+	const D_mm    = params.diameter_mm;
+	const v       = velocity(Q_m3s, D_mm);
 	const dynamicK = params.K;
-
-	const dP = minorLoss(dynamicK, v, fluid.rho);
-	const P_out = P_in - dP;
+	const dP      = minorLoss(dynamicK, v, fluid.rho);
+	const P_out   = P_in - dP;
 
 	return {
 		P_out,
@@ -229,39 +216,40 @@ function calcValve(params, P_in, Q_m3s, fluid) {
 	};
 }
 
-function calcPRV(params, P_in, Q_m3s, fluid) {
+function calcPRV(params, P_in, Q_m3s, fluid, K_override = null) {
 	const D     = params.diameter_mm;
 	const v     = velocity(Q_m3s, D);
 	const Re    = reynolds(v, D, fluid.rho, fluid.mu);
 	const P_set = params.P_set_Pa;
 
 	const active = P_in > P_set;
-	const P_out  = active ? P_set : P_in;
+	let K = 0;
+	if (K_override !== null) {
+		K = K_override;
+	} else if (active && v > PRV_V_MIN) {
+		K = (P_in - P_set) / (0.5 * fluid.rho * v * v);
+	}
+
+	const dP_prv = 0.5 * fluid.rho * v * v * K;
+	const P_out  = Math.max(0, P_in - dP_prv);
 
 	return {
 		P_out,
-		D_out_mm: D,
-		dP_major: 0,
-		dP_minor: Math.max(0, P_in - P_out),
-		v, Re,
-		prvState: active ? 'active' : 'inactive',
+		D_out_mm:        D,
+		dP_major:        0,
+		dP_minor:        dP_prv,
+		v, Re, K,
+		prvState:        active ? 'active' : 'inactive',
 		negativePressure: P_out < 0,
-		nodeState: NodeState.FLOWING,
+		nodeState:       NodeState.FLOWING,
 	};
 }
 // </editor-fold>
 
 // <editor-fold desc="Operating point calculation">
-
-/**
- * Runs the full component chain for a given Q.
- * P_current starts at P_ATM (open suction baseline).
- * Pump adds ρgH on top of inlet pressure.
- * Returns P_final at discharge end.
- */
-function evaluateSystem(components, pumpParams, Q_m3s, rampF, fluid) {
+function evaluateSystem(components, pumpParams, Q_m3s, rampF, fluid, prvOverrides = {}) {
 	const nodes = [];
-	let P_current = P_ATM; // TODO: SystemConfig'ten P_inlet_Pa okuyacak
+	let P_current = P_ATM;
 	let D_current = pumpParams.diameter_mm;
 	let isBlocked = false;
 
@@ -293,7 +281,11 @@ function evaluateSystem(components, pumpParams, Q_m3s, rampF, fluid) {
 					break;
 				case 'valve':
 					if (params.subtype === 'prv') {
-						result = calcPRV(params, P_current, Q_m3s, fluid);
+						// prvOverrides'dan K al — iteration'dan geliyorsa override, yoksa null (calcPRV kendi hesaplar)
+						const K_override = prvOverrides.hasOwnProperty(comp.id)
+							? prvOverrides[comp.id]
+							: null;
+						result = calcPRV(params, P_current, Q_m3s, fluid, K_override);
 					} else {
 						result = calcValve(params, P_current, Q_m3s, fluid);
 						if (result.nodeState === NodeState.BLOCKED) isBlocked = true;
@@ -339,11 +331,7 @@ function evaluateSystem(components, pumpParams, Q_m3s, rampF, fluid) {
 	return { P_final: P_current, nodes, isBlocked };
 }
 
-/**
- * Bisection: F(Q) = P_final(Q) - P_ATM = 0
- * Open discharge assumption — system balances when outlet reaches atmospheric pressure.
- */
-function findOperatingPoint(components, pumpParams, rampF, fluid, Q_prev) {
+function findOperatingPoint(components, pumpParams, rampF, fluid, Q_prev, prvOverrides = {}) {
 	const Q_max = pumpParams.hq_coeffs
 		? Math.sqrt(-pumpParams.hq_coeffs.a0 / (pumpParams.hq_coeffs.a2 || -1e-6))
 		: pumpParams.Q_nom * 2;
@@ -352,7 +340,7 @@ function findOperatingPoint(components, pumpParams, rampF, fluid, Q_prev) {
 	let Q_hi = Math.max(Q_max * 1.1, Q_prev * 2, 0.01);
 
 	const F = (Q) => {
-		const { P_final } = evaluateSystem(components, pumpParams, Q, rampF, fluid);
+		const { P_final } = evaluateSystem(components, pumpParams, Q, rampF, fluid, prvOverrides);
 		return P_final - P_ATM;
 	};
 
@@ -380,7 +368,7 @@ function findOperatingPoint(components, pumpParams, rampF, fluid, Q_prev) {
 	}
 
 	const converged        = Math.abs(Q_hi - Q_lo) < OP_TOL * 10;
-	const { nodes, isBlocked } = evaluateSystem(components, pumpParams, Q_mid, rampF, fluid);
+	const { nodes, isBlocked } = evaluateSystem(components, pumpParams, Q_mid, rampF, fluid, prvOverrides);
 
 	return { Q_op: Q_mid, converged, iterations: iter, nodes, isBlocked };
 }
@@ -403,7 +391,7 @@ export class SimulationEngine {
 		this._snapshots      = [];
 		this._alarms         = [];
 
-		this._Q_operating = 0.001; // m³/s initial guess
+		this._Q_operating = 0.001;
 
 		this._onTick        = null;
 		this._onAlarm       = null;
@@ -416,6 +404,7 @@ export class SimulationEngine {
 	setDiagnosticEngine(de) {
 		this._diagnosticEngine = de;
 	}
+
 	// <editor-fold desc="Public API">
 	start() {
 		if (this._sysState === SysState.ALARM) this.stop();
@@ -503,8 +492,53 @@ export class SimulationEngine {
 			if (p.__invalid) validationWarnings.push(...(p.__warnings ?? []));
 		});
 
+		// PRV bileşenlerini bir kez bul
+		const prvComps = components.filter(c => c.type === 'valve' && c.subtype === 'prv');
+
+		// <editor-fold desc="PRV inner iteration">
+		let prvOverrides = {};
+		let Q_prev       = this._Q_operating;
+
+		if (prvComps.length > 0) {
+			for (let iter = 0; iter < MAX_PRV_ITER; iter++) {
+				const { Q_op, converged, nodes: iterNodes } = findOperatingPoint(
+					components, pumpParams, rampF, this._fluid, Q_prev, prvOverrides
+				);
+
+				if (!iterNodes) break;
+
+				let maxDeltaK = 0;
+
+				for (const prv of prvComps) {
+					const node  = iterNodes.find(n => n.id === prv.id);
+					const P_in  = node?.P_in  ?? 0;
+					const P_set = prv.getParams().P_set_Pa;
+					const v     = node?.v     ?? 0;
+					const rho   = this._fluid.rho;
+
+					const dP_excess = P_in - P_set;
+					let K_new = 0;
+
+					if (dP_excess > 0 && v > PRV_V_MIN) {
+						K_new = Math.min(dP_excess / (0.5 * rho * v * v), PRV_K_MAX);
+					}
+
+					const K_old              = prvOverrides[prv.id] ?? 0;
+					maxDeltaK                = Math.max(maxDeltaK, Math.abs(K_new - K_old));
+					prvOverrides[prv.id]     = K_new;
+				}
+
+				const dQ = Math.abs(Q_op - Q_prev);
+				Q_prev   = Q_op;
+
+				if (dQ < PRV_TOL && maxDeltaK < 1.0) break;
+			}
+		}
+		// </editor-fold>
+
+		// Son Q ve node'ları PRV override'larıyla hesapla
 		const { Q_op, converged, iterations, nodes: opNodes, isBlocked: opBlocked } =
-			findOperatingPoint(components, pumpParams, rampF, this._fluid, this._Q_operating);
+			findOperatingPoint(components, pumpParams, rampF, this._fluid, Q_prev, prvOverrides);
 
 		let Q_effective;
 		let convergenceFailed = false;
@@ -520,7 +554,7 @@ export class SimulationEngine {
 			Q_effective       = 0;
 			this._Q_operating = 0.001;
 			convergenceFailed = true;
-			const fallback    = evaluateSystem(components, pumpParams, 0, rampF, this._fluid);
+			const fallback    = evaluateSystem(components, pumpParams, 0, rampF, this._fluid, prvOverrides);
 			nodes             = fallback.nodes;
 			isBlocked         = fallback.isBlocked;
 		}
@@ -568,29 +602,26 @@ export class SimulationEngine {
 		}
 
 		if (this._pumpState !== PumpState.STOPPED && Q_effective <= 1e-6) {
-// ÖNCE: PRV aktif mi?
 			const prvActive = nodes.some(n => n.subtype === 'prv' && n.prvState === 'active');
 
-			if (this._pumpState !== PumpState.STOPPED && Q_effective <= 1e-6) {
-				if (prvActive) {
-					// PRV regüle ediyor — deadhead sayacını sıfırla, alarm basma
-					this._deadheadT = 0;
-				} else {
-					this._deadheadT += PHYS_DT;
-					alarms.push({
-						code:    'DEADHEAD',
-						level:   this._deadheadT > DEADHEAD_WARN ? 'critical' : 'warning',
-						message: `Pump in deadhead condition (${this._deadheadT.toFixed(1)}s)`,
-						t:       this._t,
-					});
-					if (this._deadheadT > DEADHEAD_WARN) {
-						this._pumpState = PumpState.OVERLOAD;
-						this._setSysState(SysState.ALARM);
-					}
-				}
-			} else {
+			if (prvActive) {
+				// PRV regüle ediyor — deadhead sayacını sıfırla, alarm basma
 				this._deadheadT = 0;
+			} else {
+				this._deadheadT += PHYS_DT;
+				alarms.push({
+					code:    'DEADHEAD',
+					level:   this._deadheadT > DEADHEAD_WARN ? 'critical' : 'warning',
+					message: `Pump in deadhead condition (${this._deadheadT.toFixed(1)}s)`,
+					t:       this._t,
+				});
+				if (this._deadheadT > DEADHEAD_WARN) {
+					this._pumpState = PumpState.OVERLOAD;
+					this._setSysState(SysState.ALARM);
+				}
 			}
+		} else {
+			this._deadheadT = 0;
 		}
 
 		nodes.forEach(n => {

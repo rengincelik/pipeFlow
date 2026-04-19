@@ -312,6 +312,24 @@ const UI = {
 
 	updateHUD(snapshot) {
 		hudUpdater.update(snapshot);
+		// PRV data-live alanları
+		if (!snapshot?.nodes) return;
+		const selectedComp = pipelineStore.selectedComponent;
+		if (!selectedComp || selectedComp.subtype !== 'prv') return;
+
+		const node = snapshot.nodes.find(n => n.id === selectedComp.id);
+		if (!node) return;
+
+		const _setLive = (key, val) => {
+			document.querySelectorAll(`[data-live="${key}"]`).forEach(el => {
+				el.textContent = val ?? '—';
+			});
+		};
+
+		_setLive('prv_status', node.prvState === 'active' ? 'Active ▼' : 'Inactive');
+		_setLive('prv_p_in',   isFinite(node.P_in) ? Units.pressure(node.P_in) : '—');
+		_setLive('prv_K',      isFinite(node.K) && node.K > 0 ? node.K.toFixed(1) : '0.0');
+
 	},
 
 	updateControlPanel(isRunning) {

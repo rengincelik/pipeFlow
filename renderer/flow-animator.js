@@ -211,13 +211,19 @@ export class FlowAnimator {
 		let cumStart = 0;
 		const newPath = [];
 
+		const MIN_VISUAL_V = 0.05; // m/s — sadece animasyon için, fizik dışı
+
 		layouts.forEach((l, i) => {
 			const node        = nodes[i];
-			const v           = node?.v           ?? 0;
+			const rawV        = node?.v ?? 0;
 			const blocked     = node?.nodeState === 'blocked' || node?.nodeState === 'dry';
 			const negPressure = node?.negativePressure ?? false;
 
-			// Elbow segments carry cornerX/cornerY — use Bézier arc length
+// PRV aktifken gerçek v çok küçük olabilir — animasyon donmasın
+			const v = (node?.subtype === 'prv' && node?.prvState === 'active')
+				? Math.max(rawV, MIN_VISUAL_V)
+				: rawV;
+
 			const isBezier = (l.cornerX !== undefined && l.cornerY !== undefined);
 			const lenPx    = isBezier
 				? quadBezierLength(l.ix, l.iy, l.cornerX, l.cornerY, l.ox, l.oy)
