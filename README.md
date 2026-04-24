@@ -1,117 +1,222 @@
-# PipeFlow Simulator
+# PipeFlow — Pipeline Flow Simulator
 
-A browser-based, real-time pipeline flow simulator.  
-Build your pipeline with drag-and-drop, physics-based calculations run instantly.
+> **[▶ Open Live Demo](https://rengincelik.github.io/pipeFlow/)**
+
+A browser-based, real-time pipeline hydraulics simulator for process engineers.  
+No installation. No login. Drag, drop, simulate.
 
 ---
 
-## 👷 For Engineers
+## For Engineers
 
 ### Physical Model
 
-**Flow calculation** is based on the continuity equation. Flow rate (Q) is kept constant along the pipeline; velocity updates automatically at diameter changes.
+**Flow calculation** uses the continuity equation. Flow rate (Q) is conserved along the pipeline; velocity updates automatically at diameter changes.
 
-**Major losses** are calculated using the Darcy-Weisbach equation:
+**Major losses** — Darcy-Weisbach equation:
 
 ```
 ΔP = f · (L/D) · ½ρv²
 ```
 
-The friction factor (f) is determined by the Colebrook-White method — `f = 64/Re` in laminar flow, converged via Newton-Raphson iteration in turbulent flow (max 50 iterations, tolerance 1×10⁻⁸).
+Friction factor (f): `f = 64/Re` in laminar flow; Colebrook-White iteration in turbulent flow (Newton-Raphson, max 50 iterations, tolerance 1×10⁻⁶).
 
-**Minor losses** are calculated using the K-coefficient method:
+**Minor losses** — K-coefficient method:
 
 ```
 ΔP = K · ½ρv²
 ```
 
-K varies by angle for elbows, and by type and opening percentage for valves (lookup table + linear interpolation). Gate, globe, butterfly, and ball valve types are supported.
+K values: angle-dependent for elbows; type + opening-dependent for valves (Crane TP-410 lookup table + linear interpolation).
 
-**Transitions (reducer/expander):**
-- Expander → Borda-Carnot: `ΔP_loss = ½ρ(v₁-v₂)²`
-- Reducer → contraction coefficient: `Kc ≈ 0.5·(1 - (D₂/D₁)²)`
-- Bernoulli pressure change is included in both cases
+**Transitions (reducer / expander):**
+- Expander → Borda-Carnot: `ΔP_loss = ½ρ(v₁−v₂)²`
+- Reducer → contraction coefficient: `Kc ≈ 0.5·(1 − (D₂/D₁)²)`
+- Bernoulli pressure recovery / loss included in both cases
 
-**Flow regime** is determined by Reynolds number:
-- Re < 2300 → Laminar
-- 2300–4000 → Transitional
-- Re > 4000 → Turbulent
+**Flow regime** by Reynolds number:
 
-**Fluid model** is empirical coefficient-based. Density (ρ) is computed as a polynomial function of temperature; dynamic viscosity (μ) uses the Vogel equation. Water and 50% ethylene glycol are pre-defined; the model is extensible.
+| Re | Regime |
+|----|--------|
+| < 2 300 | Laminar |
+| 2 300 – 4 000 | Transitional |
+| > 4 000 | Turbulent |
 
-**Pump model** operates at fixed flow rate (Q) and head (H). A smooth-step ramp function is applied at startup (2 seconds). Deadhead protection: an overload alarm triggers after 5 seconds of zero flow with the pump running.
+**Fluid model** — empirical polynomial coefficients. Density (ρ) is a polynomial function of temperature; dynamic viscosity (μ) uses the Vogel equation.
 
-### Alarm System
+| Fluid | Range |
+|-------|-------|
+| Water | 0 – 150 °C |
+| Ethylene Glycol 50% (EG50) | −30 – 120 °C |
 
-| Code | Trigger | Level |
-|------|---------|-------|
-| `DEADHEAD` | Pump running, flow = 0 | warning → critical |
-| `NEGATIVE_PRESSURE` | P < 0 at any outlet | warning (cavitation) |
-| `HIGH_VELOCITY` | Pipe velocity > 3 m/s | info |
+**Pump model** — H-Q curve fitted from three operating points (shutoff, nominal, max flow) using a 2nd-degree polynomial. Operating point solved each tick via bisection. Smooth-step ramp at startup (2 s). Deadhead protection: overload alarm after 5 s of zero flow.
+
+**PRV (Pressure Relief Valve)** — iterative K-model. Inner convergence loop adjusts K each tick to match the downstream set pressure.
 
 ### Supported Components
 
-| Component | Calculation method |
+| Component | Calculation Method |
 |-----------|-------------------|
-| Pump | H·ρ·g → pressure, smooth ramp |
+| Pump | H-Q polynomial → bisection operating point |
 | Pipe | Darcy-Weisbach + Colebrook-White |
-| Elbow | K-coefficient (angle-dependent) |
+| Elbow | K-coefficient (angle-dependent: RD, RU, UR, DR) |
 | Reducer | Contraction loss + Bernoulli |
 | Expander | Borda-Carnot + Bernoulli |
-| Valve | K-table interpolation, partial opening |
+| Gate Valve | Crane TP-410 K-table, partial opening |
+| Ball Valve | Crane TP-410 K-table, partial opening |
+| Butterfly Valve | Crane TP-410 K-table, partial opening |
+| Globe Valve | Crane TP-410 K-table, partial opening |
+| Check Valve | Fixed K, full-open only |
+| PRV | Iterative K-model, set pressure target |
+
+### Alarm System
+
+| Code | Level | Trigger |
+|------|-------|---------|
+| `DEADHEAD` | warning → critical | Pump running, flow = 0 for > 5 s |
+| `NEGATIVE_PRESSURE` | warning | P < 0 at any node (cavitation risk) |
+| `HIGH_VELOCITY` | info | Pipe velocity > 3 m/s |
+| `CONVERGENCE_FAILURE` | warning | Bisection did not converge |
+
+Warnings and critical alarms stop the simulation. Info alarms pass silently.
+
+### Diagnostics System
+
+Runs in parallel with the alarm system — analyses the hydraulic state without stopping the simulation.
+
+**21 rules across 5 categories:**
+
+| Category | Rules |
+|----------|-------|
+| A — Flow & Pressure | High/low velocity, laminar/transitional flow, negative pressure, nearly-closed valve, high minor loss |
+| B — System Layout | Low pressure headroom, consecutive globe valves, short pipe after pump, flash risk |
+| C — Pump Health | BEP deviation (warning / critical), low efficiency, near deadhead, near shutoff |
+| D — Configuration | Diameter mismatch, long pipe segment, steep transition |
+| E — Advice | Suggest larger DN, suggest control valve, suggest pump reselection |
+
+Results appear in the **Diagnostics** tab inside the Analysis panel. Clicking a result selects the relevant component on the canvas.
+
+### Industry Thresholds
+
+| Parameter | Green | Yellow | Red |
+|-----------|-------|--------|-----|
+| Pipe velocity (water) | 0.5 – 2.5 m/s | 2.5 – 3.5 m/s | > 3.5 m/s |
+| Pipe velocity (viscous) | 0.3 – 1.5 m/s | 1.5 – 2.5 m/s | > 2.5 m/s |
+| Reynolds number | > 10 000 | 4 000 – 10 000 | < 4 000 |
+| Pump efficiency | > 70 % | 50 – 70 % | < 50 % |
+| BEP deviation | ± 20 % | ± 30 % | > ± 30 % |
+| Node pressure | > 0.5 bar | 0 – 0.5 bar | < 0 bar |
 
 ---
 
-## 💻 For Developers
+## For Users
 
-### Architecture
+### Building a Pipeline
+
+1. Select a component from the left panel (Catalog)
+2. Drag and drop it onto the canvas — or double-click to append at the end
+3. Components connect automatically; diameter mismatches are flagged with a `!` indicator
+4. The pump is always at the start of the pipeline and cannot be removed
+
+### Component Settings
+
+Click any component to open its parameters in the Properties panel. Fields left blank use the system default. Only enter values where you need something different from the default.
+
+### Running the Simulation
+
+Press **START**. The pump ramps to full speed over 2 seconds.
+
+While running you can:
+- Adjust valve opening → results update on the next tick (100 ms)
+- Click a component → its bar is highlighted in the chart
+- Watch the Diagnostics tab for hydraulic advice in real time
+
+Pressing **STOP** resets the timer and volume counter.
+
+### Reading the Analysis Panel
+
+**Chart tab** — two panels side by side:
+- Left: stacked bar chart — pressure drop per component (major loss + minor loss)
+- Right: 60-second time-series — selected metric over time
+
+Available metrics: ΔP · Pressure · Velocity · Flow
+
+**Diagnostics tab** — live hydraulic analysis. Each item shows severity (critical / warning / info), the affected component, and an advisory message. Click an item to expand detail and advice; click again to select the component on the canvas.
+
+### Units
+
+Toggle between **SI** and **Imperial** with the units button in the top bar. All internal calculations remain in SI; display conversion is applied at the UI layer only. Input fields always accept metric values.
+
+### Import / Export
+
+- **Export JSON** — saves the current pipeline to a `.json` file
+- **Import JSON** — loads a previously exported pipeline
+- Projects are also auto-saved to browser localStorage per tab
+
+---
+
+## For Developers
+
+### Stack
+
+- **Vanilla JS (ES Modules)** — no framework, no bundler, no build step
+- **SVG** — pipeline canvas, component geometry, layer system
+- **Canvas 2D** — chart rendering, flow particle animation
+- **requestAnimationFrame** — particle animation loop
+- **setInterval (100 ms)** — simulation tick loop
+
+### Architecture (simplified)
 
 ```
 main.js
 ├── state/
-│   ├── pipeline-store.js     — component list, event emission
+│   ├── pipeline-store.js     — component CRUD, layout, diameter propagation
 │   └── system-config.js      — global defaults, override system
-├── components/
-│   ├── base.js               — ComponentBase, factory, registry
-│   ├── pump.js
-│   ├── pipe.js
-│   ├── elbow.js
-│   ├── transition.js
-│   └── valve.js
+├── components/               — pump, pipe, elbow, transition, valve, prv
 ├── simulation/
-│   └── simulation-engine.js  — state machine, tick loop, calculation chain
+│   └── simulation-engine.js  — state machine, tick loop, H-Q bisection
+├── diagnostics/
+│   ├── diagnostic-rules.js   — 21 rule objects
+│   ├── diagnostic-engine.js  — throttled evaluate(), observer pattern
+│   └── diagnostic-panel.js   — runtime DOM patch into Analysis panel
 ├── renderer/
-│   ├── svg-renderer.js       — layout calculation, SVG drawing
-│   ├── svg-utils.js          — SVG helpers
-│   ├── chart-renderer.js     — Canvas 2D chart
-│   └── flow-animator.js      — requestAnimationFrame particle animation
+│   ├── svg-renderer.js       — layout calculation, SVG drawing, layer system
+│   ├── chart-renderer.js     — dual-panel Canvas 2D chart
+│   ├── flow-animator.js      — continuous particle system, Bézier elbows
+│   └── tooltip-manager.js    — hover data, NaN-safe formatting
 └── data/
-    ├── catalogs.js            — component catalog
-    └── fluids.js              — fluid models
+    ├── catalogs.js           — component catalog, DN list, materials
+    ├── fluid-model.js        — empirical fluid models (water, EG50)
+    └── unit-system.js        — metric / imperial display conversion
 ```
 
 ### Data Flow
 
 ```
-PipelineStore (components[])
-      ↓ getParams()
-SimulationEngine._tick()        — setInterval 100ms
-      ↓ snapshot { nodes, t, Q, alarms }
-handleTick()
-      ├── ChartRenderer.draw()  — pressure/velocity/loss chart
-      ├── FlowAnimator.update() — animation sync
-      └── updateHUD()           — timer, volume
+User interaction
+    ↓
+PipelineStore  →  SVGRenderer · FlowAnimator · DiagnosticEngine (config rules)
+
+SimulationEngine._tick()  [every 100 ms]
+    ↓
+DiagnosticEngine.evaluate(snapshot)   ← physics + pump rules
+    ↓  onTick(snapshot)
+    ├── FlowAnimator.update()
+    ├── ChartRenderer.draw()
+    └── UI.updateHUD()
 ```
 
-### SimulationEngine State Machine
+### Simulation State Machine
 
 ```
           start()
 IDLE ──────────────→ RUNNING
-  ↑                     │ valve closed
-  │      stop()         ↓
-  └──────────────── ALARM
-                    (deadhead > 5s → OVERLOAD)
+  ↑                      │ alarm
+  └──────── stop() ───────┘
+                     ALARM
+              (deadhead > 5 s → OVERLOAD)
+
+Pump: STOPPED → RAMPING (0–2 s) → RUNNING → OVERLOAD
 ```
 
 ### Adding a New Component
@@ -123,26 +228,23 @@ import { ComponentBase, registerComponentType } from './base.js';
 class MyElem extends ComponentBase {
   constructor() { super('myelem', 'default'); }
 
-  getParams() {
-    return {
-      type: 'myelem',
-      diameter_mm: this.resolve('diameter_mm'),
-      // ...
-    };
+  static get CONSTRAINTS() {
+    return { length_m: { min: 0.5, max: 200, step: 0.5, unit: 'm' } };
   }
 
-  shapeSpec(layout) { /* SVG definition */ }
-  renderPropsHTML() { /* Panel HTML */ }
+  getParams() {
+    return { type: 'myelem', diameter_mm: this.resolve('diameter_mm') };
+  }
+
+  shapeSpec(layout) { /* SVG shape definition */ }
+  renderPropsHTML()  { /* Property panel HTML   */ }
 }
 
 registerComponentType('myelem', 'default', () => new MyElem());
 
-// 2. Add to switch in simulation-engine.js _tick():
-case 'myelem':
-  result = calcMyElem(params, P_current, Q_effective, fluid);
-  break;
-
-// 3. Add to CATALOG_DEF in data/catalogs.js
+// 2. Add case to SimulationEngine._tick() switch
+// 3. Add entry to CATALOG_DEF in data/catalogs.js
+// 4. Add import to imports.js (registration order matters)
 ```
 
 ### Override System
@@ -150,75 +252,14 @@ case 'myelem':
 Every component falls back to `SystemConfig` defaults; per-element overrides are supported:
 
 ```javascript
-comp.resolve('diameter_mm')      // returns override if set, otherwise SystemConfig default
-comp.override('diameter_mm', 80) // set element-specific value
-comp.hasOverride('diameter_mm')  // check
+comp.resolve('diameter_mm')           // override value, or SystemConfig default
+comp.override('diameter_mm', 80)      // system-set (propagation)
+comp.override('diameter_mm', 80, true)// user-set (from property panel)
+comp.hasOverride('diameter_mm')       // any override present?
+comp.hasUserOverride('diameter_mm')   // user-set specifically?
 ```
 
-### Tick & Time
-
-```
-TICK_MS   = 100ms   → setInterval interval (UI update rate)
-PHYS_DT   = 0.1s    → physical time represented per tick
-RAMP_DUR  = 2.0s    → pump startup ramp duration
-```
-
-Physical time maps 1:1 to real time — 1 real second = 1 simulation second.
-
-### Stack
-
-- **Vanilla JS (ES Modules)** — no framework, no bundler
-- **SVG** — pipeline drawing and component geometry
-- **Canvas 2D** — chart rendering
-- **requestAnimationFrame** — flow particle animation
-- **setInterval** — simulation tick loop
-- **EventEmitter** (custom) — store/engine communication
-
----
-
-## 🙋 For Users
-
-### Building a Pipeline
-
-1. Select a component from the left panel
-2. Drag and drop it onto the canvas
-3. Components connect automatically — diameter mismatches are flagged
-4. The pump is always at the start of the pipeline and cannot be removed
-
-### Component Settings
-
-Click any component to open its parameters in the right panel. Fields left unchanged use the system default. Only enter values where you need something different.
-
-### Running the Simulation
-
-Press **START**. The pump ramps up to full speed over 2 seconds and fluid begins flowing through the pipeline.
-
-While running you can:
-- Adjust valve opening — the chart updates instantly
-- Click a component — its section is highlighted on the chart
-
-Pressing **STOP** resets the timer and volume counter.
-
-### Reading the Chart
-
-| Color | Meaning |
-|-------|---------|
-| Blue line | Pressure (bar) — left axis |
-| Green dashed | Velocity (m/s) — right axis |
-| Red bar | Major loss (friction) |
-| Yellow bar | Minor loss (fittings, valves, etc.) |
-
-The bar strip below the chart shows total pressure drop per component. The tallest bar is consuming the most energy.
-
-### Alarms
-
-| Condition | What happens |
-|-----------|-------------|
-| Valve closed + pump running | **OVERLOAD** alarm after 5 seconds |
-| Pressure drops below zero | **Cavitation** warning |
-| Pipe velocity above 3 m/s | **High velocity** notice |
-
-When an alarm triggers, the START button turns red. Open the valve to return the system to normal.
+Diameter propagation (`propagateDiameterFrom`) skips components where `hasUserOverride('diameter_mm')` is true.
 
 ---
 
